@@ -1,0 +1,33 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Attempt {
+  id            String        @id @default(uuid())
+  studentName   String
+  dateStr       String
+  attemptNumber Int
+  correctCount  Int
+  wrongCount    Int
+  totalTime     Int           // Total duration of kuis in seconds
+  createdAt     DateTime      @default(now())
+  questions     QuestionLog[]
+}
+
+model QuestionLog {
+  id          String   @id @default(uuid())
+  attemptId   String
+  attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  no          Int
+  operation   String
+  questionStr String
+  userAnswer  String
+  isCorrect   Boolean
+  timeTaken   Int      // Waktu pengerjaan per soal in seconds
+  createdAt   DateTime @default(now())
+}

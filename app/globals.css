@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #1e293b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-plus-jakarta);
+  --font-fredoka: var(--font-fredoka);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
 }
+
+.font-fredoka {
+  font-family: var(--font-fredoka), cursive, sans-serif;
+}
+
+.place-th { background-color: #fef3c7; color: #92400e; border-color: #fcd34d; } /* Ribuan */
+.place-h { background-color: #e0e7ff; color: #3730a3; border-color: #a5b4fc; } /* Ratusan */
+.place-t { background-color: #dcfce7; color: #166534; border-color: #86efac; } /* Puluhan */
+.place-u { background-color: #ffe4e6; color: #9f1239; border-color: #fda4af; } /* Satuan */
+
+.board-cell-input:focus {
+  transform: scale(1.03);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.toast-slide {
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out;
+}
+
