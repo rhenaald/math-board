@@ -48,11 +48,11 @@ export default function AdminDashboard({
   const uniqueStudentsCount = new Set(attemptsHistory.map((a) => a.studentName.toLowerCase())).size;
   const averageAccuracy = totalAttempts > 0
     ? Math.round(
-        attemptsHistory.reduce(
-          (sum, a) => sum + (a.correctCount / (a.correctCount + a.wrongCount)) * 100,
-          0
-        ) / totalAttempts
-      )
+      attemptsHistory.reduce(
+        (sum, a) => sum + (a.correctCount / (a.correctCount + a.wrongCount)) * 100,
+        0
+      ) / totalAttempts
+    )
     : 0;
   const averageQuizTime = totalAttempts > 0
     ? Math.round(attemptsHistory.reduce((sum, a) => sum + a.totalTime, 0) / totalAttempts)
@@ -204,13 +204,12 @@ export default function AdminDashboard({
                     <td className="p-4 text-center text-rose-600 font-black">{attempt.wrongCount}</td>
                     <td className="p-4 text-center">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
-                          acc >= 80
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${acc >= 80
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : acc >= 50
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-rose-50 text-rose-700 border-rose-200"
-                        }`}
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}
                       >
                         {acc}%
                       </span>

@@ -68,6 +68,9 @@ export default function MathBoardGrid({
     if (e.key === "Backspace" && e.currentTarget.value === "" && prevRef && prevRef.current) {
       prevRef.current.focus();
     }
+    if (e.key === "Enter") {
+      onCheckAnswer();
+    }
   };
 
   const handleCarryChange = (
@@ -88,6 +91,9 @@ export default function MathBoardGrid({
   ) => {
     if (e.key === "Backspace" && e.currentTarget.value === "" && prevRef && prevRef.current) {
       prevRef.current.focus();
+    }
+    if (e.key === "Enter") {
+      onCheckAnswer();
     }
   };
 

@@ -370,13 +370,15 @@ export default function Home() {
   // Checking Answer
   const handleCheckAnswer = () => {
     const { th, h, t, u } = ansValues;
-    const userStr = `${th}${h}${t}${u}`;
-    const userNum = parseInt(userStr, 10);
 
-    if (isNaN(userNum)) {
+    if (th === "" && h === "" && t === "" && u === "") {
       showToast("Silakan isi kotak jawaban pada papan terlebih dahulu!", "⚠️", "bg-amber-600");
       return;
     }
+
+    const cleanDigit = (d: string) => d.trim() === "" ? "0" : d;
+    const userStr = `${cleanDigit(th)}${cleanDigit(h)}${cleanDigit(t)}${cleanDigit(u)}`;
+    const userNum = parseInt(userStr, 10);
 
     const isAnsCorrect = userNum === correctAnswer;
 
