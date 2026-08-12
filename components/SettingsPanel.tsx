@@ -168,13 +168,13 @@ export default function SettingsPanel({
             className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
           >
             <option value="S-S">Satuan ke Satuan (1 digit & 1 digit)</option>
-            <option value="P-S">Puluhan ke Satuan (2 digit & 1 digit)</option>
             <option value="S-P">Satuan ke Puluhan (1 digit & 2 digit)</option>
+            <option value="S-R">Satuan ke Ratusan (1 digit & 3 digit)</option>
+            <option value="P-S">Puluhan ke Satuan (2 digit & 1 digit)</option>
             <option value="P-P">Puluhan ke Puluhan (2 digit & 2 digit)</option>
+            <option value="P-R">Puluhan ke Ratusan (2 digit & 3 digit)</option>
             <option value="R-S">Ratusan ke Satuan (3 digit & 1 digit)</option>
             <option value="R-P">Ratusan ke Puluhan (3 digit & 2 digit)</option>
-            <option value="S-R">Satuan ke Ratusan (1 digit & 3 digit)</option>
-            <option value="P-R">Puluhan ke Ratusan (2 digit & 3 digit)</option>
             <option value="R-R">Ratusan ke Ratusan (3 digit & 3 digit)</option>
           </select>
         </div>

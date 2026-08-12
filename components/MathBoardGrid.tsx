@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { CheckCircle, Lightbulb, LightbulbOff } from "lucide-react";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
@@ -56,6 +56,12 @@ export default function MathBoardGrid({
   const ansHRef = useRef<HTMLInputElement>(null);
   const ansTRef = useRef<HTMLInputElement>(null);
   const ansURef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isReadOnly && ansURef.current) {
+      ansURef.current.focus();
+    }
+  }, [num1, num2, currentOp, isReadOnly]);
 
   const handleAnsChange = (
     pos: "th" | "h" | "t" | "u",
@@ -204,8 +210,8 @@ export default function MathBoardGrid({
               maxLength={2}
               ref={carryThRef}
               value={carryValues.th}
-              onChange={(e) => handleCarryChange("th", e.target.value, carryHRef)}
-              onKeyDown={(e) => handleCarryKeyDown(e, null)}
+              onChange={(e) => handleCarryChange("th", e.target.value, null)}
+              onKeyDown={(e) => handleCarryKeyDown(e, carryHRef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-amber-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
@@ -215,8 +221,8 @@ export default function MathBoardGrid({
               maxLength={2}
               ref={carryHRef}
               value={carryValues.h}
-              onChange={(e) => handleCarryChange("h", e.target.value, carryTRef)}
-              onKeyDown={(e) => handleCarryKeyDown(e, carryThRef)}
+              onChange={(e) => handleCarryChange("h", e.target.value, carryThRef)}
+              onKeyDown={(e) => handleCarryKeyDown(e, carryTRef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-indigo-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
@@ -226,8 +232,8 @@ export default function MathBoardGrid({
               maxLength={2}
               ref={carryTRef}
               value={carryValues.t}
-              onChange={(e) => handleCarryChange("t", e.target.value, carryURef)}
-              onKeyDown={(e) => handleCarryKeyDown(e, carryHRef)}
+              onChange={(e) => handleCarryChange("t", e.target.value, carryHRef)}
+              onKeyDown={(e) => handleCarryKeyDown(e, carryURef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-emerald-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
@@ -237,8 +243,8 @@ export default function MathBoardGrid({
               maxLength={2}
               ref={carryURef}
               value={carryValues.u}
-              onChange={(e) => handleCarryChange("u", e.target.value, null)}
-              onKeyDown={(e) => handleCarryKeyDown(e, carryTRef)}
+              onChange={(e) => handleCarryChange("u", e.target.value, carryTRef)}
+              onKeyDown={(e) => handleCarryKeyDown(e, null)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-rose-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
@@ -276,8 +282,8 @@ export default function MathBoardGrid({
               maxLength={1}
               ref={ansThRef}
               value={ansValues.th}
-              onChange={(e) => handleAnsChange("th", e.target.value, ansHRef)}
-              onKeyDown={(e) => handleAnsKeyDown(e, null)}
+              onChange={(e) => handleAnsChange("th", e.target.value, null)}
+              onKeyDown={(e) => handleAnsKeyDown(e, ansHRef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-amber-900 bg-amber-50/30 border-2 border-amber-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
@@ -287,8 +293,8 @@ export default function MathBoardGrid({
               maxLength={1}
               ref={ansHRef}
               value={ansValues.h}
-              onChange={(e) => handleAnsChange("h", e.target.value, ansTRef)}
-              onKeyDown={(e) => handleAnsKeyDown(e, ansThRef)}
+              onChange={(e) => handleAnsChange("h", e.target.value, ansThRef)}
+              onKeyDown={(e) => handleAnsKeyDown(e, ansTRef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-indigo-900 bg-indigo-50/30 border-2 border-indigo-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
@@ -298,8 +304,8 @@ export default function MathBoardGrid({
               maxLength={1}
               ref={ansTRef}
               value={ansValues.t}
-              onChange={(e) => handleAnsChange("t", e.target.value, ansURef)}
-              onKeyDown={(e) => handleAnsKeyDown(e, ansHRef)}
+              onChange={(e) => handleAnsChange("t", e.target.value, ansHRef)}
+              onKeyDown={(e) => handleAnsKeyDown(e, ansURef)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-emerald-900 bg-emerald-50/30 border-2 border-emerald-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
@@ -309,8 +315,8 @@ export default function MathBoardGrid({
               maxLength={1}
               ref={ansURef}
               value={ansValues.u}
-              onChange={(e) => handleAnsChange("u", e.target.value, null)}
-              onKeyDown={(e) => handleAnsKeyDown(e, ansTRef)}
+              onChange={(e) => handleAnsChange("u", e.target.value, ansTRef)}
+              onKeyDown={(e) => handleAnsKeyDown(e, null)}
               disabled={isReadOnly}
               className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-rose-900 bg-rose-50/30 border-2 border-rose-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
