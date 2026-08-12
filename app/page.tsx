@@ -26,6 +26,8 @@ interface QuestionLog {
   userAnswer: string;
   isCorrect: boolean;
   timeTaken: number;
+  num1?: number;
+  num2?: number;
 }
 
 export default function Home() {
@@ -55,11 +57,19 @@ export default function Home() {
 
   // QUIZ STATE
   const quizLength: number = 36; // Locked to 36 questions as per spec
-  const TIME_LIMIT = 45; // 45 seconds countdown per question
   const [quizCurrentIndex, setQuizCurrentIndex] = useState<number>(0);
   const [quizCorrectCount, setQuizCorrectCount] = useState<number>(0);
-  const [quizSecondsRemaining, setQuizSecondsRemaining] = useState<number>(TIME_LIMIT);
+  const [quizSecondsElapsed, setQuizSecondsElapsed] = useState<number>(0);
   const [quizTimerActive, setQuizTimerActive] = useState<boolean>(false);
+  const [quizViewingIndex, setQuizViewingIndex] = useState<number | null>(null);
+
+  const getQuizConfigForIndex = (index: number) => {
+    const ops: SimpleOperation[] = ["+", "-", "×", "÷"];
+    const op = ops[Math.floor(index / 9)] || "+";
+    const combos = ["S-S", "S-P", "S-R", "P-S", "P-P", "P-R", "R-S", "R-P", "R-R"];
+    const combo = combos[index % 9] || "S-S";
+    return { op, combo };
+  };
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
   const [quizQuestionsLog, setQuizQuestionsLog] = useState<QuestionLog[]>([]);
 
@@ -123,11 +133,11 @@ export default function Home() {
     }
   }, [toast?.visible]);
 
-  // Quiz Timer Effect (Countdown Ticks)
+  // Quiz Timer Effect (Count-up Ticks)
   useEffect(() => {
     if (quizTimerActive) {
       timerRef.current = setInterval(() => {
-        setQuizSecondsRemaining(prev => prev - 1);
+        setQuizSecondsElapsed(prev => prev + 1);
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -140,47 +150,7 @@ export default function Home() {
     };
   }, [quizTimerActive]);
 
-  // Countdown triggers auto-submit when remaining time reaches 0
-  useEffect(() => {
-    if (quizTimerActive && quizSecondsRemaining <= 0) {
-      handleTimeUp();
-    }
-  }, [quizTimerActive, quizSecondsRemaining]);
 
-  const handleTimeUp = () => {
-    playSound("error");
-    showToast("Waktu Habis! ⏱️", "⏱️", "bg-rose-600");
-
-    const currentLog: QuestionLog = {
-      no: quizCurrentIndex + 1,
-      operation: currentOp,
-      questionStr: `${num1} ${currentOp === "×" ? "×" : currentOp === "÷" ? "÷" : currentOp === "-" ? "−" : "+"} ${num2}`,
-      userAnswer: "-",
-      isCorrect: false,
-      timeTaken: TIME_LIMIT,
-    };
-
-    const updatedLogs = [...quizQuestionsLog, currentLog];
-    setQuizQuestionsLog(updatedLogs);
-
-    const nextIdx = quizCurrentIndex + 1;
-    if (nextIdx >= quizLength) {
-      setQuizTimerActive(false);
-      playSound("fanfare");
-      saveAttemptRecord(updatedLogs);
-      setShowSummaryModal(true);
-    } else {
-      setQuizCurrentIndex(nextIdx);
-      setQuizSecondsRemaining(TIME_LIMIT);
-
-      // Generate next question
-      const combos = ["S-S", "P-S", "S-P", "P-P", "R-S", "R-P", "S-R", "P-R", "R-R"];
-      const randomCombo = combos[Math.floor(Math.random() * combos.length)];
-      const ops: SimpleOperation[] = ["+", "-", "×", "÷"];
-      const randomOp = ops[Math.floor(Math.random() * ops.length)];
-      generateProblem(randomOp, randomCombo, "random");
-    }
-  };
 
   // Helper numbers in range
   const getRandomNumberInRange = (min: number, max: number) => {
@@ -383,7 +353,7 @@ export default function Home() {
     const isAnsCorrect = userNum === correctAnswer;
 
     if (currentMode === "kuis") {
-      const timeTaken = Math.max(1, TIME_LIMIT - quizSecondsRemaining);
+      const timeTaken = Math.max(1, quizSecondsElapsed);
       const currentLog: QuestionLog = {
         no: quizCurrentIndex + 1,
         operation: currentOp,
@@ -391,6 +361,8 @@ export default function Home() {
         userAnswer: userStr,
         isCorrect: isAnsCorrect,
         timeTaken,
+        num1,
+        num2,
       };
 
       const updatedLogs = [...quizQuestionsLog, currentLog];
@@ -414,13 +386,11 @@ export default function Home() {
         setShowSummaryModal(true);
       } else {
         setQuizCurrentIndex(nextIdx);
-        setQuizSecondsRemaining(TIME_LIMIT);
-        // Generate new quiz problem
-        const combos = ["S-S", "P-S", "S-P", "P-P", "R-S", "R-P", "S-R", "P-R", "R-R"];
-        const randomCombo = combos[Math.floor(Math.random() * combos.length)];
-        const ops: SimpleOperation[] = ["+", "-", "×", "÷"];
-        const randomOp = ops[Math.floor(Math.random() * ops.length)];
-        generateProblem(randomOp, randomCombo, "random");
+        setQuizSecondsElapsed(0); // Reset timer for next question
+        setQuizViewingIndex(null); // Reset viewing history
+        // Generate sequential quiz problem
+        const { op, combo } = getQuizConfigForIndex(nextIdx);
+        generateProblem(op, combo, "random");
       }
     } else {
       // PRACTICE MODE
@@ -445,15 +415,13 @@ export default function Home() {
   const handleStartQuiz = () => {
     setQuizCurrentIndex(0);
     setQuizCorrectCount(0);
-    setQuizSecondsRemaining(TIME_LIMIT);
+    setQuizSecondsElapsed(0);
+    setQuizViewingIndex(null);
     setQuizQuestionsLog([]);
     setQuizTimerActive(true);
     // Generate first question
-    const combos = ["S-S", "P-S", "S-P", "P-P", "R-S", "R-P", "S-R", "P-R", "R-R"];
-    const randomCombo = combos[Math.floor(Math.random() * combos.length)];
-    const ops: SimpleOperation[] = ["+", "-", "×", "÷"];
-    const randomOp = ops[Math.floor(Math.random() * ops.length)];
-    generateProblem(randomOp, randomCombo, "random");
+    const { op, combo } = getQuizConfigForIndex(0);
+    generateProblem(op, combo, "random");
   };
 
   const handleCloseQuizSummary = () => {
@@ -490,6 +458,43 @@ export default function Home() {
     if (accuracy < 85) return `Bagus sekali, ${currentUser}!`;
     return `Hebat sekali, ${currentUser}!`;
   };
+
+  // Derive historical data for MathBoardGrid when viewing history
+  const isViewingHistory = currentMode === "kuis" && quizViewingIndex !== null;
+  const viewingLog = isViewingHistory ? quizQuestionsLog[quizViewingIndex!] : null;
+
+  const activeNum1 = viewingLog && viewingLog.num1 !== undefined ? viewingLog.num1 : num1;
+  const activeNum2 = viewingLog && viewingLog.num2 !== undefined ? viewingLog.num2 : num2;
+  const activeOp = viewingLog ? (viewingLog.operation as SimpleOperation) : currentOp;
+
+  // Split historical answer for display in read-only boxes
+  const getAnsValuesFromLog = (log: QuestionLog) => {
+    const cleanUserAns = log.userAnswer === "-" ? "" : log.userAnswer;
+    const padded = cleanUserAns.padStart(4, " ");
+    return {
+      th: padded[0] === " " ? "" : padded[0],
+      h: padded[1] === " " ? "" : padded[1],
+      t: padded[2] === " " ? "" : padded[2],
+      u: padded[3] === " " ? "" : padded[3],
+    };
+  };
+
+  const activeAnsValues = viewingLog ? getAnsValuesFromLog(viewingLog) : ansValues;
+  const activeCarryValues = viewingLog ? { th: "", h: "", t: "", u: "" } : carryValues;
+
+  // Find correct answer for viewingLog
+  const getHistoricalCorrectAnswer = (log: QuestionLog) => {
+    const n1 = log.num1 ?? 0;
+    const n2 = log.num2 ?? 0;
+    const op = log.operation;
+    if (op === "+") return n1 + n2;
+    if (op === "-") return n1 - n2;
+    if (op === "×") return n1 * n2;
+    if (op === "÷") return n2 !== 0 ? Math.floor(n1 / n2) : 0;
+    return 0;
+  };
+
+  const historicalCorrectAnswer = viewingLog ? getHistoricalCorrectAnswer(viewingLog) : undefined;
 
   return (
     <div className="min-h-screen text-slate-800 flex flex-col justify-between relative overflow-x-hidden p-3 md:p-6 w-full">
@@ -574,7 +579,8 @@ export default function Home() {
                 quizTimerActive={quizTimerActive}
                 quizCurrentIndex={quizCurrentIndex}
                 quizLength={quizLength}
-                quizSecondsRemaining={quizSecondsRemaining}
+                quizSecondsElapsed={quizSecondsElapsed}
+                quizQuestionsLog={quizQuestionsLog}
                 opNameMap={opNameMap}
                 onSelectOp={handleSelectOp}
                 onPlaceValueChange={(combo) => {
@@ -588,6 +594,8 @@ export default function Home() {
                 onStartQuiz={handleStartQuiz}
                 onNewProblem={() => generateProblem()}
                 formatTimer={formatTimer}
+                quizViewingIndex={quizViewingIndex}
+                onSelectViewingQuestion={(index) => setQuizViewingIndex(index)}
               />
             </section>
 
@@ -596,19 +604,23 @@ export default function Home() {
               <MathBoardGrid
                 currentMode={currentMode}
                 selectedOp={selectedOp}
-                currentOp={currentOp}
+                currentOp={activeOp}
                 placeValueCombo={placeValueCombo}
-                num1={num1}
-                num2={num2}
-                carryValues={carryValues}
+                num1={activeNum1}
+                num2={activeNum2}
+                carryValues={activeCarryValues}
                 setCarryValues={setCarryValues}
-                ansValues={ansValues}
+                ansValues={activeAnsValues}
                 setAnsValues={setAnsValues}
                 onCheckAnswer={handleCheckAnswer}
                 quizCurrentIndex={quizCurrentIndex}
                 opNameMap={opNameMap}
                 showSteps={showSteps}
                 setShowSteps={setShowSteps}
+                isReadOnly={isViewingHistory}
+                quizViewingIndex={quizViewingIndex}
+                onReturnToActive={() => setQuizViewingIndex(null)}
+                historicalCorrectAnswer={historicalCorrectAnswer}
               />
 
               {currentMode === "latihan" && showSteps && (

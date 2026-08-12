@@ -20,6 +20,10 @@ interface MathBoardGridProps {
   opNameMap: Record<SimpleOperation, string>;
   showSteps: boolean;
   setShowSteps: (val: boolean) => void;
+  isReadOnly?: boolean;
+  quizViewingIndex?: number | null;
+  onReturnToActive?: () => void;
+  historicalCorrectAnswer?: number;
 }
 
 export default function MathBoardGrid({
@@ -38,6 +42,10 @@ export default function MathBoardGrid({
   opNameMap,
   showSteps,
   setShowSteps,
+  isReadOnly = false,
+  quizViewingIndex = null,
+  onReturnToActive,
+  historicalCorrectAnswer,
 }: MathBoardGridProps) {
   const carryThRef = useRef<HTMLInputElement>(null);
   const carryHRef = useRef<HTMLInputElement>(null);
@@ -116,12 +124,16 @@ export default function MathBoardGrid({
           <span className="px-3.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black uppercase tracking-wider">
             {currentMode === "latihan"
               ? `🏋️ LATIHAN • ${selectedOp === "mix" ? "CAMPURAN" : opNameMap[currentOp].toUpperCase()}`
-              : `🏆 KUIS • SOAL #${quizCurrentIndex + 1}`}
+              : isReadOnly
+                ? `👁️ RIWAYAT SOAL #${(quizViewingIndex ?? 0) + 1}`
+                : `🏆 KUIS • SOAL #${quizCurrentIndex + 1}`}
           </span>
           <span className="px-3.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-black">
             🎯 {currentMode === "latihan"
               ? `Latihan ${selectedOp === "mix" ? "Campuran" : opNameMap[currentOp]} (${placeValueCombo.split("-")[0]} ke ${placeValueCombo.split("-")[1]})`
-              : "Soal Kuis Campuran Satuan-Ratusan"}
+              : isReadOnly
+                ? `Melihat Kembali Soal #${(quizViewingIndex ?? 0) + 1}`
+                : "Soal Kuis Campuran Satuan-Ratusan"}
           </span>
         </div>
 
@@ -137,6 +149,21 @@ export default function MathBoardGrid({
           </button>
         )}
       </div>
+
+      {isReadOnly && (
+        <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-center justify-between text-xs text-amber-800 font-bold w-full">
+          <span className="flex items-center gap-1.5">
+            ⚠️ Anda sedang melihat hasil Soal #{(quizViewingIndex ?? 0) + 1} (Kunci Jawaban: {historicalCorrectAnswer})
+          </span>
+          <button
+            onClick={onReturnToActive}
+            type="button"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl transition font-black uppercase text-[10px] shadow-sm"
+          >
+            Kembali ke Soal Aktif
+          </button>
+        </div>
+      )}
 
       {/* MAIN TITLE */}
       <h2 className="text-2xl font-black text-slate-900 tracking-tight font-fredoka">
@@ -179,7 +206,8 @@ export default function MathBoardGrid({
               value={carryValues.th}
               onChange={(e) => handleCarryChange("th", e.target.value, carryHRef)}
               onKeyDown={(e) => handleCarryKeyDown(e, null)}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-amber-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-amber-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
             />
             <input
@@ -189,7 +217,8 @@ export default function MathBoardGrid({
               value={carryValues.h}
               onChange={(e) => handleCarryChange("h", e.target.value, carryTRef)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryThRef)}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-indigo-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-indigo-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
             />
             <input
@@ -199,7 +228,8 @@ export default function MathBoardGrid({
               value={carryValues.t}
               onChange={(e) => handleCarryChange("t", e.target.value, carryURef)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryHRef)}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-emerald-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-emerald-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
             />
             <input
@@ -209,7 +239,8 @@ export default function MathBoardGrid({
               value={carryValues.u}
               onChange={(e) => handleCarryChange("u", e.target.value, null)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryTRef)}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-rose-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-rose-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="0"
             />
           </div>
@@ -247,7 +278,8 @@ export default function MathBoardGrid({
               value={ansValues.th}
               onChange={(e) => handleAnsChange("th", e.target.value, ansHRef)}
               onKeyDown={(e) => handleAnsKeyDown(e, null)}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-amber-900 bg-amber-50/30 border-2 border-amber-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-amber-900 bg-amber-50/30 border-2 border-amber-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
             />
             <input
@@ -257,7 +289,8 @@ export default function MathBoardGrid({
               value={ansValues.h}
               onChange={(e) => handleAnsChange("h", e.target.value, ansTRef)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansThRef)}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-indigo-900 bg-indigo-50/30 border-2 border-indigo-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-indigo-900 bg-indigo-50/30 border-2 border-indigo-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
             />
             <input
@@ -267,7 +300,8 @@ export default function MathBoardGrid({
               value={ansValues.t}
               onChange={(e) => handleAnsChange("t", e.target.value, ansURef)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansHRef)}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-emerald-900 bg-emerald-50/30 border-2 border-emerald-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-emerald-900 bg-emerald-50/30 border-2 border-emerald-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
             />
             <input
@@ -277,7 +311,8 @@ export default function MathBoardGrid({
               value={ansValues.u}
               onChange={(e) => handleAnsChange("u", e.target.value, null)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansTRef)}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-rose-900 bg-rose-50/30 border-2 border-rose-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
+              disabled={isReadOnly}
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-rose-900 bg-rose-50/30 border-2 border-rose-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
               placeholder="?"
             />
           </div>
@@ -285,15 +320,27 @@ export default function MathBoardGrid({
       </div>
 
       {/* ACTION BUTTON */}
-      <div className="pt-2 flex justify-start">
-        <button
-          onClick={onCheckAnswer}
-          type="button"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 text-base transition flex items-center gap-2"
-        >
-          <CheckCircle size={18} /> Periksa Jawaban
-        </button>
-      </div>
+      {!isReadOnly ? (
+        <div className="pt-2 flex justify-start">
+          <button
+            onClick={onCheckAnswer}
+            type="button"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 text-base transition flex items-center gap-2"
+          >
+            <CheckCircle size={18} /> Periksa Jawaban
+          </button>
+        </div>
+      ) : (
+        <div className="pt-2 flex justify-start">
+          <button
+            onClick={onReturnToActive}
+            type="button"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-amber-600/20 text-base transition flex items-center gap-2"
+          >
+            Kembali ke Soal Aktif
+          </button>
+        </div>
+      )}
     </div>
   );
 }
