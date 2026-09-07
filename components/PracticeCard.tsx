@@ -44,6 +44,8 @@ interface PracticeCardProps {
   isSuccess?: boolean;
   placeValueCombo?: string;
   onSelectCombo?: (combo: string) => void;
+  showDienesBlocks?: boolean;
+  setShowDienesBlocks?: (show: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 export default function PracticeCard({
@@ -69,9 +71,13 @@ export default function PracticeCard({
   isSuccess = false,
   placeValueCombo = "P-P",
   onSelectCombo,
+  showDienesBlocks: propShowBlocks,
+  setShowDienesBlocks: propSetShowBlocks,
 }: PracticeCardProps) {
   // State toggle khusus alat bantu balok dan papan susun
-  const [showDienesBlocks, setShowDienesBlocks] = useState<boolean>(false);
+  const [internalShowBlocks, setInternalShowBlocks] = useState<boolean>(false);
+  const showDienesBlocks = propShowBlocks !== undefined ? propShowBlocks : internalShowBlocks;
+  const setShowDienesBlocks = propSetShowBlocks || setInternalShowBlocks;
   const [showVerticalBoard, setShowVerticalBoard] = useState<boolean>(false);
 
   // Decompose numbers for Place Value mini-cells

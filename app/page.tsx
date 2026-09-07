@@ -12,6 +12,7 @@ import PracticeCard from "@/components/PracticeCard";
 import RightHelperPanel from "@/components/RightHelperPanel";
 import LeftSidebarNav from "@/components/LeftSidebarNav";
 import { DecorativeFloatingNumbers, MotivationalStickyNote } from "@/components/ChildMascots";
+import ConceptLearningModal from "@/components/ConceptLearningModal";
 
 // Error Diagnostics Engine
 import { diagnoseError, generateSessionSummary, type ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
@@ -49,6 +50,8 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<string>("");
   const [isSetupOpen, setIsSetupOpen] = useState<boolean>(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+  const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
+  const [showDienesBlocks, setShowDienesBlocks] = useState<boolean>(false);
 
   // PRACTICE CONFIGURATION
   const [selectedOp, setSelectedOp] = useState<OperationType>("+");
@@ -515,9 +518,7 @@ export default function Home() {
             targetProgress={correctCount}
             targetTotal={5}
             onOpenHistory={() => setShowSummaryModal(true)}
-            onOpenConcept={() => {
-              showToast("Buka alat bantu Balok untuk belajar konsep nilai tempat!", "🧱", "bg-blue-600");
-            }}
+            onOpenConcept={() => setIsConceptModalOpen(true)}
           />
         </div>
 
@@ -598,6 +599,8 @@ export default function Home() {
             setActivePlace={setActivePlace}
             isShaking={isShaking}
             isSuccess={isSuccess}
+            showDienesBlocks={showDienesBlocks}
+            setShowDienesBlocks={setShowDienesBlocks}
             placeValueCombo={placeValueCombo}
             onSelectCombo={(combo) => {
               setPlaceValueCombo(combo);
@@ -620,7 +623,17 @@ export default function Home() {
             num2={num2}
             isHighlighted={isHelpActive}
             onSelectStrategy={(strat) => {
-              showToast(`Menerapkan strategi ${strat}!`, "✨", "bg-indigo-600");
+              if (strat === "blocks") {
+                setShowDienesBlocks(true);
+                showToast("Alat Bantu Balok 3D dibuka!", "🧱", "bg-amber-600");
+              } else if (strat === "place-value") {
+                showToast("Strategi Pecah Nilai (Dekomposisi) aktif!", "✨", "bg-emerald-600");
+              } else if (strat === "unit-first") {
+                setActivePlace("u");
+                showToast("Fokus hitung kolom Satuan terlebih dahulu!", "👉", "bg-blue-600");
+              } else if (strat === "check") {
+                showToast("Gunakan operasi kebalikan untuk memeriksa jawaban!", "🔍", "bg-purple-600");
+              }
             }}
           />
         </div>
@@ -741,6 +754,16 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* MODAL BELAJAR KONSEP NILAI TEMPAT & BALOK DIENES */}
+      <ConceptLearningModal
+        isOpen={isConceptModalOpen}
+        onClose={() => setIsConceptModalOpen(false)}
+        onOpenBlocks={() => {
+          setIsConceptModalOpen(false);
+          setShowDienesBlocks(true);
+        }}
+      />
 
       {/* TOAST NOTIFICATION */}
       {toast?.visible && (
