@@ -2,24 +2,19 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
-import {
-  Calculator,
-  Star,
-  Flame,
-  Award,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Sliders,
-} from "lucide-react";
+import { Award, X } from "lucide-react";
 
 // Modular components
 import SetupWizard, { OperationType } from "@/components/SetupWizard";
 import SettingsPanel from "@/components/SettingsPanel";
-import MathBoardGrid from "@/components/MathBoardGrid";
-import BaseTenBlocksVisualizer from "@/components/BaseTenBlocksVisualizer";
+import TopNavbar from "@/components/TopNavbar";
+import PracticeCard from "@/components/PracticeCard";
+import RightHelperPanel from "@/components/RightHelperPanel";
+import LeftSidebarNav from "@/components/LeftSidebarNav";
+import { DecorativeFloatingNumbers, MotivationalStickyNote } from "@/components/ChildMascots";
 
 // Error Diagnostics Engine
-import { diagnoseError, generateSessionSummary, ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
+import { diagnoseError, generateSessionSummary, type ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -37,11 +32,23 @@ interface PracticeQuestionLog {
   suggestedIntervention?: string | null;
 }
 
+const COMBO_LABELS: Record<string, { code: string; label: string }> = {
+  "S-S": { code: "SS", label: "Satuan ke Satuan" },
+  "S-P": { code: "SP", label: "Satuan ke Puluhan" },
+  "S-R": { code: "SR", label: "Satuan ke Ratusan" },
+  "P-S": { code: "PS", label: "Puluhan ke Satuan" },
+  "P-P": { code: "PP", label: "Puluhan ke Puluhan" },
+  "P-R": { code: "PR", label: "Puluhan ke Ratusan" },
+  "R-S": { code: "RS", label: "Ratusan ke Satuan" },
+  "R-P": { code: "RP", label: "Ratusan ke Puluhan" },
+  "R-R": { code: "RR", label: "Ratusan ke Ratusan" },
+};
+
 export default function Home() {
-  // USER & SETUP STATE
+  // USER & SETUP STATE (Mulai dengan wizard pengaturan nama, operasi, dan satuan)
   const [currentUser, setCurrentUser] = useState<string>("");
   const [isSetupOpen, setIsSetupOpen] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
 
   // PRACTICE CONFIGURATION
   const [selectedOp, setSelectedOp] = useState<OperationType>("+");
@@ -55,11 +62,18 @@ export default function Home() {
   const [correctAnswer, setCorrectAnswer] = useState<number>(72);
 
   // USER INPUTS & SCORES
+  const [userAnswerInput, setUserAnswerInput] = useState<string>("");
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
   const [carryValues, setCarryValues] = useState({ th: "", h: "", t: "", u: "" });
   const [ansValues, setAnsValues] = useState({ th: "", h: "", t: "", u: "" });
   const [diagnosticHint, setDiagnosticHint] = useState<{ message: string; badge: string; color: string } | null>(null);
+
+  // INTERACTIVE ANIMATION & HINT HIGHLIGHT STATES
+  const [activePlace, setActivePlace] = useState<"th" | "h" | "t" | "u" | null>(null);
+  const [isHelpActive, setIsHelpActive] = useState<boolean>(false);
+  const [isShaking, setIsShaking] = useState<boolean>(false);
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
   // TOAST NOTIFICATIONS
   const [toast, setToast] = useState<{ message: string; icon: string; bgColor: string; visible: boolean } | null>(null);
@@ -69,7 +83,6 @@ export default function Home() {
   const [questionSecondsElapsed, setQuestionSecondsElapsed] = useState<number>(0);
   const [totalSessionSeconds, setTotalSessionSeconds] = useState<number>(0);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -94,7 +107,9 @@ export default function Home() {
   // Audio Synthesizer
   const playSound = (type: "success" | "error" | "fanfare") => {
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
       const osc = ctx.createOscillator();
@@ -161,7 +176,7 @@ export default function Home() {
     return { min: 1, max: 9, digits: 1 };
   };
 
-  // Generate Problem Logic berdasarkan Kombinasi Nilai Tempat (S-S, S-P, P-P, dst.)
+  // Generate Problem Logic
   const generateProblem = (
     forcedOp?: OperationType,
     forcedCombo?: string,
@@ -169,7 +184,10 @@ export default function Home() {
   ) => {
     setCarryValues({ th: "", h: "", t: "", u: "" });
     setAnsValues({ th: "", h: "", t: "", u: "" });
+    setUserAnswerInput("");
     setDiagnosticHint(null);
+    setIsHelpActive(false);
+    setIsSuccess(false);
     setQuestionSecondsElapsed(0);
 
     const activeOp = forcedOp !== undefined ? forcedOp : selectedOp;
@@ -298,18 +316,24 @@ export default function Home() {
 
   // Checking Answer with Error Diagnostics
   const handleCheckAnswer = () => {
-    const { th, h, t, u } = ansValues;
+    let userNum: number;
+    let userStr: string;
 
-    if (th === "" && h === "" && t === "" && u === "") {
-      showToast("Silakan isi kotak jawaban pada papan terlebih dahulu!", "⚠️", "bg-amber-600");
-      return;
+    if (userAnswerInput.trim() !== "") {
+      userNum = parseInt(userAnswerInput.trim(), 10);
+      userStr = userAnswerInput.trim();
+    } else {
+      const { th, h, t, u } = ansValues;
+      if (th === "" && h === "" && t === "" && u === "") {
+        showToast("Tuliskan jawabanmu pada kotak tanda tanya [ ? ] ya!", "✏️", "bg-amber-600");
+        return;
+      }
+      const cleanDigit = (d: string) => (d.trim() === "" ? "0" : d);
+      userStr = `${cleanDigit(th)}${cleanDigit(h)}${cleanDigit(t)}${cleanDigit(u)}`;
+      userNum = parseInt(userStr, 10);
     }
 
-    const cleanDigit = (d: string) => (d.trim() === "" ? "0" : d);
-    const userStr = `${cleanDigit(th)}${cleanDigit(h)}${cleanDigit(t)}${cleanDigit(u)}`;
-    const userNum = parseInt(userStr, 10);
     const isAnsCorrect = userNum === correctAnswer;
-
     const timeSpent = Math.max(1, questionSecondsElapsed);
 
     let diagnosticResult: ErrorDiagnosticResult | null = null;
@@ -328,6 +352,30 @@ export default function Home() {
         badge: diagnosticResult.badgeLabel,
         color: diagnosticResult.badgeColor,
       });
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 500);
+      setIsHelpActive(true);
+      playSound("error");
+      setStreak(0);
+      showToast(
+        `Jawaban belum tepat (${diagnosticResult?.badgeLabel || "Perlu Diteliti"}). Cek petunjuk di sebelah kanan!`,
+        "❌",
+        "bg-rose-600"
+      );
+    } else {
+      playSound("success");
+      setIsSuccess(true);
+      confetti({ particleCount: 85, spread: 70, origin: { y: 0.6 } });
+      setScore((prev) => prev + 10);
+      setStreak((prev) => prev + 1);
+      setDiagnosticHint(null);
+      setIsHelpActive(false);
+      showToast("Hebat! Jawaban Kamu Benar Sekali! 🎉", "🌟", "bg-emerald-600");
+
+      setTimeout(() => {
+        setIsSuccess(false);
+        generateProblem();
+      }, 1300);
     }
 
     const currentLog: PracticeQuestionLog = {
@@ -346,27 +394,6 @@ export default function Home() {
 
     const updatedLogs = [...sessionLogs, currentLog];
     setSessionLogs(updatedLogs);
-
-    if (isAnsCorrect) {
-      playSound("success");
-      confetti({ particleCount: 75, spread: 60, origin: { y: 0.7 } });
-      setScore((prev) => prev + 10);
-      setStreak((prev) => prev + 1);
-      setDiagnosticHint(null);
-      showToast("Hebat! Jawaban Kamu Benar! 🎉", "✅", "bg-emerald-600");
-
-      setTimeout(() => {
-        generateProblem();
-      }, 1200);
-    } else {
-      playSound("error");
-      setStreak(0);
-      showToast(
-        `Jawaban belum tepat (${diagnosticResult?.badgeLabel || "Perlu Diteliti"}). Cek petunjuk di bawah papan!`,
-        "❌",
-        "bg-rose-600"
-      );
-    }
   };
 
   // Submit practice session records to database
@@ -376,7 +403,6 @@ export default function Home() {
       return;
     }
 
-    setIsSaving(true);
     try {
       const correctCount = sessionLogs.filter((q) => q.isCorrect).length;
       const wrongCount = sessionLogs.length - correctCount;
@@ -405,15 +431,13 @@ export default function Home() {
       if (res.ok) {
         playSound("fanfare");
         setShowSummaryModal(true);
-        showToast("Hasil sesi latihan berhasil disimpan ke database guru! 🚀", "✅", "bg-emerald-600");
+        showToast("Hasil latihan berhasil disimpan ke database guru! 🚀", "✅", "bg-emerald-600");
       } else {
         throw new Error("Gagal menyimpan");
       }
     } catch (e) {
       console.error(e);
       showToast("Gagal menyimpan data latihan ke database.", "❌", "bg-red-600");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -449,8 +473,8 @@ export default function Home() {
   const accuracy = sessionLogs.length > 0 ? Math.round((correctCount / sessionLogs.length) * 100) : 100;
 
   return (
-    <div className="min-h-screen text-slate-800 flex flex-col justify-between relative overflow-x-hidden p-3 md:p-6 w-full">
-      {/* 3-STEP SETUP WIZARD */}
+    <div className="min-h-screen text-slate-800 flex flex-col p-2.5 sm:p-4 md:p-6 gap-3.5 max-w-[1550px] mx-auto w-full">
+      {/* 3-STEP SETUP WIZARD (JIKA MEMBUKA PENGATURAN AWAL) */}
       {isSetupOpen && (
         <SetupWizard
           initialName={currentUser}
@@ -460,129 +484,197 @@ export default function Home() {
         />
       )}
 
-      {/* MAIN CONTAINER */}
-      {!isSetupOpen && (
-        <div id="main-app" className="flex flex-col lg:flex-row flex-1 max-w-7xl mx-auto w-full gap-6 items-start">
-          {/* LEFT: SIDEBAR (MULAI DARI PALING ATAS DENGAN BRANDING & SAPAAN SISWA) */}
-          {isSidebarOpen && (
-            <aside className="w-full lg:w-80 xl:w-96 shrink-0 flex flex-col gap-5">
-              <SettingsPanel
-                currentUser={currentUser}
-                selectedOp={selectedOp}
-                currentOp={currentOp}
-                placeValueCombo={placeValueCombo}
-                focusOption={focusOption}
-                practiceStats={{
-                  totalAnswered: sessionLogs.length,
-                  correctCount,
-                  wrongCount,
-                  totalSeconds: totalSessionSeconds,
-                }}
-                opNameMap={opNameMap}
-                onSelectOp={(op) => {
-                  setSelectedOp(op);
-                  generateProblem(op, placeValueCombo, focusOption);
-                }}
-                onComboChange={(combo) => {
-                  setPlaceValueCombo(combo);
-                  generateProblem(selectedOp, combo, focusOption);
-                }}
-                onFocusOptionChange={(focus) => {
-                  setFocusOption(focus);
-                  generateProblem(selectedOp, placeValueCombo, focus);
-                }}
-                onNewProblem={() => generateProblem()}
-                onSaveAndFinishSession={handleSaveSession}
-                onChangeSetup={() => setIsSetupOpen(true)}
-                onCloseSidebar={() => setIsSidebarOpen(false)}
-                formatTimer={formatTimer}
-              />
-            </aside>
-          )}
+      {/* 1. TOP NAVBAR (LOGO MATHKU, AVATAR SISWA, PENGATURAN) */}
+      <TopNavbar
+        currentUser={currentUser || "Siswa"}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        onLogout={() => setIsSetupOpen(true)}
+      />
 
-          {/* RIGHT: RUANG KERJA UTAMA DENGAN BAR STATUS & SKOR DI KANAN ATAS */}
-          <main className={`flex-1 w-full flex flex-col gap-6 ${!isSidebarOpen ? "max-w-4xl mx-auto" : ""}`}>
-            {/* BAR STATUS & SKOR DI KANAN ATAS */}
-            <div className="bg-white rounded-2xl md:rounded-3xl p-3 md:px-5 border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
-              {/* Kiri: Tombol Buka/Tutup Menu */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${isSidebarOpen
-                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20"
-                    }`}
-                >
-                  {isSidebarOpen ? (
-                    <>
-                      <PanelLeftClose size={14} /> Sembunyikan Menu
-                    </>
-                  ) : (
-                    <>
-                      <PanelLeftOpen size={14} /> Buka Menu Pengaturan
-                    </>
-                  )}
-                </button>
+      {/* 2. KONTEN UTAMA 3 KOLOM */}
+      <div className="flex flex-col xl:flex-row flex-1 gap-4 md:gap-5 items-start w-full">
+        {/* SIDEBAR KIRI: NAVIGASI OPERASI, PEMILIH DIGIT, & MASKOT ANAK LAKI-LAKI */}
+        <div className="w-full xl:w-64 2xl:w-72 shrink-0">
+          <LeftSidebarNav
+            selectedOp={selectedOp}
+            onSelectOp={(op) => {
+              setSelectedOp(op);
+              generateProblem(op, placeValueCombo, focusOption);
+            }}
+            placeValueCombo={placeValueCombo}
+            onSelectCombo={(combo) => {
+              setPlaceValueCombo(combo);
+              generateProblem(selectedOp, combo, focusOption);
+              const info = COMBO_LABELS[combo];
+              showToast(
+                `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
+                "🔢",
+                "bg-blue-600"
+              );
+            }}
+            targetProgress={correctCount}
+            targetTotal={5}
+            onOpenHistory={() => setShowSummaryModal(true)}
+            onOpenConcept={() => {
+              showToast("Buka alat bantu Balok untuk belajar konsep nilai tempat!", "🧱", "bg-blue-600");
+            }}
+          />
+        </div>
 
-                {!isSidebarOpen && (
-                  <div className="flex items-center gap-2 pl-2">
-                    <div className="w-7 h-7 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-black font-fredoka">
-                      ÷×
-                    </div>
-                    <span className="text-xs font-black text-slate-800 font-fredoka hidden sm:inline">
-                      Math Board • Halo, {currentUser}! 👋
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Kanan: Badges Operasi & Nilai Tempat, Skor, Beruntun */}
-              <div className="flex items-center gap-2 md:gap-3">
-                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black">
-                  {selectedOp === "mix" ? "Campuran" : opNameMap[currentOp]} • {placeValueCombo}
-                </span>
-
-                <div className="flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200/80 px-3 py-1.5 rounded-xl font-extrabold text-xs shadow-xs">
-                  <Star size={13} className="text-amber-500 fill-amber-500" />
-                  <span>
-                    Skor: <span id="stat-score" className="text-amber-900">{score}</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-xl font-extrabold text-xs shadow-xs">
-                  <Flame size={13} className="text-emerald-500 fill-emerald-500" />
-                  <span>
-                    Beruntun: <span id="stat-streak" className="text-emerald-900">{streak}</span>
-                  </span>
-                </div>
+        {/* AREA TENGAH: HERO BANNER & KARTU SOAL LATIHAN */}
+        <main className="flex-1 w-full flex flex-col gap-4 min-w-0">
+          {/* BANNER AYO LATIHAN MATEMATIKA DENGAN ANGKA MELAYANG & STICKY NOTE */}
+          <div className="bg-white/85 backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
+            {/* Sisi Kiri: Angka 1, 2, 3 Melayang & Judul Utama */}
+            <div className="flex items-center gap-3">
+              <DecorativeFloatingNumbers />
+              <div>
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight font-fredoka flex items-center gap-2">
+                  Ayo Latihan Matematika!
+                  <span className="text-2xl animate-bounce">💡</span>
+                </h2>
+                <p className="text-xs sm:text-sm font-bold text-slate-500 mt-0.5">
+                  Pilih operasi atau digit di sidebar kiri. Soal akan disesuaikan dengan kemampuanmu.
+                </p>
               </div>
             </div>
 
-            {/* ALAT BANTU BALOK 3D */}
-            <BaseTenBlocksVisualizer
-              num1={num1}
-              num2={num2}
-              operation={currentOp === "-" ? "−" : currentOp}
-            />
+            {/* Sisi Kanan: Sticky Note & Level / Poin */}
+            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+              <MotivationalStickyNote />
 
-            {/* MATH BOARD GRID */}
-            <MathBoardGrid
+              <div className="flex flex-col gap-1.5 text-right">
+                {/* Level Badge */}
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-xl text-xs font-black text-amber-900 shadow-2xs">
+                  <span className="text-amber-500">⭐</span>
+                  <span>Level {Math.floor(score / 30) + 1}</span>
+                  <div className="w-12 bg-amber-200/80 h-1.5 rounded-full overflow-hidden ml-1">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, ((score % 30) / 30) * 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Poin & Streak Badge */}
+                <div className="flex items-center gap-1.5 justify-end">
+                  <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-xl text-xs font-black text-emerald-900 shadow-2xs">
+                    <span>🔥</span>
+                    <span>{streak}x Beruntun</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-blue-50 border border-blue-200/80 px-2.5 py-1 rounded-xl text-xs font-black text-blue-900 shadow-2xs">
+                    <span className="text-amber-500">⭐</span>
+                    <span>{score * 10} poin</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* KARTU SOAL LATIHAN DENGAN PAPAN NILAI TEMPAT & ALAT BANTU BALOK */}
+          <PracticeCard
+            num1={num1}
+            num2={num2}
+            currentOp={currentOp}
+            levelName={`Level ${Math.floor(score / 30) + 1} – ${
+              COMBO_LABELS[placeValueCombo]?.code || placeValueCombo
+            }`}
+            questionNumber={sessionLogs.length + 1}
+            totalQuestions={10}
+            userAnswerInput={userAnswerInput}
+            setUserAnswerInput={setUserAnswerInput}
+            carryValues={carryValues}
+            setCarryValues={setCarryValues}
+            ansValues={ansValues}
+            setAnsValues={setAnsValues}
+            onCheckAnswer={handleCheckAnswer}
+            onNewProblem={() => generateProblem()}
+            onNeedHelp={() => {
+              setIsHelpActive(true);
+              showToast("Perhatikan Petunjuk Bertingkat di sebelah kanan ya! 💡", "👉", "bg-sky-600");
+            }}
+            diagnosticHint={diagnosticHint}
+            activePlace={activePlace}
+            setActivePlace={setActivePlace}
+            isShaking={isShaking}
+            isSuccess={isSuccess}
+            placeValueCombo={placeValueCombo}
+            onSelectCombo={(combo) => {
+              setPlaceValueCombo(combo);
+              generateProblem(selectedOp, combo, focusOption);
+              const info = COMBO_LABELS[combo];
+              showToast(
+                `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
+                "🔢",
+                "bg-blue-600"
+              );
+            }}
+          />
+        </main>
+
+        {/* SIDEBAR KANAN: PETUNJUK BERTINGKAT, STRATEGI, & MASKOT ANAK PEREMPUAN */}
+        <div className="w-full xl:w-72 2xl:w-80 shrink-0">
+          <RightHelperPanel
+            currentOp={currentOp}
+            num1={num1}
+            num2={num2}
+            isHighlighted={isHelpActive}
+            onSelectStrategy={(strat) => {
+              showToast(`Menerapkan strategi ${strat}!`, "✨", "bg-indigo-600");
+            }}
+          />
+        </div>
+      </div>
+
+      {/* MODAL PENGATURAN MODE & LEVEL (JIKA KLIK IKON GEAR) */}
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="max-w-md w-full relative">
+            <button
+              type="button"
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-white shadow-md text-slate-600 hover:text-slate-900"
+            >
+              <X size={16} />
+            </button>
+            <SettingsPanel
               currentUser={currentUser}
               selectedOp={selectedOp}
               currentOp={currentOp}
               placeValueCombo={placeValueCombo}
-              num1={num1}
-              num2={num2}
-              carryValues={carryValues}
-              setCarryValues={setCarryValues}
-              ansValues={ansValues}
-              setAnsValues={setAnsValues}
-              onCheckAnswer={handleCheckAnswer}
+              focusOption={focusOption}
+              practiceStats={{
+                totalAnswered: sessionLogs.length,
+                correctCount,
+                wrongCount,
+                totalSeconds: totalSessionSeconds,
+              }}
               opNameMap={opNameMap}
-              diagnosticHint={diagnosticHint}
+              onSelectOp={(op) => {
+                setSelectedOp(op);
+                generateProblem(op, placeValueCombo, focusOption);
+              }}
+              onComboChange={(combo) => {
+                setPlaceValueCombo(combo);
+                generateProblem(selectedOp, combo, focusOption);
+              }}
+              onFocusOptionChange={(focus) => {
+                setFocusOption(focus);
+                generateProblem(selectedOp, placeValueCombo, focus);
+              }}
+              onNewProblem={() => {
+                generateProblem();
+                setIsSettingsModalOpen(false);
+              }}
+              onSaveAndFinishSession={handleSaveSession}
+              onChangeSetup={() => {
+                setIsSettingsModalOpen(false);
+                setIsSetupOpen(true);
+              }}
+              onCloseSidebar={() => setIsSettingsModalOpen(false)}
+              formatTimer={formatTimer}
             />
-          </main>
+          </div>
         </div>
       )}
 

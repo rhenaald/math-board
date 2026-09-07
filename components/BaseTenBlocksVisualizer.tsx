@@ -7,6 +7,8 @@ interface BaseTenBlocksProps {
   num1: number;
   num2: number;
   operation: "+" | "-" | "×" | "÷" | string;
+  activePlace?: "th" | "h" | "t" | "u" | null;
+  onHoverPlace?: (place: "th" | "h" | "t" | "u" | null) => void;
 }
 
 /**

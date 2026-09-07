@@ -150,26 +150,26 @@ export default function SettingsPanel({
         </div>
       </div>
 
-      {/* KOMBINASI NILAI TEMPAT (Satuan ke Satuan, Puluhan ke Puluhan, dst.) */}
+      {/* PILIH KOMBINASI DIGIT (SS, SP, SR, PS, PP, PR, RS, RP, RR) */}
       <div>
-        <label htmlFor="place-value-combo-select" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
-          Kombinasi Nilai Tempat
+        <label htmlFor="place-value-combo-select" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2 font-fredoka">
+          Pilih Kombinasi Digit (SS, SP, SR, PS, PP, PR, RS, RP, RR)
         </label>
         <select
           id="place-value-combo-select"
           value={placeValueCombo}
           onChange={(e) => onComboChange(e.target.value)}
-          className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition cursor-pointer"
         >
-          <option value="S-S">Satuan ke Satuan (1 digit & 1 digit)</option>
-          <option value="S-P">Satuan ke Puluhan (1 digit & 2 digit)</option>
-          <option value="S-R">Satuan ke Ratusan (1 digit & 3 digit)</option>
-          <option value="P-S">Puluhan ke Satuan (2 digit & 1 digit)</option>
-          <option value="P-P">Puluhan ke Puluhan (2 digit & 2 digit)</option>
-          <option value="P-R">Puluhan ke Ratusan (2 digit & 3 digit)</option>
-          <option value="R-S">Ratusan ke Satuan (3 digit & 1 digit)</option>
-          <option value="R-P">Ratusan ke Puluhan (3 digit & 2 digit)</option>
-          <option value="R-R">Ratusan ke Ratusan (3 digit & 3 digit)</option>
+          <option value="S-S">SS – Satuan ke Satuan (1 digit & 1 digit)</option>
+          <option value="S-P">SP – Satuan ke Puluhan (1 digit & 2 digit)</option>
+          <option value="S-R">SR – Satuan ke Ratusan (1 digit & 3 digit)</option>
+          <option value="P-S">PS – Puluhan ke Satuan (2 digit & 1 digit)</option>
+          <option value="P-P">PP – Puluhan ke Puluhan (2 digit & 2 digit)</option>
+          <option value="P-R">PR – Puluhan ke Ratusan (2 digit & 3 digit)</option>
+          <option value="R-S">RS – Ratusan ke Satuan (3 digit & 1 digit)</option>
+          <option value="R-P">RP – Ratusan ke Puluhan (3 digit & 2 digit)</option>
+          <option value="R-R">RR – Ratusan ke Ratusan (3 digit & 3 digit)</option>
         </select>
       </div>
 

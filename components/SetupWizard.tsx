@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Calculator, ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { User, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 export type OperationType = "+" | "-" | "×" | "÷" | "mix";
 
@@ -53,7 +53,7 @@ export default function SetupWizard({
       id: "+",
       symbol: "+",
       title: "Penjumlahan",
-      desc: "Menghitung penggabungan nilai tempat dengan konsep simpan",
+      desc: "Menghitung penggabungan bilangan dengan konsep simpan",
     },
     {
       id: "-",
@@ -76,21 +76,22 @@ export default function SetupWizard({
     {
       id: "mix",
       symbol: "🎲",
-      title: "Campuran",
+      title: "Mode Campuran",
       desc: "Kombinasi soal secara acak untuk menguji pemahaman menyeluruh",
     },
   ];
 
-  const combos: PlaceValueComboOption[] = [
-    { id: "S-S", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
-    { id: "S-P", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
-    { id: "S-R", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
-    { id: "P-S", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
-    { id: "P-P", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
-    { id: "P-R", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
-    { id: "R-S", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
-    { id: "R-P", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
-    { id: "R-R", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
+  // 9 Pilihan Kombinasi Digit (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
+  const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
+    { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
+    { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
+    { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
+    { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
+    { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
+    { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
+    { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
+    { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
+    { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
   ];
 
   return (
@@ -101,14 +102,14 @@ export default function SetupWizard({
 
         {/* Progress Stepper */}
         <div className="relative z-10 mb-6">
-          <div className="flex items-center justify-between text-xs font-black text-slate-400 mb-2">
+          <div className="flex items-center justify-between text-xs font-black text-slate-400 mb-2 font-fredoka">
             <span className={step >= 1 ? "text-blue-600 font-bold" : ""}>1. Nama Siswa</span>
             <span className={step >= 2 ? "text-blue-600 font-bold" : ""}>2. Pilih Operasi</span>
-            <span className={step >= 3 ? "text-blue-600 font-bold" : ""}>3. Kombinasi Nilai</span>
+            <span className={step >= 3 ? "text-blue-600 font-bold" : ""}>3. Pilih Digit</span>
           </div>
-          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
             <div
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2.5 rounded-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
             ></div>
           </div>
@@ -117,19 +118,19 @@ export default function SetupWizard({
         {/* STEP 1: INPUT NAMA */}
         {step === 1 && (
           <div className="relative z-10 space-y-5 text-left">
-            <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto text-white shadow-lg shadow-blue-500/20">
-              <Calculator size={32} />
+            <div className="w-16 h-16 bg-gradient-to-tr from-amber-400 to-yellow-400 rounded-2xl flex items-center justify-center mx-auto text-amber-950 shadow-lg shadow-amber-400/30 text-3xl">
+              💡
             </div>
 
             <div className="text-center">
               <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
-                Langkah 1 dari 3
+                Langkah 1 dari 3: Nama Siswa
               </span>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-2 font-fredoka">
-                Selamat Datang di Math Board
+                Selamat Datang di MathKu!
               </h2>
               <p className="text-slate-500 text-xs font-semibold mt-1">
-                Latihan berhitung interaktif dengan visual balok 3D nilai tempat.
+                Belajar Pelan, Pasti Bisa! Tuliskan nama Anda untuk memulai.
               </p>
             </div>
 
@@ -236,18 +237,18 @@ export default function SetupWizard({
           </div>
         )}
 
-        {/* STEP 3: PILIH KOMBINASI NILAI TEMPAT */}
+        {/* STEP 3: PILIH DIGIT (SS, SP, SR, PS, PP, PR, RS, RP, RR) */}
         {step === 3 && (
           <div className="relative z-10 space-y-4 text-left">
             <div className="text-center mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
-                Langkah 3 dari 3
+                Langkah 3 dari 3: Pilih Digit
               </span>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1 font-fredoka">
-                Pilih Kombinasi Nilai Tempat
+                Pilih Kombinasi Digit
               </h2>
               <p className="text-slate-500 text-xs font-semibold">
-                Pilih rentang digit bilangan pertama dan bilangan kedua
+                Pilih kombinasi digit bilangan (SS, SP, SR, PS, PP, PR, RS, RP, RR):
               </p>
             </div>
 
@@ -259,24 +260,26 @@ export default function SetupWizard({
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCombo(c.id)}
-                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between gap-1.5 ${
+                    className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between gap-1.5 cursor-pointer ${
                       isSelected
-                        ? "border-blue-600 bg-blue-50/80 shadow-xs"
+                        ? "border-blue-600 bg-blue-50/90 shadow-sm ring-2 ring-blue-300"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
-                        isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
-                      }`}>
-                        {c.id}
+                      <span
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
+                          isSelected ? "bg-blue-600 text-white shadow-2xs" : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {c.code}
                       </span>
-                      {isSelected && <Check size={14} className="text-blue-600" />}
+                      {isSelected && <Check size={14} className="text-blue-600 stroke-[3]" />}
                     </div>
                     <div>
                       <h4 className="text-xs font-black text-slate-900 leading-tight">{c.label}</h4>
                       <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{c.desc}</p>
-                      <p className="text-[9px] text-slate-400 italic mt-0.5">{c.example}</p>
+                      <p className="text-[9px] text-blue-600 font-bold mt-0.5">{c.example}</p>
                     </div>
                   </button>
                 );
@@ -287,14 +290,14 @@ export default function SetupWizard({
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3.5 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-1.5"
+                className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft size={14} /> Kembali
               </button>
               <button
                 type="button"
                 onClick={handleFinish}
-                className="w-2/3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition text-xs flex items-center justify-center gap-2 transform active:scale-95"
+                className="w-2/3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3 px-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition text-xs flex items-center justify-center gap-2 transform active:scale-95 cursor-pointer font-fredoka"
               >
                 Mulai Latihan Sekarang 🚀
               </button>

@@ -5,6 +5,20 @@ import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretguruauthkey";
 
+interface AttemptQuestionItem {
+  no: number;
+  operation: string;
+  questionStr: string;
+  num1?: number | null;
+  num2?: number | null;
+  userAnswer: string;
+  isCorrect: boolean;
+  timeTaken: number;
+  errorType?: string | null;
+  errorDetail?: string | null;
+  suggestedIntervention?: string | null;
+}
+
 async function isAdminAuthenticated() {
   try {
     const cookieStore = await cookies();
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
         totalTime,
         summaryErrors: summaryErrors || null,
         questions: {
-          create: questions.map((q: any) => ({
+          create: questions.map((q: AttemptQuestionItem) => ({
             no: q.no,
             operation: q.operation,
             questionStr: q.questionStr,
