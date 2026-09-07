@@ -4,76 +4,92 @@ import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import {
   Calculator,
-  Dumbbell,
-  Trophy,
   Star,
   Flame,
+  Award,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sliders,
 } from "lucide-react";
 
-// Import modular components
-import WelcomeScreen from "@/components/WelcomeScreen";
+// Modular components
+import SetupWizard, { OperationType } from "@/components/SetupWizard";
 import SettingsPanel from "@/components/SettingsPanel";
 import MathBoardGrid from "@/components/MathBoardGrid";
-import StepsCard from "@/components/StepsCard";
+import BaseTenBlocksVisualizer from "@/components/BaseTenBlocksVisualizer";
 
-type Operation = "+" | "-" | "×" | "÷" | "mix";
+// Error Diagnostics Engine
+import { diagnoseError, generateSessionSummary, ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
+
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
-interface QuestionLog {
+interface PracticeQuestionLog {
   no: number;
   operation: string;
   questionStr: string;
+  num1: number;
+  num2: number;
   userAnswer: string;
   isCorrect: boolean;
   timeTaken: number;
-  num1?: number;
-  num2?: number;
+  errorType?: string | null;
+  errorDetail?: string | null;
+  suggestedIntervention?: string | null;
 }
 
 export default function Home() {
-  // GLOBAL APP STATE
+  // USER & SETUP STATE
   const [currentUser, setCurrentUser] = useState<string>("");
-  const [isWelcome, setIsWelcome] = useState<boolean>(true);
-  const [studentNameInput, setStudentNameInput] = useState<string>("");
+  const [isSetupOpen, setIsSetupOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
-  const [currentMode, setCurrentMode] = useState<"latihan" | "kuis">("latihan");
-  const [selectedOp, setSelectedOp] = useState<Operation>("+");
+  // PRACTICE CONFIGURATION
+  const [selectedOp, setSelectedOp] = useState<OperationType>("+");
   const [currentOp, setCurrentOp] = useState<SimpleOperation>("+");
   const [placeValueCombo, setPlaceValueCombo] = useState<string>("P-P");
   const [focusOption, setFocusOption] = useState<string>("random");
 
+  // MATH PROBLEM STATE
   const [num1, setNum1] = useState<number>(45);
   const [num2, setNum2] = useState<number>(27);
   const [correctAnswer, setCorrectAnswer] = useState<number>(72);
 
+  // USER INPUTS & SCORES
   const [score, setScore] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
-
-  // UI states
-  const [showSteps, setShowSteps] = useState<boolean>(true);
   const [carryValues, setCarryValues] = useState({ th: "", h: "", t: "", u: "" });
   const [ansValues, setAnsValues] = useState({ th: "", h: "", t: "", u: "" });
+  const [diagnosticHint, setDiagnosticHint] = useState<{ message: string; badge: string; color: string } | null>(null);
+
+  // TOAST NOTIFICATIONS
   const [toast, setToast] = useState<{ message: string; icon: string; bgColor: string; visible: boolean } | null>(null);
 
-  // QUIZ STATE
-  const quizLength: number = 36; // Locked to 36 questions as per spec
-  const [quizCurrentIndex, setQuizCurrentIndex] = useState<number>(0);
-  const [quizCorrectCount, setQuizCorrectCount] = useState<number>(0);
-  const [quizSecondsElapsed, setQuizSecondsElapsed] = useState<number>(0);
-  const [quizTimerActive, setQuizTimerActive] = useState<boolean>(false);
-  const [quizViewingIndex, setQuizViewingIndex] = useState<number | null>(null);
-
-  const getQuizConfigForIndex = (index: number) => {
-    const ops: SimpleOperation[] = ["+", "-", "×", "÷"];
-    const op = ops[Math.floor(index / 9)] || "+";
-    const combos = ["S-S", "S-P", "S-R", "P-S", "P-P", "P-R", "R-S", "R-P", "R-R"];
-    const combo = combos[index % 9] || "S-S";
-    return { op, combo };
-  };
+  // SESSION TRACKING & TIMING
+  const [sessionLogs, setSessionLogs] = useState<PracticeQuestionLog[]>([]);
+  const [questionSecondsElapsed, setQuestionSecondsElapsed] = useState<number>(0);
+  const [totalSessionSeconds, setTotalSessionSeconds] = useState<number>(0);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
-  const [quizQuestionsLog, setQuizQuestionsLog] = useState<QuestionLog[]>([]);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Tick timer while student is active in practice
+  useEffect(() => {
+    if (!isSetupOpen && !showSummaryModal) {
+      timerRef.current = setInterval(() => {
+        setQuestionSecondsElapsed((prev) => prev + 1);
+        setTotalSessionSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isSetupOpen, showSummaryModal]);
 
   // Audio Synthesizer
   const playSound = (type: "success" | "error" | "fanfare") => {
@@ -103,7 +119,7 @@ export default function Home() {
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
       } else if (type === "fanfare") {
-        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
           const o = ctx.createOscillator();
           const g = ctx.createGain();
           o.connect(g);
@@ -127,30 +143,11 @@ export default function Home() {
   useEffect(() => {
     if (toast?.visible) {
       const t = setTimeout(() => {
-        setToast(prev => prev ? { ...prev, visible: false } : null);
-      }, 3000);
+        setToast((prev) => (prev ? { ...prev, visible: false } : null));
+      }, 3500);
       return () => clearTimeout(t);
     }
   }, [toast?.visible]);
-
-  // Quiz Timer Effect (Count-up Ticks)
-  useEffect(() => {
-    if (quizTimerActive) {
-      timerRef.current = setInterval(() => {
-        setQuizSecondsElapsed(prev => prev + 1);
-      }, 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [quizTimerActive]);
-
-
 
   // Helper numbers in range
   const getRandomNumberInRange = (min: number, max: number) => {
@@ -164,15 +161,16 @@ export default function Home() {
     return { min: 1, max: 9, digits: 1 };
   };
 
-  // Generate Problem Logic
+  // Generate Problem Logic berdasarkan Kombinasi Nilai Tempat (S-S, S-P, P-P, dst.)
   const generateProblem = (
-    forcedOp?: Operation,
+    forcedOp?: OperationType,
     forcedCombo?: string,
     forcedFocus?: string
   ) => {
-    // Clear inputs
     setCarryValues({ th: "", h: "", t: "", u: "" });
     setAnsValues({ th: "", h: "", t: "", u: "" });
+    setDiagnosticHint(null);
+    setQuestionSecondsElapsed(0);
 
     const activeOp = forcedOp !== undefined ? forcedOp : selectedOp;
     const activeCombo = forcedCombo !== undefined ? forcedCombo : placeValueCombo;
@@ -188,6 +186,11 @@ export default function Home() {
     setCurrentOp(op);
 
     let [p1, p2] = activeCombo.split("-");
+    if (!p1 || !p2) {
+      p1 = "P";
+      p2 = "P";
+    }
+
     let r1 = getDigitRange(p1);
     let r2 = getDigitRange(p2);
 
@@ -284,60 +287,16 @@ export default function Home() {
     setCorrectAnswer(correct);
   };
 
-  // Welcome screen name submission
-  const handleStartApp = () => {
-    const name = studentNameInput.trim();
-    if (!name) {
-      showToast("Silakan tuliskan nama Anda terlebih dahulu!", "⚠️", "bg-amber-600");
-      return;
-    }
+  // Completion from Setup Wizard
+  const handleCompleteSetup = (name: string, op: OperationType, combo: string) => {
     setCurrentUser(name);
-    setIsWelcome(false);
-    generateProblem(selectedOp, placeValueCombo, focusOption);
-  };
-
-  // Switch navigation tabs
-  const handleSwitchMode = (mode: "latihan" | "kuis") => {
-    setCurrentMode(mode);
-    setQuizTimerActive(false);
-    if (mode === "latihan") {
-      generateProblem(selectedOp, placeValueCombo, focusOption);
-    }
-  };
-
-  const handleSelectOp = (op: Operation) => {
     setSelectedOp(op);
-    generateProblem(op, placeValueCombo, focusOption);
+    setPlaceValueCombo(combo);
+    setIsSetupOpen(false);
+    generateProblem(op, combo, focusOption);
   };
 
-  // Submit attempt results to database API
-  const saveAttemptRecord = async (questionsLog: QuestionLog[]) => {
-    try {
-      const correctCount = questionsLog.filter(q => q.isCorrect).length;
-      const wrongCount = questionsLog.length - correctCount;
-      const totalTime = questionsLog.reduce((sum, q) => sum + q.timeTaken, 0);
-
-      await fetch("/api/attempts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentName: currentUser,
-          dateStr: new Date().toLocaleString("id-ID", {
-            dateStyle: "medium",
-            timeStyle: "short"
-          }),
-          correctCount,
-          wrongCount,
-          totalTime,
-          questions: questionsLog,
-        }),
-      });
-    } catch (e) {
-      console.error("Gagal menyimpan hasil ke Database:", e);
-    }
-  };
-
-  // Checking Answer
+  // Checking Answer with Error Diagnostics
   const handleCheckAnswer = () => {
     const { th, h, t, u } = ansValues;
 
@@ -346,92 +305,130 @@ export default function Home() {
       return;
     }
 
-    const cleanDigit = (d: string) => d.trim() === "" ? "0" : d;
+    const cleanDigit = (d: string) => (d.trim() === "" ? "0" : d);
     const userStr = `${cleanDigit(th)}${cleanDigit(h)}${cleanDigit(t)}${cleanDigit(u)}`;
     const userNum = parseInt(userStr, 10);
-
     const isAnsCorrect = userNum === correctAnswer;
 
-    if (currentMode === "kuis") {
-      const timeTaken = Math.max(1, quizSecondsElapsed);
-      const currentLog: QuestionLog = {
-        no: quizCurrentIndex + 1,
-        operation: currentOp,
-        questionStr: `${num1} ${currentOp === "×" ? "×" : currentOp === "÷" ? "÷" : currentOp === "-" ? "−" : "+"} ${num2}`,
-        userAnswer: userStr,
-        isCorrect: isAnsCorrect,
-        timeTaken,
+    const timeSpent = Math.max(1, questionSecondsElapsed);
+
+    let diagnosticResult: ErrorDiagnosticResult | null = null;
+    if (!isAnsCorrect) {
+      diagnosticResult = diagnoseError(
+        currentOp,
         num1,
         num2,
-      };
+        correctAnswer,
+        userStr,
+        ansValues,
+        carryValues
+      );
+      setDiagnosticHint({
+        message: diagnosticResult.studentFeedback,
+        badge: diagnosticResult.badgeLabel,
+        color: diagnosticResult.badgeColor,
+      });
+    }
 
-      const updatedLogs = [...quizQuestionsLog, currentLog];
-      setQuizQuestionsLog(updatedLogs);
+    const currentLog: PracticeQuestionLog = {
+      no: sessionLogs.length + 1,
+      operation: currentOp,
+      questionStr: `${num1} ${currentOp === "×" ? "×" : currentOp === "÷" ? "÷" : currentOp === "-" ? "−" : "+"} ${num2}`,
+      num1,
+      num2,
+      userAnswer: userStr,
+      isCorrect: isAnsCorrect,
+      timeTaken: timeSpent,
+      errorType: diagnosticResult?.errorType || null,
+      errorDetail: diagnosticResult?.errorDetail || null,
+      suggestedIntervention: diagnosticResult?.suggestedIntervention || null,
+    };
 
-      if (isAnsCorrect) {
-        playSound("success");
-        confetti({ particleCount: 50, spread: 40, origin: { y: 0.7 } });
-        setQuizCorrectCount(prev => prev + 1);
-        showToast("Hebat! Jawaban Kamu Benar! 🎉", "✅", "bg-emerald-600");
-      } else {
-        playSound("error");
-        showToast(`Jawaban belum tepat (Benar: ${correctAnswer}). Lanjut ke soal berikutnya! ⏩`, "❌", "bg-rose-600");
-      }
+    const updatedLogs = [...sessionLogs, currentLog];
+    setSessionLogs(updatedLogs);
 
-      const nextIdx = quizCurrentIndex + 1;
-      if (nextIdx >= quizLength) {
-        setQuizTimerActive(false);
-        playSound("fanfare");
-        saveAttemptRecord(updatedLogs);
-        setShowSummaryModal(true);
-      } else {
-        setQuizCurrentIndex(nextIdx);
-        setQuizSecondsElapsed(0); // Reset timer for next question
-        setQuizViewingIndex(null); // Reset viewing history
-        // Generate sequential quiz problem
-        const { op, combo } = getQuizConfigForIndex(nextIdx);
-        generateProblem(op, combo, "random");
-      }
+    if (isAnsCorrect) {
+      playSound("success");
+      confetti({ particleCount: 75, spread: 60, origin: { y: 0.7 } });
+      setScore((prev) => prev + 10);
+      setStreak((prev) => prev + 1);
+      setDiagnosticHint(null);
+      showToast("Hebat! Jawaban Kamu Benar! 🎉", "✅", "bg-emerald-600");
+
+      setTimeout(() => {
+        generateProblem();
+      }, 1200);
     } else {
-      // PRACTICE MODE
-      if (isAnsCorrect) {
-        playSound("success");
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
-        setScore(prev => prev + 10);
-        setStreak(prev => prev + 1);
-        showToast("Hebat! Jawaban Kamu Benar! 🎉", "✅", "bg-emerald-600");
-        setTimeout(() => {
-          generateProblem();
-        }, 1200);
-      } else {
-        playSound("error");
-        setStreak(0);
-        showToast(`Jawaban belum tepat. Hasil yang benar adalah ${correctAnswer}. Ayo coba lagi!`, "❌", "bg-red-600");
-      }
+      playSound("error");
+      setStreak(0);
+      showToast(
+        `Jawaban belum tepat (${diagnosticResult?.badgeLabel || "Perlu Diteliti"}). Cek petunjuk di bawah papan!`,
+        "❌",
+        "bg-rose-600"
+      );
     }
   };
 
-  // Start Quiz Mode
-  const handleStartQuiz = () => {
-    setQuizCurrentIndex(0);
-    setQuizCorrectCount(0);
-    setQuizSecondsElapsed(0);
-    setQuizViewingIndex(null);
-    setQuizQuestionsLog([]);
-    setQuizTimerActive(true);
-    // Generate first question
-    const { op, combo } = getQuizConfigForIndex(0);
-    generateProblem(op, combo, "random");
+  // Submit practice session records to database
+  const handleSaveSession = async () => {
+    if (sessionLogs.length === 0) {
+      showToast("Belum ada soal yang dikerjakan!", "⚠️", "bg-amber-600");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const correctCount = sessionLogs.filter((q) => q.isCorrect).length;
+      const wrongCount = sessionLogs.length - correctCount;
+      const totalTime = sessionLogs.reduce((sum, q) => sum + q.timeTaken, 0);
+      const summaryErrors = generateSessionSummary(sessionLogs);
+
+      const res = await fetch("/api/attempts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentName: currentUser,
+          dateStr: new Date().toLocaleString("id-ID", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+          operation: selectedOp === "mix" ? "Campuran" : opNameMap[currentOp] || selectedOp,
+          placeValueLevel: placeValueCombo,
+          correctCount,
+          wrongCount,
+          totalTime,
+          summaryErrors,
+          questions: sessionLogs,
+        }),
+      });
+
+      if (res.ok) {
+        playSound("fanfare");
+        setShowSummaryModal(true);
+        showToast("Hasil sesi latihan berhasil disimpan ke database guru! 🚀", "✅", "bg-emerald-600");
+      } else {
+        throw new Error("Gagal menyimpan");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Gagal menyimpan data latihan ke database.", "❌", "bg-red-600");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleCloseQuizSummary = () => {
+  const handleContinuePractice = () => {
     setShowSummaryModal(false);
-    handleSwitchMode("latihan");
+    generateProblem();
   };
 
-  const handleRepeatQuiz = () => {
+  const handleResetSession = () => {
     setShowSummaryModal(false);
-    handleStartQuiz();
+    setSessionLogs([]);
+    setScore(0);
+    setStreak(0);
+    setTotalSessionSeconds(0);
+    setIsSetupOpen(true);
   };
 
   const formatTimer = (totalSeconds: number) => {
@@ -440,7 +437,6 @@ export default function Home() {
     return `${mins}:${secs}`;
   };
 
-  // Operation text mapping
   const opNameMap: Record<SimpleOperation, string> = {
     "+": "Penjumlahan",
     "-": "Pengurangan",
@@ -448,142 +444,46 @@ export default function Home() {
     "÷": "Pembagian",
   };
 
-  const getAccuracy = () => {
-    if (quizLength === 0) return 0;
-    return Math.round((quizCorrectCount / quizLength) * 100);
-  };
-
-  const getEncouragementText = (accuracy: number) => {
-    if (accuracy < 60) return `Tetap semangat, ${currentUser}!`;
-    if (accuracy < 85) return `Bagus sekali, ${currentUser}!`;
-    return `Hebat sekali, ${currentUser}!`;
-  };
-
-  // Derive historical data for MathBoardGrid when viewing history
-  const isViewingHistory = currentMode === "kuis" && quizViewingIndex !== null;
-  const viewingLog = isViewingHistory ? quizQuestionsLog[quizViewingIndex!] : null;
-
-  const activeNum1 = viewingLog && viewingLog.num1 !== undefined ? viewingLog.num1 : num1;
-  const activeNum2 = viewingLog && viewingLog.num2 !== undefined ? viewingLog.num2 : num2;
-  const activeOp = viewingLog ? (viewingLog.operation as SimpleOperation) : currentOp;
-
-  // Split historical answer for display in read-only boxes
-  const getAnsValuesFromLog = (log: QuestionLog) => {
-    const cleanUserAns = log.userAnswer === "-" ? "" : log.userAnswer;
-    const padded = cleanUserAns.padStart(4, " ");
-    return {
-      th: padded[0] === " " ? "" : padded[0],
-      h: padded[1] === " " ? "" : padded[1],
-      t: padded[2] === " " ? "" : padded[2],
-      u: padded[3] === " " ? "" : padded[3],
-    };
-  };
-
-  const activeAnsValues = viewingLog ? getAnsValuesFromLog(viewingLog) : ansValues;
-  const activeCarryValues = viewingLog ? { th: "", h: "", t: "", u: "" } : carryValues;
-
-  // Find correct answer for viewingLog
-  const getHistoricalCorrectAnswer = (log: QuestionLog) => {
-    const n1 = log.num1 ?? 0;
-    const n2 = log.num2 ?? 0;
-    const op = log.operation;
-    if (op === "+") return n1 + n2;
-    if (op === "-") return n1 - n2;
-    if (op === "×") return n1 * n2;
-    if (op === "÷") return n2 !== 0 ? Math.floor(n1 / n2) : 0;
-    return 0;
-  };
-
-  const historicalCorrectAnswer = viewingLog ? getHistoricalCorrectAnswer(viewingLog) : undefined;
+  const correctCount = sessionLogs.filter((q) => q.isCorrect).length;
+  const wrongCount = sessionLogs.length - correctCount;
+  const accuracy = sessionLogs.length > 0 ? Math.round((correctCount / sessionLogs.length) * 100) : 100;
 
   return (
     <div className="min-h-screen text-slate-800 flex flex-col justify-between relative overflow-x-hidden p-3 md:p-6 w-full">
-      {/* WELCOME SCREEN */}
-      {isWelcome && (
-        <WelcomeScreen
-          studentNameInput={studentNameInput}
-          setStudentNameInput={setStudentNameInput}
-          handleStartApp={handleStartApp}
+      {/* 3-STEP SETUP WIZARD */}
+      {isSetupOpen && (
+        <SetupWizard
+          initialName={currentUser}
+          initialOp={selectedOp}
+          initialCombo={placeValueCombo}
+          onComplete={handleCompleteSetup}
         />
       )}
 
       {/* MAIN CONTAINER */}
-      {!isWelcome && (
-        <div id="main-app" className="flex flex-col flex-1 max-w-7xl mx-auto w-full gap-6">
-          {/* HEADER / NAVBAR */}
-          <header className="bg-white rounded-3xl p-4 md:px-6 border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
-            {/* Left Branding */}
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-md shadow-blue-500/20 font-fredoka">
-                ÷×
-              </div>
-              <div>
-                <h1 className="font-black text-xl text-slate-900 tracking-tight leading-tight font-fredoka">
-                  Math Board
-                </h1>
-                <p id="user-greeting" className="text-xs text-slate-500 font-bold">
-                  Halo, {currentUser}! 👋
-                </p>
-              </div>
-            </div>
-
-            {/* Center Session Tabs */}
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80">
-              <button
-                onClick={() => handleSwitchMode("latihan")}
-                className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition duration-200 flex items-center gap-2 ${currentMode === "latihan"
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <Dumbbell size={14} /> Sesi Latihan
-              </button>
-              <button
-                onClick={() => handleSwitchMode("kuis")}
-                className={`px-5 py-2.5 rounded-xl font-extrabold text-xs transition duration-200 flex items-center gap-2 ${currentMode === "kuis"
-                    ? "bg-amber-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                <Trophy size={14} className={currentMode === "kuis" ? "text-white" : "text-amber-500"} /> Sesi Kuis
-              </button>
-            </div>
-
-            {/* Right Stats Badges */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200/80 px-4 py-2 rounded-2xl font-extrabold text-xs shadow-xs">
-                <Star size={14} className="text-amber-500 fill-amber-500" />
-                <span>
-                  Skor: <span id="stat-score" className="text-amber-900">{score}</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-4 py-2 rounded-2xl font-extrabold text-xs shadow-xs">
-                <Flame size={14} className="text-emerald-500 fill-emerald-500" />
-                <span>
-                  Beruntun: <span id="stat-streak" className="text-emerald-900">{streak}</span>
-                </span>
-              </div>
-            </div>
-          </header>
-
-          {/* MAIN APP GRID */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* LEFT PANEL */}
-            <section className="lg:col-span-4 flex flex-col gap-5">
+      {!isSetupOpen && (
+        <div id="main-app" className="flex flex-col lg:flex-row flex-1 max-w-7xl mx-auto w-full gap-6 items-start">
+          {/* LEFT: SIDEBAR (MULAI DARI PALING ATAS DENGAN BRANDING & SAPAAN SISWA) */}
+          {isSidebarOpen && (
+            <aside className="w-full lg:w-80 xl:w-96 shrink-0 flex flex-col gap-5">
               <SettingsPanel
-                currentMode={currentMode}
+                currentUser={currentUser}
                 selectedOp={selectedOp}
                 currentOp={currentOp}
                 placeValueCombo={placeValueCombo}
                 focusOption={focusOption}
-                quizTimerActive={quizTimerActive}
-                quizCurrentIndex={quizCurrentIndex}
-                quizLength={quizLength}
-                quizSecondsElapsed={quizSecondsElapsed}
-                quizQuestionsLog={quizQuestionsLog}
+                practiceStats={{
+                  totalAnswered: sessionLogs.length,
+                  correctCount,
+                  wrongCount,
+                  totalSeconds: totalSessionSeconds,
+                }}
                 opNameMap={opNameMap}
-                onSelectOp={handleSelectOp}
-                onPlaceValueChange={(combo) => {
+                onSelectOp={(op) => {
+                  setSelectedOp(op);
+                  generateProblem(op, placeValueCombo, focusOption);
+                }}
+                onComboChange={(combo) => {
                   setPlaceValueCombo(combo);
                   generateProblem(selectedOp, combo, focusOption);
                 }}
@@ -591,102 +491,159 @@ export default function Home() {
                   setFocusOption(focus);
                   generateProblem(selectedOp, placeValueCombo, focus);
                 }}
-                onStartQuiz={handleStartQuiz}
                 onNewProblem={() => generateProblem()}
+                onSaveAndFinishSession={handleSaveSession}
+                onChangeSetup={() => setIsSetupOpen(true)}
+                onCloseSidebar={() => setIsSidebarOpen(false)}
                 formatTimer={formatTimer}
-                quizViewingIndex={quizViewingIndex}
-                onSelectViewingQuestion={(index) => setQuizViewingIndex(index)}
               />
-            </section>
+            </aside>
+          )}
 
-            {/* RIGHT PANEL */}
-            <section className="lg:col-span-8 flex flex-col gap-6">
-              <MathBoardGrid
-                currentMode={currentMode}
-                selectedOp={selectedOp}
-                currentOp={activeOp}
-                placeValueCombo={placeValueCombo}
-                num1={activeNum1}
-                num2={activeNum2}
-                carryValues={activeCarryValues}
-                setCarryValues={setCarryValues}
-                ansValues={activeAnsValues}
-                setAnsValues={setAnsValues}
-                onCheckAnswer={handleCheckAnswer}
-                quizCurrentIndex={quizCurrentIndex}
-                opNameMap={opNameMap}
-                showSteps={showSteps}
-                setShowSteps={setShowSteps}
-                isReadOnly={isViewingHistory}
-                quizViewingIndex={quizViewingIndex}
-                onReturnToActive={() => setQuizViewingIndex(null)}
-                historicalCorrectAnswer={historicalCorrectAnswer}
-              />
+          {/* RIGHT: RUANG KERJA UTAMA DENGAN BAR STATUS & SKOR DI KANAN ATAS */}
+          <main className={`flex-1 w-full flex flex-col gap-6 ${!isSidebarOpen ? "max-w-4xl mx-auto" : ""}`}>
+            {/* BAR STATUS & SKOR DI KANAN ATAS */}
+            <div className="bg-white rounded-2xl md:rounded-3xl p-3 md:px-5 border border-slate-200/80 shadow-xs flex items-center justify-between gap-3">
+              {/* Kiri: Tombol Buka/Tutup Menu */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${isSidebarOpen
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20"
+                    }`}
+                >
+                  {isSidebarOpen ? (
+                    <>
+                      <PanelLeftClose size={14} /> Sembunyikan Menu
+                    </>
+                  ) : (
+                    <>
+                      <PanelLeftOpen size={14} /> Buka Menu Pengaturan
+                    </>
+                  )}
+                </button>
 
-              {currentMode === "latihan" && showSteps && (
-                <StepsCard
-                  currentOp={currentOp}
-                  num1={num1}
-                  num2={num2}
-                  correctAnswer={correctAnswer}
-                />
-              )}
-            </section>
-          </div>
+                {!isSidebarOpen && (
+                  <div className="flex items-center gap-2 pl-2">
+                    <div className="w-7 h-7 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-black font-fredoka">
+                      ÷×
+                    </div>
+                    <span className="text-xs font-black text-slate-800 font-fredoka hidden sm:inline">
+                      Math Board • Halo, {currentUser}! 👋
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Kanan: Badges Operasi & Nilai Tempat, Skor, Beruntun */}
+              <div className="flex items-center gap-2 md:gap-3">
+                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black">
+                  {selectedOp === "mix" ? "Campuran" : opNameMap[currentOp]} • {placeValueCombo}
+                </span>
+
+                <div className="flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-200/80 px-3 py-1.5 rounded-xl font-extrabold text-xs shadow-xs">
+                  <Star size={13} className="text-amber-500 fill-amber-500" />
+                  <span>
+                    Skor: <span id="stat-score" className="text-amber-900">{score}</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-3 py-1.5 rounded-xl font-extrabold text-xs shadow-xs">
+                  <Flame size={13} className="text-emerald-500 fill-emerald-500" />
+                  <span>
+                    Beruntun: <span id="stat-streak" className="text-emerald-900">{streak}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ALAT BANTU BALOK 3D */}
+            <BaseTenBlocksVisualizer
+              num1={num1}
+              num2={num2}
+              operation={currentOp === "-" ? "−" : currentOp}
+            />
+
+            {/* MATH BOARD GRID */}
+            <MathBoardGrid
+              currentUser={currentUser}
+              selectedOp={selectedOp}
+              currentOp={currentOp}
+              placeValueCombo={placeValueCombo}
+              num1={num1}
+              num2={num2}
+              carryValues={carryValues}
+              setCarryValues={setCarryValues}
+              ansValues={ansValues}
+              setAnsValues={setAnsValues}
+              onCheckAnswer={handleCheckAnswer}
+              opNameMap={opNameMap}
+              diagnosticHint={diagnosticHint}
+            />
+          </main>
         </div>
       )}
 
-      {/* QUIZ SUMMARY MODAL */}
+      {/* PRACTICE SESSION SUMMARY MODAL (EVALUASI GURU & SISWA) */}
       {showSummaryModal && (
-        <div id="quiz-summary-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-md w-full p-6 md:p-8 text-center relative overflow-hidden">
-            <div className="w-20 h-20 bg-amber-100/80 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trophy size={36} className="text-amber-500 fill-amber-500" />
+        <div id="practice-summary-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-lg w-full p-6 md:p-8 text-center relative overflow-hidden">
+            <div className="w-20 h-20 bg-emerald-100/80 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
+              <Award size={40} />
             </div>
 
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight font-fredoka">Hasil Sesi Kuis</h2>
-            <p id="summary-subtitle" className="text-sm font-semibold text-slate-500 mt-1 mb-6">
-              {getEncouragementText(getAccuracy())}
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight font-fredoka">
+              Sesi Latihan Tersimpan! 🎉
+            </h2>
+            <p className="text-sm font-semibold text-slate-500 mt-1 mb-5">
+              Data pengerjaan {currentUser} telah terekam di database untuk evaluasi guru.
             </p>
 
-            <div className="bg-slate-50/80 p-3.5 rounded-3xl border border-slate-100 mb-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs text-center">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">JAWABAN BENAR</p>
-                  <p className="text-2xl font-black text-emerald-500">{quizCorrectCount} Soal</p>
+            {/* STATS TILES */}
+            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 mb-5">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs text-center">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">BENAR</p>
+                  <p className="text-2xl font-black text-emerald-500 font-fredoka">{correctCount} Soal</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs text-center">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">JAWABAN SALAH</p>
-                  <p className="text-2xl font-black text-rose-500">{quizLength - quizCorrectCount} Soal</p>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs text-center">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">SALAH</p>
+                  <p className="text-2xl font-black text-rose-500 font-fredoka">{wrongCount} Soal</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs text-center">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">AKURASI SKOR</p>
-                  <p className="text-2xl font-black text-blue-600">{getAccuracy()}%</p>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs text-center">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">AKURASI</p>
+                  <p className="text-2xl font-black text-blue-600 font-fredoka">{accuracy}%</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-xs text-center">
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">TOTAL WAKTU</p>
-                  <p className="text-2xl font-black text-purple-600">
-                    {formatTimer(quizQuestionsLog.reduce((sum, q) => sum + q.timeTaken, 0))}
-                  </p>
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs text-center">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5">DURASI LATIHAN</p>
+                  <p className="text-2xl font-black text-purple-600 font-fredoka">{formatTimer(totalSessionSeconds)}</p>
                 </div>
+              </div>
+
+              {/* EVALUATION SUMMARY NOTE */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-left text-xs font-bold text-blue-900">
+                <span className="font-black block uppercase text-[10px] text-blue-600 mb-0.5">Ringkasan Evaluasi Belajar:</span>
+                {generateSessionSummary(sessionLogs)}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={handleCloseQuizSummary}
+                onClick={handleContinuePractice}
                 className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3.5 px-4 rounded-2xl text-xs transition duration-200"
               >
-                Kembali ke Latihan
+                Lanjutkan Latihan
               </button>
               <button
-                onClick={handleRepeatQuiz}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-purple-500/25 text-xs transition duration-200"
+                onClick={handleResetSession}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-blue-500/25 text-xs transition duration-200"
               >
-                Ulangi Kuis
+                Mulai Sesi Baru 🚀
               </button>
             </div>
           </div>

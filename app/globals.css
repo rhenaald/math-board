@@ -24,10 +24,34 @@ body {
   font-family: var(--font-fredoka), cursive, sans-serif;
 }
 
-.place-th { background-color: #fef3c7; color: #92400e; border-color: #fcd34d; } /* Ribuan */
-.place-h { background-color: #e0e7ff; color: #3730a3; border-color: #a5b4fc; } /* Ratusan */
-.place-t { background-color: #dcfce7; color: #166534; border-color: #86efac; } /* Puluhan */
-.place-u { background-color: #ffe4e6; color: #9f1239; border-color: #fda4af; } /* Satuan */
+.place-th {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+/* Ribuan */
+.place-h {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-color: #a5b4fc;
+}
+
+/* Ratusan */
+.place-t {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+/* Puluhan */
+.place-u {
+  background-color: #ffe4e6;
+  color: #9f1239;
+  border-color: #fda4af;
+}
+
+/* Satuan */
 
 .board-cell-input:focus {
   transform: scale(1.03);
@@ -42,4 +66,3 @@ body {
 .toast-slide {
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease-out;
 }
-

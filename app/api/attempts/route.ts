@@ -47,7 +47,17 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { studentName, dateStr, correctCount, wrongCount, totalTime, questions } = body;
+    const {
+      studentName,
+      dateStr,
+      operation,
+      placeValueLevel,
+      correctCount,
+      wrongCount,
+      totalTime,
+      summaryErrors,
+      questions,
+    } = body;
 
     if (!studentName || !questions || !Array.isArray(questions)) {
       return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
@@ -69,17 +79,25 @@ export async function POST(request: Request) {
         studentName,
         dateStr,
         attemptNumber,
+        operation: operation || null,
+        placeValueLevel: placeValueLevel || null,
         correctCount,
         wrongCount,
         totalTime,
+        summaryErrors: summaryErrors || null,
         questions: {
           create: questions.map((q: any) => ({
             no: q.no,
             operation: q.operation,
             questionStr: q.questionStr,
+            num1: q.num1 !== undefined ? q.num1 : null,
+            num2: q.num2 !== undefined ? q.num2 : null,
             userAnswer: q.userAnswer,
             isCorrect: q.isCorrect,
             timeTaken: q.timeTaken,
+            errorType: q.errorType || null,
+            errorDetail: q.errorDetail || null,
+            suggestedIntervention: q.suggestedIntervention || null,
           })),
         },
       },
@@ -91,6 +109,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, attempt });
   } catch (e) {
     console.error("POST attempt failed:", e);
-    return NextResponse.json({ error: "Gagal menyimpan hasil kuis" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal menyimpan hasil latihan" }, { status: 500 });
   }
 }

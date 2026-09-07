@@ -1,256 +1,223 @@
-import React from "react";
-import { Sliders, Play, RefreshCw, Timer } from "lucide-react";
+"use client";
 
-type Operation = "+" | "-" | "×" | "÷" | "mix";
+import React from "react";
+import { Sliders, RefreshCw, Save, User, Clock, X } from "lucide-react";
+import { OperationType } from "./SetupWizard";
+
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
-interface QuestionLog {
-  no: number;
-  operation: string;
-  questionStr: string;
-  userAnswer: string;
-  isCorrect: boolean;
-  timeTaken: number;
-}
-
 interface SettingsPanelProps {
-  currentMode: "latihan" | "kuis" | "admin";
-  selectedOp: Operation;
+  currentUser: string;
+  selectedOp: OperationType;
   currentOp: SimpleOperation;
   placeValueCombo: string;
   focusOption: string;
-  quizTimerActive: boolean;
-  quizCurrentIndex: number;
-  quizLength: number;
-  quizSecondsElapsed: number;
-  quizQuestionsLog: QuestionLog[];
+  practiceStats: {
+    totalAnswered: number;
+    correctCount: number;
+    wrongCount: number;
+    totalSeconds: number;
+  };
   opNameMap: Record<SimpleOperation, string>;
-  onSelectOp: (op: Operation) => void;
-  onPlaceValueChange: (combo: string) => void;
+  onSelectOp: (op: OperationType) => void;
+  onComboChange: (combo: string) => void;
   onFocusOptionChange: (focus: string) => void;
-  onStartQuiz: () => void;
   onNewProblem: () => void;
+  onSaveAndFinishSession: () => void;
+  onChangeSetup: () => void;
+  onCloseSidebar?: () => void;
   formatTimer: (seconds: number) => string;
-  quizViewingIndex: number | null;
-  onSelectViewingQuestion?: (index: number | null) => void;
 }
 
 export default function SettingsPanel({
-  currentMode,
+  currentUser,
   selectedOp,
   currentOp,
   placeValueCombo,
   focusOption,
-  quizTimerActive,
-  quizCurrentIndex,
-  quizLength,
-  quizSecondsElapsed,
-  quizQuestionsLog,
+  practiceStats,
   opNameMap,
   onSelectOp,
-  onPlaceValueChange,
+  onComboChange,
   onFocusOptionChange,
-  onStartQuiz,
   onNewProblem,
+  onSaveAndFinishSession,
+  onChangeSetup,
+  onCloseSidebar,
   formatTimer,
-  quizViewingIndex,
-  onSelectViewingQuestion,
 }: SettingsPanelProps) {
+  const accuracy =
+    practiceStats.totalAnswered > 0
+      ? Math.round((practiceStats.correctCount / practiceStats.totalAnswered) * 100)
+      : 100;
+
   return (
-    <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm flex flex-col gap-5">
-      <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-        <Sliders size={18} className="text-blue-600" /> Pengaturan Soal
-      </h2>
-
-      {/* OPERASI MATEMATIKA / PROGRESS SOAL KUIS */}
-      {currentMode === "kuis" ? (
-        <div>
-          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3">
-            Kemajuan Soal Kuis
-          </label>
-          <div className="grid grid-cols-9 gap-1.5 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-            {Array.from({ length: quizLength }).map((_, idx) => {
-              const questionNo = idx + 1;
-              const logEntry = quizQuestionsLog.find((q) => q.no === questionNo);
-              const isCurrent = idx === quizCurrentIndex;
-              const isAnswered = !!logEntry;
-              const isCorrect = logEntry?.isCorrect;
-              const isViewing = idx === quizViewingIndex;
-              const isClickable = isAnswered || (isCurrent && quizViewingIndex !== null);
-
-              let statusClasses = "bg-white border-slate-200 text-slate-400 opacity-50 cursor-not-allowed";
-              if (isCurrent) {
-                if (quizViewingIndex === null) {
-                  statusClasses = "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-400 ring-offset-1 font-black shadow-md shadow-blue-500/20 animate-pulse cursor-default";
-                } else {
-                  statusClasses = "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 cursor-pointer hover:scale-105 font-bold";
-                }
-              } else if (isAnswered) {
-                const baseColor = isCorrect
-                  ? "bg-emerald-500 text-white border-emerald-500 font-bold"
-                  : "bg-rose-500 text-white border-rose-500 font-bold";
-                if (isViewing) {
-                  statusClasses = `${baseColor} ring-4 ring-amber-500 ring-offset-1 scale-105 z-10 cursor-pointer`;
-                } else {
-                  statusClasses = `${baseColor} hover:scale-105 cursor-pointer hover:shadow-xs`;
-                }
-              }
-
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  disabled={!isClickable}
-                  onClick={() => {
-                    if (onSelectViewingQuestion) {
-                      onSelectViewingQuestion(isCurrent ? null : idx);
-                    }
-                  }}
-                  className={`aspect-square flex items-center justify-center rounded-lg border text-[10px] md:text-xs font-black transition-all ${statusClasses}`}
-                  title={
-                    isCurrent
-                      ? "Soal Aktif"
-                      : isAnswered
-                        ? `Soal ${questionNo} (${isCorrect ? "Benar" : "Salah"})`
-                        : `Soal ${questionNo} (Belum Dikerjakan)`
-                  }
-                >
-                  {questionNo}
-                </button>
-              );
-            })}
+    <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm flex flex-col gap-5 w-full animate-in fade-in duration-200">
+      {/* BRANDING & USER GREETING DIRECTLY IN SIDEBAR */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-md shadow-blue-500/20 font-fredoka shrink-0">
+            ÷×
+          </div>
+          <div>
+            <h2 className="font-black text-base text-slate-900 tracking-tight leading-tight font-fredoka">
+              Math Board
+            </h2>
+            <p id="user-greeting" className="text-xs text-slate-500 font-bold">
+              Halo, {currentUser}! 👋
+            </p>
           </div>
         </div>
-      ) : (
-        /* OPERASI MATEMATIKA (Latihan) */
-        <div>
-          <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3">
-            Operasi Matematika
-          </label>
-          <div className="grid grid-cols-5 gap-1.5">
-            {[
-              { id: "+", label: "Tambah", sym: "+" },
-              { id: "-", label: "Kurang", sym: "−" },
-              { id: "×", label: "Kali", sym: "×" },
-              { id: "÷", label: "Bagi", sym: "÷" },
-              { id: "mix", label: "Campuran", sym: "🎲" },
-            ].map((op) => (
-              <button
-                key={op.id}
-                type="button"
-                onClick={() => onSelectOp(op.id as Operation)}
-                className={`p-2.5 rounded-2xl border-2 font-extrabold flex flex-col items-center justify-center gap-1 transition ${
-                  selectedOp === op.id
-                    ? "border-blue-600 bg-blue-50/50 text-blue-600"
-                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                }`}
-              >
-                <span className="text-lg font-black">{op.sym}</span>
-                <span className={`text-[9px] font-bold ${selectedOp === op.id ? "text-blue-500" : "text-slate-400"}`}>
-                  {op.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* KOMBINASI NILAI TEMPAT (Latihan Mode Only) */}
-      {currentMode === "latihan" && (
-        <div>
-          <label htmlFor="place-value-combo" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
-            Kombinasi Nilai Tempat
-          </label>
-          <select
-            id="place-value-combo"
-            value={placeValueCombo}
-            onChange={(e) => onPlaceValueChange(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onChangeSetup}
+            className="text-[10px] font-extrabold px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+            title="Ubah Alur / Nama / Operasi"
           >
-            <option value="S-S">Satuan ke Satuan (1 digit & 1 digit)</option>
-            <option value="S-P">Satuan ke Puluhan (1 digit & 2 digit)</option>
-            <option value="S-R">Satuan ke Ratusan (1 digit & 3 digit)</option>
-            <option value="P-S">Puluhan ke Satuan (2 digit & 1 digit)</option>
-            <option value="P-P">Puluhan ke Puluhan (2 digit & 2 digit)</option>
-            <option value="P-R">Puluhan ke Ratusan (2 digit & 3 digit)</option>
-            <option value="R-S">Ratusan ke Satuan (3 digit & 1 digit)</option>
-            <option value="R-P">Ratusan ke Puluhan (3 digit & 2 digit)</option>
-            <option value="R-R">Ratusan ke Ratusan (3 digit & 3 digit)</option>
-          </select>
-        </div>
-      )}
-
-      {/* FOKUS SOAL LATIHAN (Latihan Mode Only) */}
-      {currentMode === "latihan" && (
-        <div id="focus-select-card">
-          <label htmlFor="focus-select" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
-            Fokus Soal Latihan
-          </label>
-          <select
-            id="focus-select"
-            value={focusOption}
-            onChange={(e) => onFocusOptionChange(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
-          >
-            <option value="random">🎲 Campuran (Acak)</option>
-            <option value="no-carry">✨ Soal Dasar (Tanpa Simpan/Pinjam)</option>
-            <option value="with-carry">🔥 Soal Tantangan (Dengan Simpan/Pinjam)</option>
-          </select>
-        </div>
-      )}
-
-      {/* QUIZ CONFIGURATION (QUIZ MODE ONLY) */}
-      {currentMode === "kuis" && (
-        <div id="quiz-config-card" className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 flex flex-col gap-3">
-          {!quizTimerActive ? (
-            <>
-              <div className="text-amber-900 text-xs font-bold leading-relaxed">
-                Kuis ini mencakup <b>{quizLength} soal berurutan</b> dari penjumlahan (+), pengurangan (-), perkalian (×), hingga pembagian (÷) dengan digit yang meningkat. Waktu pengerjaan akan dicatat.
-              </div>
-              <button
-                onClick={onStartQuiz}
-                type="button"
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 rounded-xl shadow-md text-xs transition flex items-center justify-center gap-2 uppercase tracking-wider font-fredoka"
-              >
-                <Play size={12} className="fill-white" /> Mulai Kuis Sekarang
-              </button>
-            </>
-          ) : (
-            /* QUIZ PROGRESS BAR (QUIZ MODE ONLY) */
-            <div id="quiz-progress-bar-container" className="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs flex flex-col gap-2">
-              <div className="flex justify-between items-center gap-2">
-                <span id="quiz-question-indicator" className="text-xs font-black text-amber-800 uppercase tracking-wider">
-                  Soal {quizCurrentIndex + 1} dari {quizLength}
-                </span>
-                <span
-                  id="quiz-timer"
-                  className="text-xs font-black px-2.5 py-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50/50 flex items-center gap-1.5 transition-all duration-300 animate-pulse"
-                >
-                  <Timer size={12} /> ⏱️ {formatTimer(quizSecondsElapsed)}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                <div
-                  id="quiz-progress-fill"
-                  className="bg-amber-500 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${(quizCurrentIndex / quizLength) * 100}%` }}
-                ></div>
-              </div>
-            </div>
+            Ubah
+          </button>
+          {onCloseSidebar && (
+            <button
+              type="button"
+              onClick={onCloseSidebar}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              title="Tutup Menu Pengaturan"
+            >
+              <X size={18} />
+            </button>
           )}
         </div>
-      )}
+      </div>
 
-      {/* ACTION BUTTON (Latihan Mode Only) */}
-      {currentMode === "latihan" && (
+      {/* STATISTIK SESI LATIHAN */}
+      <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+            Progres Latihan Sesi Ini
+          </span>
+          <span className="text-[11px] font-black text-indigo-700 flex items-center gap-1">
+            <Clock size={12} /> {formatTimer(practiceStats.totalSeconds)}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-white p-2 rounded-xl border border-slate-100">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Soal</span>
+            <span className="text-base font-black text-slate-800 font-fredoka">{practiceStats.totalAnswered}</span>
+          </div>
+          <div className="bg-white p-2 rounded-xl border border-slate-100">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Benar</span>
+            <span className="text-base font-black text-emerald-600 font-fredoka">{practiceStats.correctCount}</span>
+          </div>
+          <div className="bg-white p-2 rounded-xl border border-slate-100">
+            <span className="text-[9px] font-bold text-slate-400 uppercase block">Akurasi</span>
+            <span className="text-base font-black text-blue-600 font-fredoka">{accuracy}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* OPERASI MATEMATIKA */}
+      <div>
+        <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2.5">
+          Operasi Latihan
+        </label>
+        <div className="grid grid-cols-5 gap-1.5">
+          {[
+            { id: "+", label: "Tambah", sym: "+" },
+            { id: "-", label: "Kurang", sym: "−" },
+            { id: "×", label: "Kali", sym: "×" },
+            { id: "÷", label: "Bagi", sym: "÷" },
+            { id: "mix", label: "Campur", sym: "🎲" },
+          ].map((op) => (
+            <button
+              key={op.id}
+              type="button"
+              onClick={() => onSelectOp(op.id as OperationType)}
+              className={`p-2.5 rounded-2xl border-2 font-extrabold flex flex-col items-center justify-center gap-1 transition ${
+                selectedOp === op.id
+                  ? "border-blue-600 bg-blue-50/70 text-blue-700 shadow-xs"
+                  : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+              }`}
+            >
+              <span className="text-base font-black">{op.sym}</span>
+              <span className={`text-[9px] font-bold ${selectedOp === op.id ? "text-blue-600" : "text-slate-400"}`}>
+                {op.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* KOMBINASI NILAI TEMPAT (Satuan ke Satuan, Puluhan ke Puluhan, dst.) */}
+      <div>
+        <label htmlFor="place-value-combo-select" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+          Kombinasi Nilai Tempat
+        </label>
+        <select
+          id="place-value-combo-select"
+          value={placeValueCombo}
+          onChange={(e) => onComboChange(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+        >
+          <option value="S-S">Satuan ke Satuan (1 digit & 1 digit)</option>
+          <option value="S-P">Satuan ke Puluhan (1 digit & 2 digit)</option>
+          <option value="S-R">Satuan ke Ratusan (1 digit & 3 digit)</option>
+          <option value="P-S">Puluhan ke Satuan (2 digit & 1 digit)</option>
+          <option value="P-P">Puluhan ke Puluhan (2 digit & 2 digit)</option>
+          <option value="P-R">Puluhan ke Ratusan (2 digit & 3 digit)</option>
+          <option value="R-S">Ratusan ke Satuan (3 digit & 1 digit)</option>
+          <option value="R-P">Ratusan ke Puluhan (3 digit & 2 digit)</option>
+          <option value="R-R">Ratusan ke Ratusan (3 digit & 3 digit)</option>
+        </select>
+      </div>
+
+      {/* FOKUS SOAL */}
+      <div>
+        <label htmlFor="focus-select" className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+          Karakteristik Soal Latihan
+        </label>
+        <select
+          id="focus-select"
+          value={focusOption}
+          onChange={(e) => onFocusOptionChange(e.target.value)}
+          className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+        >
+          <option value="random">🎲 Campuran Acak</option>
+          <option value="no-carry">✨ Soal Dasar (Tanpa Simpan/Pinjam)</option>
+          <option value="with-carry">🔥 Soal Tantangan (Dengan Simpan/Pinjam)</option>
+        </select>
+      </div>
+
+      {/* ACTION BUTTONS */}
+      <div className="flex flex-col gap-2.5 pt-2">
         <button
           onClick={onNewProblem}
           type="button"
-          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-3.5 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-fredoka"
+          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-3 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-fredoka"
         >
           <RefreshCw size={14} /> Acak Soal Baru
         </button>
-      )}
+
+        <button
+          onClick={onSaveAndFinishSession}
+          type="button"
+          disabled={practiceStats.totalAnswered === 0}
+          className={`w-full py-3 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-fredoka ${
+            practiceStats.totalAnswered > 0
+              ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/20 cursor-pointer"
+              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+          }`}
+          title={
+            practiceStats.totalAnswered === 0
+              ? "Jawab minimal 1 soal untuk menyimpan sesi"
+              : "Simpan rekaman latihan ke database guru"
+          }
+        >
+          <Save size={14} /> Simpan & Selesaikan Sesi
+        </button>
+      </div>
     </div>
   );
 }

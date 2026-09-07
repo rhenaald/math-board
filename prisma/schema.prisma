@@ -8,26 +8,34 @@ generator client {
 }
 
 model Attempt {
-  id            String        @id @default(uuid())
-  studentName   String
-  dateStr       String
-  attemptNumber Int
-  correctCount  Int
-  wrongCount    Int
-  totalTime     Int           // Total duration of kuis in seconds
-  createdAt     DateTime      @default(now())
-  questions     QuestionLog[]
+  id              String        @id @default(uuid())
+  studentName     String
+  dateStr         String
+  attemptNumber   Int
+  operation       String?       // Misal: "+", "-", "×", "÷", "Campuran"
+  placeValueLevel String?       // Misal: "Satuan", "Puluhan", "Ratusan", "Ribuan"
+  correctCount    Int
+  wrongCount      Int
+  totalTime       Int           // Total duration in seconds
+  summaryErrors   String?       // Ringkasan diagnosis kesalahan siswa
+  createdAt       DateTime      @default(now())
+  questions       QuestionLog[]
 }
 
 model QuestionLog {
-  id          String   @id @default(uuid())
-  attemptId   String
-  attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  no          Int
-  operation   String
-  questionStr String
-  userAnswer  String
-  isCorrect   Boolean
-  timeTaken   Int      // Waktu pengerjaan per soal in seconds
-  createdAt   DateTime @default(now())
+  id                    String   @id @default(uuid())
+  attemptId             String
+  attempt               Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  no                    Int
+  operation             String
+  questionStr           String
+  num1                  Int?
+  num2                  Int?
+  userAnswer            String
+  isCorrect             Boolean
+  timeTaken             Int      // Waktu pengerjaan per soal in seconds
+  errorType             String?  // e.g. LUPA_SIMPAN, PENGURANGAN_TERBALIK, SALAH_NILAI_TEMPAT, SALAH_HITUNG_SATUAN, dll.
+  errorDetail           String?  // Penjelasan detail kesalahan
+  suggestedIntervention String?  // Rekomendasi intervensi pengajaran untuk guru
+  createdAt             DateTime @default(now())
 }

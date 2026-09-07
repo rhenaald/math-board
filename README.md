@@ -7,23 +7,29 @@
 ## 🌟 Fitur Utama
 
 ### 1. Mode Siswa (Halaman Utama)
-*   **Mode Latihan**:
-    *   Mendukung operasi Penjumlahan (`+`), Pengurangan (`-`), Perkalian (`×`), Pembagian (`÷`), dan Campuran (`mix`).
-    *   Dilengkapi dengan kotak bantuan visual **simpan/pinjam** (*carry/borrowing boxes*) untuk mempermudah perhitungan berkolom (Satuan, Puluhan, Ratusan, Ribuan).
-    *   Pengaturan latihan dinamis (fokus soal tanpa simpan, hanya simpan/pinjam, hasil harus positif, dsb.).
-*   **Mode Kuis**:
-    *   Tantangan terstruktur berisi **36 soal** (9 penjumlahan, 9 pengurangan, 9 perkalian, 9 pembagian) yang mencakup variasi digit (Satuan ke Satuan hingga Ratusan ke Ratusan).
-    *   Pencatatan waktu pengerjaan secara keseluruhan dan per soal secara detail.
+*   **Alur 3 Langkah (*Setup Wizard*)**:
+    *   **Langkah 1**: Input Nama Siswa.
+    *   **Langkah 2**: Pilih Operasi Matematika (`+`, `−`, `×`, `÷`, `Campuran`).
+    *   **Langkah 3**: Pilih Satuan / Tingkat Nilai Tempat (**Satuan 1-9**, **Puluhan 10-99**, **Ratusan 100-999**, **Ribuan 1.000-9.999**).
+*   **Alat Bantu Visual Balok Nilai Tempat (*Base-Ten Blocks*)**:
+    *   Visualisasi interaktif berupa kubus satuan, batang puluhan, lempengan ratusan, dan kubus ribuan sesuai kedua angka pada soal.
+    *   Panduan konsep penukaran (*regrouping*) dan pembongkaran balok untuk pemahaman simpan/pinjam.
+*   **Papan Hitung Nilai Tempat**:
+    *   Kotak bantuan visual **simpan/pinjam** (*carry/borrowing boxes*) untuk mempermudah perhitungan berkolom.
+    *   Umpan balik diagnostik langsung jika siswa membuat kesalahan perhitungan.
 *   **Audio & Animasi Efek**:
     *   Umpan balik suara interaktif (efek suara sukses, salah, dan fanfare saat selesai) menggunakan sintesis suara *Web Audio API*.
-    *   Selebrasi kembang api visual menggunakan `canvas-confetti` saat kuis diselesaikan dengan baik.
+    *   Selebrasi kembang api visual menggunakan `canvas-confetti` saat soal diselesaikan dengan benar.
 
-### 2. Mode Guru (Dashboard Rekap Nilai - `/guru`)
-*   **Autentikasi Guru**: Pembatasan akses aman menggunakan JWT Token Cookie dengan enkripsi sesi.
-*   **Tabel Rekap Nilai**: 
-    *   Menampilkan data siswa yang telah menyelesaikan kuis (Nama Siswa, Tanggal, Upaya ke-N, Skor Benar/Salah, dan Total Waktu Pengerjaan).
-    *   **Analisis Detail Soal**: Klik baris siswa untuk melihat detail pengerjaan: soal demi soal, jawaban siswa, indikasi benar/salah, dan waktu yang dihabiskan untuk menjawab setiap soal.
-*   **Manajemen Data**: Opsi untuk membersihkan seluruh data riwayat rekap nilai dari database.
+### 2. Mode Guru (Dashboard Evaluasi Latihan - `/guru`)
+*   **Autentikasi Guru**: Pembatasan akses aman menggunakan JWT Token Cookie dengan enkripsi sesi (default: `admin` / `guru123`).
+*   **Analisis Kesalahan Otomatis (*Error Diagnostics Engine*)**:
+    *   Mendeteksi pola kekeliruan berhitung siswa secara otomatis: *Lupa Simpan (+)*, *Pengurangan Terbalik (tanpa pinjam)*, *Lupa Mengurangi Pinjaman (-)*, *Pergeseran Nilai Tempat*, serta kekeliruan hitung spesifik kolom.
+    *   Menampilkan ringkasan evaluasi belajar dan rekomendasi tindakan intervensi bagi guru.
+*   **Tabel & Detail Sesi**:
+    *   Menampilkan data siswa yang telah menyelesaikan sesi latihan (Nama Siswa, Tanggal, Operasi & Satuan, Sesi ke-N, Skor Benar/Salah, dan Total Waktu).
+    *   Klik baris siswa untuk membuka detail pengerjaan soal demi soal, status, jenis kesalahan, dan saran intervensi.
+*   **Ekspor Data**: Opsi ekspor ke CSV lengkap dengan rincian evaluasi diagnostik, serta manajemen pembersihan data.
 
 ---
 

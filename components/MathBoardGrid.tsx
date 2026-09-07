@@ -1,12 +1,20 @@
+"use client";
+
 import React, { useRef, useEffect } from "react";
-import { CheckCircle, Lightbulb, LightbulbOff } from "lucide-react";
+import { CheckCircle, AlertCircle } from "lucide-react";
+import { OperationType } from "./SetupWizard";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
-type Operation = "+" | "-" | "×" | "÷" | "mix";
+
+interface DiagnosticHint {
+  message: string;
+  badge: string;
+  color: string;
+}
 
 interface MathBoardGridProps {
-  currentMode: "latihan" | "kuis" | "admin";
-  selectedOp: Operation;
+  currentUser: string;
+  selectedOp: OperationType;
   currentOp: SimpleOperation;
   placeValueCombo: string;
   num1: number;
@@ -16,18 +24,12 @@ interface MathBoardGridProps {
   ansValues: { th: string; h: string; t: string; u: string };
   setAnsValues: React.Dispatch<React.SetStateAction<{ th: string; h: string; t: string; u: string }>>;
   onCheckAnswer: () => void;
-  quizCurrentIndex: number;
   opNameMap: Record<SimpleOperation, string>;
-  showSteps: boolean;
-  setShowSteps: (val: boolean) => void;
-  isReadOnly?: boolean;
-  quizViewingIndex?: number | null;
-  onReturnToActive?: () => void;
-  historicalCorrectAnswer?: number;
+  diagnosticHint?: DiagnosticHint | null;
 }
 
 export default function MathBoardGrid({
-  currentMode,
+  currentUser,
   selectedOp,
   currentOp,
   placeValueCombo,
@@ -38,14 +40,8 @@ export default function MathBoardGrid({
   ansValues,
   setAnsValues,
   onCheckAnswer,
-  quizCurrentIndex,
   opNameMap,
-  showSteps,
-  setShowSteps,
-  isReadOnly = false,
-  quizViewingIndex = null,
-  onReturnToActive,
-  historicalCorrectAnswer,
+  diagnosticHint,
 }: MathBoardGridProps) {
   const carryThRef = useRef<HTMLInputElement>(null);
   const carryHRef = useRef<HTMLInputElement>(null);
@@ -58,10 +54,10 @@ export default function MathBoardGrid({
   const ansURef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isReadOnly && ansURef.current) {
+    if (ansURef.current) {
       ansURef.current.focus();
     }
-  }, [num1, num2, currentOp, isReadOnly]);
+  }, [num1, num2, currentOp]);
 
   const handleAnsChange = (
     pos: "th" | "h" | "t" | "u",
@@ -69,7 +65,7 @@ export default function MathBoardGrid({
     nextRef: React.RefObject<HTMLInputElement | null> | null
   ) => {
     const cleaned = val.replace(/[^0-9]/g, "");
-    setAnsValues(prev => ({ ...prev, [pos]: cleaned }));
+    setAnsValues((prev) => ({ ...prev, [pos]: cleaned }));
     if (cleaned.length > 0 && nextRef && nextRef.current) {
       nextRef.current.focus();
     }
@@ -93,7 +89,7 @@ export default function MathBoardGrid({
     nextRef: React.RefObject<HTMLInputElement | null> | null
   ) => {
     const cleaned = val.replace(/[^0-9]/g, "");
-    setCarryValues(prev => ({ ...prev, [pos]: cleaned }));
+    setCarryValues((prev) => ({ ...prev, [pos]: cleaned }));
     if (cleaned.length > 0 && nextRef && nextRef.current) {
       nextRef.current.focus();
     }
@@ -124,57 +120,16 @@ export default function MathBoardGrid({
 
   return (
     <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-sm relative flex flex-col gap-6 w-full">
-      {/* TOP BADGES & STEP TOGGLE BUTTON */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="px-3.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black uppercase tracking-wider">
-            {currentMode === "latihan"
-              ? `🏋️ LATIHAN • ${selectedOp === "mix" ? "CAMPURAN" : opNameMap[currentOp].toUpperCase()}`
-              : isReadOnly
-                ? `👁️ RIWAYAT SOAL #${(quizViewingIndex ?? 0) + 1}`
-                : `🏆 KUIS • SOAL #${quizCurrentIndex + 1}`}
-          </span>
-          <span className="px-3.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-xs font-black">
-            🎯 {currentMode === "latihan"
-              ? `Latihan ${selectedOp === "mix" ? "Campuran" : opNameMap[currentOp]} (${placeValueCombo.split("-")[0]} ke ${placeValueCombo.split("-")[1]})`
-              : isReadOnly
-                ? `Melihat Kembali Soal #${(quizViewingIndex ?? 0) + 1}`
-                : "Soal Kuis Campuran Satuan-Ratusan"}
-          </span>
-        </div>
-
-        {/* Step Toggle Button (Practice Mode Only) */}
-        {currentMode === "latihan" && (
-          <button
-            onClick={() => setShowSteps(!showSteps)}
-            type="button"
-            className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-black flex items-center gap-1.5 transition"
-          >
-            {showSteps ? <LightbulbOff size={14} /> : <Lightbulb size={14} />}
-            {showSteps ? "Sembunyikan Langkah" : "Langkah Penyelesaian"}
-          </button>
-        )}
-      </div>
-
-      {isReadOnly && (
-        <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-center justify-between text-xs text-amber-800 font-bold w-full">
-          <span className="flex items-center gap-1.5">
-            ⚠️ Anda sedang melihat hasil Soal #{(quizViewingIndex ?? 0) + 1} (Kunci Jawaban: {historicalCorrectAnswer})
-          </span>
-          <button
-            onClick={onReturnToActive}
-            type="button"
-            className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl transition font-black uppercase text-[10px] shadow-sm"
-          >
-            Kembali ke Soal Aktif
-          </button>
-        </div>
-      )}
 
       {/* MAIN TITLE */}
-      <h2 className="text-2xl font-black text-slate-900 tracking-tight font-fredoka">
-        Papan Hitung Nilai Tempat
-      </h2>
+      <div>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight font-fredoka">
+          Papan Hitung Nilai Tempat
+        </h2>
+        <p className="text-xs text-slate-500 font-semibold mt-0.5">
+          Tuliskan jawaban per kolom nilai tempat. Gunakan kotak di atas jika ada angka simpanan atau pinjaman.
+        </p>
+      </div>
 
       {/* MATH BOARD GRID TABLE */}
       <div className="w-full pb-2">
@@ -212,8 +167,7 @@ export default function MathBoardGrid({
               value={carryValues.th}
               onChange={(e) => handleCarryChange("th", e.target.value, null)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryHRef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-amber-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-amber-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
               placeholder="0"
             />
             <input
@@ -223,8 +177,7 @@ export default function MathBoardGrid({
               value={carryValues.h}
               onChange={(e) => handleCarryChange("h", e.target.value, carryThRef)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryTRef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-indigo-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-indigo-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
               placeholder="0"
             />
             <input
@@ -234,8 +187,7 @@ export default function MathBoardGrid({
               value={carryValues.t}
               onChange={(e) => handleCarryChange("t", e.target.value, carryHRef)}
               onKeyDown={(e) => handleCarryKeyDown(e, carryURef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-emerald-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-emerald-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
               placeholder="0"
             />
             <input
@@ -245,8 +197,7 @@ export default function MathBoardGrid({
               value={carryValues.u}
               onChange={(e) => handleCarryChange("u", e.target.value, carryTRef)}
               onKeyDown={(e) => handleCarryKeyDown(e, null)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-rose-200 rounded-xl text-xs md:text-sm focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-50"
+              className="board-cell-input w-full h-8 md:h-10 text-center font-bold text-slate-600 bg-white border border-rose-200 rounded-xl text-xs md:text-sm focus:outline-none transition"
               placeholder="0"
             />
           </div>
@@ -284,8 +235,7 @@ export default function MathBoardGrid({
               value={ansValues.th}
               onChange={(e) => handleAnsChange("th", e.target.value, null)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansHRef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-amber-900 bg-amber-50/30 border-2 border-amber-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-amber-900 bg-amber-50/30 border-2 border-amber-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
               placeholder="?"
             />
             <input
@@ -295,8 +245,7 @@ export default function MathBoardGrid({
               value={ansValues.h}
               onChange={(e) => handleAnsChange("h", e.target.value, ansThRef)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansTRef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-indigo-900 bg-indigo-50/30 border-2 border-indigo-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-indigo-900 bg-indigo-50/30 border-2 border-indigo-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
               placeholder="?"
             />
             <input
@@ -306,8 +255,7 @@ export default function MathBoardGrid({
               value={ansValues.t}
               onChange={(e) => handleAnsChange("t", e.target.value, ansHRef)}
               onKeyDown={(e) => handleAnsKeyDown(e, ansURef)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-emerald-900 bg-emerald-50/30 border-2 border-emerald-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-emerald-900 bg-emerald-50/30 border-2 border-emerald-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
               placeholder="?"
             />
             <input
@@ -317,36 +265,36 @@ export default function MathBoardGrid({
               value={ansValues.u}
               onChange={(e) => handleAnsChange("u", e.target.value, ansTRef)}
               onKeyDown={(e) => handleAnsKeyDown(e, null)}
-              disabled={isReadOnly}
-              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-rose-900 bg-rose-50/30 border-2 border-rose-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition disabled:opacity-75 disabled:cursor-not-allowed disabled:bg-slate-100"
+              className="board-cell-input w-full h-10 md:h-14 text-center font-black text-lg md:text-2xl text-rose-900 bg-rose-50/30 border-2 border-rose-300 rounded-xl md:rounded-2xl focus:bg-white focus:outline-none transition"
               placeholder="?"
             />
           </div>
         </div>
       </div>
 
-      {/* ACTION BUTTON */}
-      {!isReadOnly ? (
-        <div className="pt-2 flex justify-start">
-          <button
-            onClick={onCheckAnswer}
-            type="button"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 text-base transition flex items-center gap-2"
-          >
-            <CheckCircle size={18} /> Periksa Jawaban
-          </button>
-        </div>
-      ) : (
-        <div className="pt-2 flex justify-start">
-          <button
-            onClick={onReturnToActive}
-            type="button"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-amber-600/20 text-base transition flex items-center gap-2"
-          >
-            Kembali ke Soal Aktif
-          </button>
+      {/* DIAGNOSTIC ERROR FEEDBACK BANNER */}
+      {diagnosticHint && (
+        <div className={`p-4 rounded-2xl border flex items-start gap-3 animate-in fade-in duration-200 ${diagnosticHint.color}`}>
+          <AlertCircle size={20} className="shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/70 border border-current inline-block">
+              {diagnosticHint.badge}
+            </span>
+            <p className="text-xs font-bold leading-relaxed">{diagnosticHint.message}</p>
+          </div>
         </div>
       )}
+
+      {/* ACTION BUTTON */}
+      <div className="pt-2 flex justify-start">
+        <button
+          onClick={onCheckAnswer}
+          type="button"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-8 rounded-2xl shadow-lg shadow-emerald-600/20 text-base transition flex items-center gap-2 transform active:scale-95"
+        >
+          <CheckCircle size={18} /> Periksa Jawaban
+        </button>
+      </div>
     </div>
   );
 }
