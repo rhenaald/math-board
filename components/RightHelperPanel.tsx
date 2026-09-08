@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Lightbulb, Layers, LayoutGrid, Box, Repeat, CheckCircle, ArrowRight, Sparkles } from "lucide-react";
-import { GirlEncouragementCard } from "./ChildMascots";
+import {
+  ClipboardList,
+  CheckCircle2,
+  Lightbulb,
+  Sparkles,
+  AlertCircle,
+  ArrowRight,
+  RotateCcw,
+  Check,
+} from "lucide-react";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -10,297 +18,355 @@ interface RightHelperPanelProps {
   currentOp?: SimpleOperation;
   num1?: number;
   num2?: number;
+  activeStep?: number;
+  onOpenMultiLevelHelp?: () => void;
   onSelectStrategy?: (strat: string) => void;
   isHighlighted?: boolean;
 }
 
 export default function RightHelperPanel({
-  currentOp = "+",
-  num1 = 45,
-  num2 = 27,
+  currentOp = "×",
+  num1 = 5,
+  num2 = 6,
+  activeStep = 4,
+  onOpenMultiLevelHelp,
   onSelectStrategy,
   isHighlighted = false,
 }: RightHelperPanelProps) {
-  const [activeStrategy, setActiveStrategy] = useState<string | null>("place-value");
+  const [helpLevel, setHelpLevel] = useState<1 | 2 | 3 | 4>(1);
 
-  // Hitung dekomposisi untuk contoh langsung
+  // Decompose numbers for hint logic
   const u1 = num1 % 10;
   const t1 = Math.floor((num1 % 100) / 10);
-  const h1 = Math.floor((num1 % 1000) / 100);
-
   const u2 = num2 % 10;
   const t2 = Math.floor((num2 % 100) / 10);
-  const h2 = Math.floor((num2 % 1000) / 100);
 
-  // Petunjuk Bertingkat dinamis
-  const getSteps = () => {
+  // Checklist Langkahku dinamis berdasarkan operasi (Sesuai Gambar 2 & 4)
+  const getStepList = () => {
     if (currentOp === "×") {
       return [
-        `Pecah bilangan pertama (${num1}) menjadi ratusan, puluhan, dan satuan.`,
-        `Kalikan setiap bagian dengan angka ${num2}.`,
-        "Jumlahkan seluruh hasil kali bagian.",
-        "Periksa kembali hasil akhirmu.",
+        { id: 1, title: "Pahami soal", desc: `${num1} × ${num2} artinya apa?` },
+        { id: 2, title: "Lihat gambar", desc: `${num1} kelompok @ ${num2} benda` },
+        { id: 3, title: "Hitung semua benda", desc: "Penjumlahan berulang" },
+        { id: 4, title: "Tulis jawaban", desc: "Hasil akhir perkalian" },
       ];
     }
     if (currentOp === "÷") {
       return [
-        `Bagi dari nilai tempat terbesar dengan angka ${num2}.`,
-        "Tulis hasil bagi di atas kolom.",
-        "Kurangkan dan turunkan angka berikutnya.",
-        "Pastikan tidak ada sisa pembagian yang terlewat.",
+        { id: 1, title: "Pecah bilangan", desc: "Urai ratusan, puluhan, satuan" },
+        { id: 2, title: "Bagi setiap bagian", desc: `Bagi dengan angka ${num2}` },
+        { id: 3, title: "Gabungkan hasil", desc: "Jumlahkan hasil bagi" },
+        { id: 4, title: "Cek jawaban", desc: "Buktikan dengan perkalian" },
       ];
     }
     if (currentOp === "-") {
       return [
-        "Kurangkan mulai dari kolom Satuan paling kanan.",
-        "Jika angka atas lebih kecil, pinjam 1 dari kolom Puluhan.",
-        "Lanjutkan pengurangan ke kolom Puluhan dan Ratusan.",
-        "Tulis hasil akhir dengan teliti.",
+        { id: 1, title: "Susun angka", desc: "Papan nilai tempat (P & S)" },
+        { id: 2, title: "Cek satuan", desc: "Pastikan satuan cukup dikurang" },
+        { id: 3, title: "Tukar & kurangkan", desc: "Regrouping 1 puluhan" },
+        { id: 4, title: "Gabungkan hasil", desc: "Tulis hasil pengurangan" },
       ];
     }
     // Penjumlahan (Default)
     return [
-      "Jumlahkan angka pada kolom Satuan terlebih dahulu.",
-      "Jika hasilnya 10 atau lebih, simpan 1 di atas kolom Puluhan.",
-      "Jumlahkan angka di kolom Puluhan beserta angka simpanannya.",
-      "Kerjakan dengan tenang dan teliti.",
+      { id: 1, title: "Susun angka", desc: "Papan nilai tempat (P & S)" },
+      { id: 2, title: "Hitung satuan", desc: "Jumlahkan & simpan jika ≥ 10" },
+      { id: 3, title: "Hitung puluhan", desc: "Jumlahkan beserta simpanan" },
+      { id: 4, title: "Gabungkan hasil", desc: "Tulis hasil akhir" },
     ];
   };
 
-  const steps = getSteps();
+  const steps = getStepList();
 
-  const strategies = [
-    {
-      id: "place-value",
-      label: "Pecah Nilai",
-      sublabel: "Dekomposisi",
-      icon: LayoutGrid,
-      color: "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200",
-      activeColor: "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300",
-    },
-    {
-      id: "blocks",
-      label: "Balok 3D",
-      sublabel: "Alat Bantu",
-      icon: Box,
-      color: "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200",
-      activeColor: "bg-amber-500 text-white border-amber-500 ring-2 ring-amber-300",
-    },
-    {
-      id: "unit-first",
-      label: "Fokus Satuan",
-      sublabel: "Kolom Kanan",
-      icon: Repeat,
-      color: "bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-200",
-      activeColor: "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300",
-    },
-    {
-      id: "check",
-      label: "Cek Balik",
-      sublabel: "Pembuktian",
-      icon: CheckCircle,
-      color: "bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-200",
-      activeColor: "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-300",
-    },
-  ];
+  // Visual dot array for multiplication (Gambar 4)
+  const renderVisualDots = () => {
+    const groups = Math.min(Math.max(num1, 2), 6);
+    const perGroup = Math.min(Math.max(num2, 1), 6);
 
-  const handleStrategyClick = (stratId: string) => {
-    setActiveStrategy((prev) => (prev === stratId ? null : stratId));
-    onSelectStrategy?.(stratId);
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-2 p-2 bg-slate-50 rounded-2xl border border-slate-200/80">
+        {Array.from({ length: groups }).map((_, gIdx) => (
+          <div
+            key={gIdx}
+            className="p-1.5 bg-white rounded-xl border border-rose-200 shadow-2xs flex flex-col items-center gap-1"
+          >
+            <div className="grid grid-cols-3 gap-1">
+              {Array.from({ length: perGroup }).map((_, dIdx) => (
+                <div key={dIdx} className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+              ))}
+            </div>
+            <span className="text-[9px] font-black text-slate-500">
+              Grup {gIdx + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <aside
-      className={`flex flex-col gap-3.5 w-full transition-all duration-300 ${
-        isHighlighted ? "ring-4 ring-amber-400/80 rounded-3xl p-1 bg-amber-50/50" : ""
-      }`}
-    >
-      {/* 1. KARTU PETUNJUK BERTINGKAT */}
-      <div className="bg-white rounded-2xl md:rounded-3xl p-4 border border-slate-200/80 shadow-xs flex flex-col gap-3">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-          <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
-            <Lightbulb size={15} className="fill-amber-400" />
+    <aside className={`flex flex-col gap-4 w-full select-none ${isHighlighted ? "ring-2 ring-amber-400 rounded-3xl" : ""}`}>
+      {/* 1. KARTU LANGKAHKU (Sesuai Gambar 2 & Gambar 4) */}
+      <div className="bg-white rounded-3xl p-4 md:p-5 border border-slate-200/90 shadow-xs flex flex-col gap-3">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+          <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+            <ClipboardList size={16} />
           </div>
-          <h3 className="text-xs md:text-sm font-black text-slate-800 tracking-tight font-fredoka">
-            Petunjuk Bertingkat
+          <h3 className="font-black text-slate-900 font-fredoka text-base">
+            Langkahku
           </h3>
         </div>
 
-        <div className="flex flex-col gap-2.5">
-          {steps.map((step, idx) => (
-            <div key={idx} className="flex items-start gap-2.5 text-xs font-bold text-slate-700">
-              <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-2xs font-fredoka">
-                {idx + 1}
-              </span>
-              <span className="leading-snug">{step}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+        {/* Stepper Checklist */}
+        <div className="flex flex-col gap-2">
+          {steps.map((step) => {
+            const isDone = activeStep >= step.id;
+            const isCurrent = activeStep === step.id;
 
-      {/* 2. STRATEGI YANG BISA DIGUNAKAN (DENGAN INTERAKSI NYATA) */}
-      <div className="bg-white rounded-2xl md:rounded-3xl p-4 border border-slate-200/80 shadow-xs flex flex-col gap-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs">
-              <Sparkles size={14} />
-            </div>
-            <h3 className="text-xs md:text-sm font-black text-slate-800 tracking-tight font-fredoka">
-              Strategi yang Bisa Digunakan
-            </h3>
-          </div>
-          <span className="text-[9px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-            Klik untuk Coba
-          </span>
-        </div>
-
-        {/* 4 Pilihan Tombol Strategi */}
-        <div className="grid grid-cols-2 gap-2">
-          {strategies.map((strat) => {
-            const Icon = strat.icon;
-            const isSelected = activeStrategy === strat.id;
             return (
-              <button
-                key={strat.id}
-                type="button"
-                onClick={() => handleStrategyClick(strat.id)}
-                className={`p-2.5 rounded-xl border flex flex-col items-start gap-0.5 transition cursor-pointer shadow-2xs ${
-                  isSelected ? strat.activeColor : strat.color
+              <div
+                key={step.id}
+                className={`flex items-center justify-between p-2.5 rounded-2xl border transition ${
+                  isCurrent
+                    ? "bg-blue-50/80 border-blue-300 shadow-2xs"
+                    : isDone
+                    ? "bg-slate-50/60 border-slate-200/70"
+                    : "bg-white border-slate-100 opacity-60"
                 }`}
               >
-                <div className="flex items-center gap-1.5 w-full">
-                  <Icon size={14} className="shrink-0" />
-                  <span className="text-xs font-black truncate">{strat.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                      isDone
+                        ? "bg-emerald-500 text-white shadow-2xs"
+                        : "bg-slate-200 text-slate-600"
+                    }`}
+                  >
+                    {step.id}
+                  </span>
+                  <div className="leading-tight">
+                    <span className="text-xs font-black text-slate-800 block">
+                      {step.title}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {step.desc}
+                    </span>
+                  </div>
                 </div>
-                <span className={`text-[9px] font-semibold ${isSelected ? "text-white/80" : "text-slate-400"}`}>
-                  {strat.sublabel}
-                </span>
-              </button>
+
+                {isDone ? (
+                  <CheckCircle2 size={18} className="text-emerald-500 stroke-[2.5]" />
+                ) : (
+                  <div className="w-4 h-4 rounded-full border-2 border-slate-300" />
+                )}
+              </div>
             );
           })}
         </div>
+      </div>
 
-        {/* KARTU PENERAPAN STRATEGI INTERAKTIF SECARA REAL-TIME */}
-        {activeStrategy && (
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 space-y-2 animate-in fade-in zoom-in-95 duration-200">
-            {/* 1. Dekomposisi / Pecah Angka */}
-            {activeStrategy === "place-value" && (
-              <div>
-                <span className="font-black text-emerald-800 block text-xs font-fredoka mb-1 flex items-center gap-1">
-                  <LayoutGrid size={13} /> Cara Dekomposisi {num1} dan {num2}:
-                </span>
-                <div className="space-y-1 bg-white p-2.5 rounded-xl border border-emerald-200 font-mono text-[11px]">
-                  <div>
-                    • <strong>{num1}</strong> ={" "}
-                    {h1 > 0 ? `${h1 * 100} + ` : ""}
-                    {t1 > 0 ? `${t1 * 10} + ` : ""}
-                    {u1}
-                  </div>
-                  <div>
-                    • <strong>{num2}</strong> ={" "}
-                    {h2 > 0 ? `${h2 * 100} + ` : ""}
-                    {t2 > 0 ? `${t2 * 10} + ` : ""}
-                    {u2}
-                  </div>
-                  {currentOp === "+" && (
-                    <div className="pt-1 border-t border-slate-100 text-emerald-700 font-bold">
-                      👉 Gabungkan: Satuan ({u1 + u2}) + Puluhan ({(t1 + t2) * 10})
-                      {h1 + h2 > 0 ? ` + Ratusan (${(h1 + h2) * 100})` : ""} = {num1 + num2}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 2. Balok 3D */}
-            {activeStrategy === "blocks" && (
-              <div>
-                <span className="font-black text-amber-800 block text-xs font-fredoka mb-1 flex items-center gap-1">
-                  <Box size={13} /> Panduan Balok Nilai Tempat:
-                </span>
-                <p className="text-[11px] text-slate-600 leading-snug">
-                  Gunakan balok untuk membayangkan bilangan:
-                </p>
-                <div className="bg-white p-2 rounded-xl border border-amber-200 text-[11px] space-y-0.5 mt-1 font-bold text-amber-900">
-                  <div>
-                    • <strong>{num1}</strong>: {h1 > 0 ? `${h1} Ratusan, ` : ""}{t1 > 0 ? `${t1} Puluhan, ` : ""}{u1} Satuan
-                  </div>
-                  <div>
-                    • <strong>{num2}</strong>: {h2 > 0 ? `${h2} Ratusan, ` : ""}{t2 > 0 ? `${t2} Puluhan, ` : ""}{u2} Satuan
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onSelectStrategy?.("blocks")}
-                  className="w-full mt-2 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black font-fredoka text-xs shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
-                >
-                  <Layers size={14} />
-                  <span>Buka Balok 3D di Papan Soal</span>
-                </button>
-              </div>
-            )}
-
-            {/* 3. Fokus Satuan */}
-            {activeStrategy === "unit-first" && (
-              <div>
-                <span className="font-black text-blue-800 block text-xs font-fredoka mb-1 flex items-center gap-1">
-                  <Repeat size={13} /> Langkah Pertama: Kolom Satuan
-                </span>
-                <div className="bg-white p-2.5 rounded-xl border border-blue-200 text-[11px] space-y-1">
-                  <div className="font-bold text-blue-900">
-                    Hitung Satuan: {u1} {currentOp} {u2} ={" "}
-                    {currentOp === "+" ? u1 + u2 : currentOp === "-" ? u1 - u2 : u1 * u2}
-                  </div>
-                  {currentOp === "+" && u1 + u2 >= 10 && (
-                    <div className="text-amber-700 font-semibold leading-tight">
-                      ⚠️ Karena hasilnya ≥ 10, tulis angka <strong>{(u1 + u2) % 10}</strong> di kolom satuan dan <strong>simpan 1</strong> di atas kolom puluhan!
-                    </div>
-                  )}
-                  {currentOp === "-" && u1 < u2 && (
-                    <div className="text-amber-700 font-semibold leading-tight">
-                      ⚠️ Karena {u1} lebih kecil dari {u2}, pinjam 1 puluhan (10) sehingga menjadi {u1 + 10} − {u2} = {(u1 + 10) - u2}!
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 4. Cek Balik */}
-            {activeStrategy === "check" && (
-              <div>
-                <span className="font-black text-purple-800 block text-xs font-fredoka mb-1 flex items-center gap-1">
-                  <CheckCircle size={13} /> Cara Memeriksa Jawaban:
-                </span>
-                <div className="bg-white p-2.5 rounded-xl border border-purple-200 text-[11px] space-y-1 text-slate-700">
-                  {currentOp === "+" && (
-                    <p>
-                      Kurangkan hasilmu dengan <strong>{num2}</strong>. Jika hasilnya tepat <strong>{num1}</strong>, maka jawabanmu 100% Benar!
-                    </p>
-                  )}
-                  {currentOp === "-" && (
-                    <p>
-                      Tambahkan hasilmu dengan <strong>{num2}</strong>. Jika hasilnya tepat <strong>{num1}</strong>, jawabanmu Benar!
-                    </p>
-                  )}
-                  {currentOp === "×" && (
-                    <p>
-                      Bagi hasilmu dengan <strong>{num2}</strong>. Hasil bagi harus sama dengan <strong>{num1}</strong>.
-                    </p>
-                  )}
-                  {currentOp === "÷" && (
-                    <p>
-                      Kalikan hasilmu dengan <strong>{num2}</strong>. Hasil kali harus sama dengan <strong>{num1}</strong>.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+      {/* 2. KARTU BANTUAN BERTINGKAT 4 LEVEL (Sesuai Gambar 1, 2, 4) */}
+      <div className="bg-white rounded-3xl p-4 md:p-5 border border-slate-200/90 shadow-xs flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+              <Lightbulb size={16} />
+            </div>
+            <div>
+              <h3 className="font-black text-slate-900 font-fredoka text-base leading-none">
+                Bantuan Bertingkat
+              </h3>
+              <span className="text-[10px] font-extrabold text-blue-600">
+                Level {helpLevel} dari 4 Aktif
+              </span>
+            </div>
           </div>
+
+          {onOpenMultiLevelHelp && (
+            <button
+              type="button"
+              onClick={onOpenMultiLevelHelp}
+              className="text-[11px] font-black text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded-lg border border-blue-200 cursor-pointer"
+              title="Buka modal layar penuh"
+            >
+              Layar Penuh
+            </button>
+          )}
+        </div>
+
+        {/* Tabs 4 Level Bantuan Bertingkat */}
+        <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-2xl">
+          {[
+            { lvl: 1 as const, label: "Lvl 1", desc: "Petunjuk" },
+            { lvl: 2 as const, label: "Lvl 2", desc: "Visual" },
+            { lvl: 3 as const, label: "Lvl 3", desc: "Langkah" },
+            { lvl: 4 as const, label: "Lvl 4", desc: "Contoh" },
+          ].map((item) => (
+            <button
+              key={item.lvl}
+              type="button"
+              onClick={() => setHelpLevel(item.lvl)}
+              className={`py-1 px-1 rounded-xl text-center transition cursor-pointer flex flex-col items-center ${
+                helpLevel === item.lvl
+                  ? "bg-white text-blue-700 shadow-2xs font-black ring-1 ring-blue-300"
+                  : "text-slate-600 hover:text-slate-900 font-bold"
+              }`}
+            >
+              <span className="text-[11px] leading-tight">{item.label}</span>
+              <span className="text-[8px] opacity-75">{item.desc}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content Dinamis Sesuai Level Bantuan */}
+        <div className="flex flex-col gap-2.5 pt-1">
+          {/* LEVEL 1: PETUNJUK */}
+          {helpLevel === 1 && (
+            <div className="bg-blue-50/80 border border-blue-200/80 p-3 rounded-2xl text-xs text-blue-950 font-medium">
+              <p className="font-black text-blue-900 mb-1 flex items-center gap-1">
+                <span>💡 Level 1: Petunjuk Awal</span>
+              </p>
+              {currentOp === "×" && (
+                <p>
+                  Perkalian adalah penjumlahan berulang. {num1} × {num2} berarti angka {num2} dijumlahkan sebanyak {num1} kali.
+                </p>
+              )}
+              {currentOp === "÷" && (
+                <p>
+                  Pecah bilangan menjadi ratusan, puluhan, dan satuan dulu. Lalu bagi setiap nilai tempat dengan {num2}.
+                </p>
+              )}
+              {currentOp === "+" && (
+                <p>
+                  Jumlahkan kolom satuan terlebih dahulu: {u1} + {u2} = {u1 + u2}. Jika hasilnya &ge; 10, simpan 1 di atas kolom puluhan.
+                </p>
+              )}
+              {currentOp === "-" && (
+                <p>
+                  Cek satuan: {u1} &minus; {u2}. Jika tidak cukup, kita tukar 1 puluhan dari angka {num1} menjadi 10 satuan.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* LEVEL 2: VISUAL */}
+          {helpLevel === 2 && (
+            <div className="flex flex-col gap-2 bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-2xl">
+              <p className="text-[11px] font-black text-emerald-900">
+                📦 Level 2: Representasi Visual
+              </p>
+              {currentOp === "×" && renderVisualDots()}
+              {currentOp === "÷" && (
+                <div className="p-2 bg-white rounded-xl border border-emerald-200 text-center text-xs font-bold text-emerald-800">
+                  Membagi {num1} menjadi {num2} kelompok bagian sama rata.
+                </div>
+              )}
+              {currentOp === "+" && (
+                <div className="p-2.5 bg-white rounded-xl border border-blue-200 text-center text-xs font-bold text-blue-900">
+                  {u1 + u2 >= 10 ? `Simpan 1 puluhan di atas kolom puluhan!` : `Jumlahkan kolom satuan langsung.`}
+                </div>
+              )}
+              {currentOp === "-" && (
+                <div className="p-2.5 bg-white rounded-xl border border-rose-200 text-center text-xs font-bold text-rose-900">
+                  {u1 < u2
+                    ? `Setelah ditukar: ${t1 - 1} puluhan & ${u1 + 10} satuan`
+                    : `Satuan cukup dikurangkan secara langsung.`}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LEVEL 3: LANGKAH */}
+          {helpLevel === 3 && (
+            <div className="bg-amber-50/80 border border-amber-200/80 p-3 rounded-2xl text-xs text-slate-800">
+              <p className="font-black text-amber-900 mb-1">📝 Level 3: Penjelasan Langkah</p>
+              {currentOp === "×" && (
+                <div className="font-mono font-bold text-slate-800 space-y-0.5">
+                  <p>{Array.from({ length: Math.min(num1, 6) }).map(() => num2).join(" + ")}</p>
+                  <p className="text-blue-600 font-black">= {num1 * num2}</p>
+                </div>
+              )}
+              {currentOp === "÷" && (
+                <div className="font-mono font-bold text-slate-800">
+                  <p>{num1} ÷ {num2} = {Math.floor(num1 / num2)}</p>
+                  <p className="text-purple-600 font-black">Cek: {Math.floor(num1 / num2)} × {num2} = {num1}</p>
+                </div>
+              )}
+              {currentOp === "+" && (
+                <div className="font-mono font-bold text-slate-800 space-y-0.5">
+                  <p>Satuan: {u1} + {u2} = {u1 + u2}</p>
+                  <p>Puluhan: {t1} + {t2} {u1 + u2 >= 10 ? "+ 1" : ""} = {t1 + t2 + (u1 + u2 >= 10 ? 1 : 0)}</p>
+                </div>
+              )}
+              {currentOp === "-" && (
+                <div className="font-mono font-bold text-slate-800 space-y-0.5">
+                  <p>Satuan: {u1 < u2 ? `${u1 + 10} − ${u2} = ${u1 + 10 - u2}` : `${u1} − ${u2} = ${u1 - u2}`}</p>
+                  <p>Puluhan: {u1 < u2 ? `${t1 - 1} − ${t2} = ${t1 - 1 - t2}` : `${t1} − ${t2} = ${t1 - t2}`}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LEVEL 4: CONTOH & CEK */}
+          {helpLevel === 4 && (
+            <div className="bg-purple-50/80 border border-purple-200/80 p-3 rounded-2xl text-xs text-purple-950">
+              <p className="font-black text-purple-900 mb-1">🎯 Level 4: Contoh & Cek Jawaban</p>
+              <div className="font-mono font-black text-purple-800 bg-white p-2 rounded-xl border border-purple-100 text-center">
+                {currentOp === "×" && `${num1} × ${num2} = ${num1 * num2}`}
+                {currentOp === "÷" && `${num1} ÷ ${num2} = ${Math.floor(num1 / num2)} (Cek: ${Math.floor(num1 / num2)} × ${num2} = ${num1})`}
+                {currentOp === "+" && `${num1} + ${num2} = ${num1 + num2} (Cek: ${num1 + num2} − ${num2} = ${num1})`}
+                {currentOp === "-" && `${num1} − ${num2} = ${num1 - num2} (Cek: ${num1 - num2} + ${num2} = ${num1})`}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tombol Naikkan Level Bantuan (Step-by-Step Level Advance) */}
+        <div className="flex items-center gap-2 pt-1">
+          {helpLevel < 4 ? (
+            <button
+              type="button"
+              onClick={() => setHelpLevel((prev) => (Math.min(prev + 1, 4) as 1 | 2 | 3 | 4))}
+              className="w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+            >
+              <span>Naik ke Bantuan Level {helpLevel + 1}</span>
+              <ArrowRight size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setHelpLevel(1)}
+              className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw size={13} />
+              <span>Kembali ke Level 1</span>
+            </button>
+          )}
+        </div>
+
+        {/* Tombol Buka Modal Bantuan Layar Penuh */}
+        {onOpenMultiLevelHelp && (
+          <button
+            type="button"
+            onClick={onOpenMultiLevelHelp}
+            className="w-full py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200 rounded-2xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Sparkles size={14} className="text-blue-600" />
+            <span>Buka Bantuan Bertingkat Layar Penuh</span>
+          </button>
         )}
       </div>
 
-      {/* 3. KARTU MOTIVASI "INGAT!" DENGAN MASKOT ANAK PEREMPUAN */}
-      <GirlEncouragementCard />
+      {/* 3. CATATAN PENTING */}
+      <div className="bg-rose-50/70 border border-rose-200/80 rounded-3xl p-3.5 flex items-start gap-2.5">
+        <AlertCircle size={17} className="text-rose-600 shrink-0 mt-0.5" />
+        <div className="text-[11px] leading-relaxed">
+          <span className="font-black text-rose-900 block">Penting!</span>
+          <span className="font-semibold text-rose-800">
+            Setiap bilangan memiliki nilai tempat. Mengurai ratusan, puluhan, dan satuan membuat matematika jauh lebih mudah!
+          </span>
+        </div>
+      </div>
     </aside>
   );
 }

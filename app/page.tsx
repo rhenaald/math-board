@@ -11,8 +11,11 @@ import TopNavbar from "@/components/TopNavbar";
 import PracticeCard from "@/components/PracticeCard";
 import RightHelperPanel from "@/components/RightHelperPanel";
 import LeftSidebarNav from "@/components/LeftSidebarNav";
-import { DecorativeFloatingNumbers, MotivationalStickyNote } from "@/components/ChildMascots";
+import { BoyMascotVector } from "@/components/ChildMascots";
 import ConceptLearningModal from "@/components/ConceptLearningModal";
+import GuidedLearningFlow from "@/components/GuidedLearningFlow";
+import StudentProfileView from "@/components/StudentProfileView";
+import MultiLevelHelpModal from "@/components/MultiLevelHelpModal";
 
 // Error Diagnostics Engine
 import { diagnoseError, generateSessionSummary, type ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
@@ -52,6 +55,8 @@ export default function Home() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
   const [showDienesBlocks, setShowDienesBlocks] = useState<boolean>(false);
+  const [activeNav, setActiveNav] = useState<"beranda" | "belajar" | "latihan" | "profil">("latihan");
+  const [isMultiLevelHelpOpen, setIsMultiLevelHelpOpen] = useState<boolean>(false);
 
   // PRACTICE CONFIGURATION
   const [selectedOp, setSelectedOp] = useState<OperationType>("+");
@@ -314,6 +319,7 @@ export default function Home() {
     setSelectedOp(op);
     setPlaceValueCombo(combo);
     setIsSetupOpen(false);
+    setActiveNav("latihan");
     generateProblem(op, combo, focusOption);
   };
 
@@ -489,20 +495,29 @@ export default function Home() {
 
       {/* 1. TOP NAVBAR (LOGO MATHKU, AVATAR SISWA, PENGATURAN) */}
       <TopNavbar
-        currentUser={currentUser || "Siswa"}
+        currentUser={currentUser || "Dika"}
+        activeNav={activeNav}
+        opLabel={selectedOp === "mix" ? "Campuran" : opNameMap[currentOp] || selectedOp}
+        questionNumber={sessionLogs.length + 1}
+        score={score * 10 || 120}
+        level={Math.floor(score / 30) + 1}
+        onNavigateHome={() => setActiveNav("beranda")}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onLogout={() => setIsSetupOpen(true)}
       />
 
-      {/* 2. KONTEN UTAMA 3 KOLOM */}
+      {/* 2. KONTEN UTAMA */}
       <div className="flex flex-col xl:flex-row flex-1 gap-4 md:gap-5 items-start w-full">
         {/* SIDEBAR KIRI: NAVIGASI OPERASI, PEMILIH DIGIT, & MASKOT ANAK LAKI-LAKI */}
         <div className="w-full xl:w-64 2xl:w-72 shrink-0">
           <LeftSidebarNav
+            activeNav={activeNav}
+            onNavigate={(nav) => setActiveNav(nav)}
             selectedOp={selectedOp}
             onSelectOp={(op) => {
               setSelectedOp(op);
               generateProblem(op, placeValueCombo, focusOption);
+              setActiveNav("latihan");
             }}
             placeValueCombo={placeValueCombo}
             onSelectCombo={(combo) => {
@@ -515,129 +530,327 @@ export default function Home() {
                 "bg-blue-600"
               );
             }}
-            targetProgress={correctCount}
-            targetTotal={5}
             onOpenHistory={() => setShowSummaryModal(true)}
-            onOpenConcept={() => setIsConceptModalOpen(true)}
           />
         </div>
 
-        {/* AREA TENGAH: HERO BANNER & KARTU SOAL LATIHAN */}
-        <main className="flex-1 w-full flex flex-col gap-4 min-w-0">
-          {/* BANNER AYO LATIHAN MATEMATIKA DENGAN ANGKA MELAYANG & STICKY NOTE */}
-          <div className="bg-white/85 backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-5 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
-            {/* Sisi Kiri: Angka 1, 2, 3 Melayang & Judul Utama */}
-            <div className="flex items-center gap-3">
-              <DecorativeFloatingNumbers />
-              <div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight font-fredoka flex items-center gap-2">
-                  Ayo Latihan Matematika!
-                  <span className="text-2xl animate-bounce">💡</span>
-                </h2>
-                <p className="text-xs sm:text-sm font-bold text-slate-500 mt-0.5">
-                  Pilih operasi atau digit di sidebar kiri. Soal akan disesuaikan dengan kemampuanmu.
+        {/* AREA KONTEN BERDASARKAN ACTIVE NAV */}
+        {activeNav === "beranda" && (
+          <main className="flex-1 w-full flex flex-col gap-5 min-w-0">
+            {/* HERO BANNER BERANDA (Gambar 1 Step 1) */}
+            <div className="bg-white/95 rounded-3xl p-6 md:p-8 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="flex flex-col gap-3 max-w-lg">
+                <div className="flex items-center gap-2 text-2xl sm:text-3xl font-black text-slate-900 font-fredoka">
+                  <span>Halo, {currentUser || "Dika"}!</span>
+                  <span>👋</span>
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-600 leading-relaxed">
+                  Ayo belajar matematika dengan cara yang lebih mudah dan menyenangkan!
                 </p>
+
+                {/* Balon Ucapan Maskot */}
+                <div className="bg-blue-50/80 border border-blue-200 px-4 py-2.5 rounded-2xl text-xs font-black text-blue-900 flex items-center gap-2 max-w-sm">
+                  <span>💬</span>
+                  <span>&quot;Langkah kecil hari ini, hasil besar untuk besok!&quot;</span>
+                </div>
+              </div>
+
+              {/* Maskot Anak Laki-laki dengan Hiasan Angka-angka Melayang */}
+              <div className="relative w-44 h-44 shrink-0 flex items-center justify-center select-none">
+                {/* Balon Angka 1 */}
+                <div className="absolute -top-1 left-2 w-8 h-8 rounded-2xl bg-amber-400 text-amber-950 font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-amber-300/50 animate-bounce">
+                  1
+                </div>
+                {/* Balon Angka 2 */}
+                <div className="absolute top-1 right-2 w-9 h-9 rounded-2xl bg-blue-500 text-white font-black font-fredoka text-base flex items-center justify-center shadow-md shadow-blue-400/50 animate-pulse">
+                  2
+                </div>
+                {/* Balon Angka 3 */}
+                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-8 h-8 rounded-2xl bg-emerald-500 text-white font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-emerald-400/50 animate-bounce">
+                  3
+                </div>
+                {/* Balon Angka 4 */}
+                <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-8 h-8 rounded-2xl bg-rose-500 text-white font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-rose-400/50">
+                  4
+                </div>
+                {/* Balon Angka 5 */}
+                <div className="absolute -bottom-1 left-4 w-8 h-8 rounded-2xl bg-purple-500 text-white font-black font-fredoka text-xs flex items-center justify-center shadow-md shadow-purple-400/50 animate-pulse">
+                  5
+                </div>
+                {/* Balon Angka 7 */}
+                <div className="absolute -bottom-1 right-4 w-7 h-7 rounded-2xl bg-teal-400 text-teal-950 font-black font-fredoka text-xs flex items-center justify-center shadow-md shadow-teal-300/50 animate-bounce">
+                  7
+                </div>
+                {/* Simbol Operasi + dan × */}
+                <div className="absolute -top-3 right-1/3 w-6 h-6 rounded-xl bg-orange-400 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                  +
+                </div>
+                <div className="absolute -bottom-2 left-1/3 w-6 h-6 rounded-xl bg-pink-400 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                  ×
+                </div>
+
+                {/* Maskot Karakter Utama */}
+                <div className="relative z-10">
+                  <BoyMascotVector size={130} />
+                </div>
               </div>
             </div>
 
-            {/* Sisi Kanan: Sticky Note & Level / Poin */}
-            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-              <MotivationalStickyNote />
-
-              <div className="flex flex-col gap-1.5 text-right">
-                {/* Level Badge */}
-                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-xl text-xs font-black text-amber-900 shadow-2xs">
-                  <span className="text-amber-500">⭐</span>
-                  <span>Level {Math.floor(score / 30) + 1}</span>
-                  <div className="w-12 bg-amber-200/80 h-1.5 rounded-full overflow-hidden ml-1">
-                    <div
-                      className="bg-amber-500 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(100, ((score % 30) / 30) * 100)}%` }}
-                    ></div>
-                  </div>
+            {/* 4 KARTU OPERASI UTAMA BERWARNA BESAR (Gambar 1 Step 1) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Penjumlahan */}
+              <div className="bg-emerald-50/70 border-2 border-emerald-200 hover:border-emerald-400 rounded-3xl p-5 flex flex-col items-center text-center gap-3 transition hover:shadow-md">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-2xl font-black shadow-sm shadow-emerald-400/30">
+                  +
                 </div>
+                <div>
+                  <h3 className="font-black text-slate-900 font-fredoka text-lg">Penjumlahan</h3>
+                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Konsep simpan & nilai tempat</p>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("+");
+                      setCurrentOp("+");
+                      setActiveNav("belajar");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition cursor-pointer shadow-2xs"
+                  >
+                    Belajar Konsep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("+");
+                      generateProblem("+", placeValueCombo, focusOption);
+                      setActiveNav("latihan");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-black text-xs transition cursor-pointer"
+                  >
+                    Mulai Latihan
+                  </button>
+                </div>
+              </div>
 
-                {/* Poin & Streak Badge */}
-                <div className="flex items-center gap-1.5 justify-end">
-                  <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-xl text-xs font-black text-emerald-900 shadow-2xs">
-                    <span>🔥</span>
-                    <span>{streak}x Beruntun</span>
-                  </div>
-                  <div className="flex items-center gap-1 bg-blue-50 border border-blue-200/80 px-2.5 py-1 rounded-xl text-xs font-black text-blue-900 shadow-2xs">
-                    <span className="text-amber-500">⭐</span>
-                    <span>{score * 10} poin</span>
-                  </div>
+              {/* Pengurangan */}
+              <div className="bg-orange-50/70 border-2 border-orange-200 hover:border-orange-400 rounded-3xl p-5 flex flex-col items-center text-center gap-3 transition hover:shadow-md">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500 text-white flex items-center justify-center text-2xl font-black shadow-sm shadow-orange-400/30">
+                  −
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 font-fredoka text-lg">Pengurangan</h3>
+                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Konsep tukar puluhan (regroup)</p>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("-");
+                      setCurrentOp("-");
+                      setActiveNav("belajar");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-black text-xs transition cursor-pointer shadow-2xs"
+                  >
+                    Belajar Konsep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("-");
+                      generateProblem("-", placeValueCombo, focusOption);
+                      setActiveNav("latihan");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-orange-100 text-orange-800 border border-orange-300 font-black text-xs transition cursor-pointer"
+                  >
+                    Mulai Latihan
+                  </button>
+                </div>
+              </div>
+
+              {/* Perkalian */}
+              <div className="bg-rose-50/70 border-2 border-rose-200 hover:border-rose-400 rounded-3xl p-5 flex flex-col items-center text-center gap-3 transition hover:shadow-md">
+                <div className="w-14 h-14 rounded-2xl bg-rose-500 text-white flex items-center justify-center text-2xl font-black shadow-sm shadow-rose-400/30">
+                  ×
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 font-fredoka text-lg">Perkalian</h3>
+                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Mengurai nilai tempat & grup</p>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("×");
+                      setCurrentOp("×");
+                      setActiveNav("belajar");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs transition cursor-pointer shadow-2xs"
+                  >
+                    Belajar Konsep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("×");
+                      generateProblem("×", placeValueCombo, focusOption);
+                      setActiveNav("latihan");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-rose-100 text-rose-800 border border-rose-300 font-black text-xs transition cursor-pointer"
+                  >
+                    Mulai Latihan
+                  </button>
+                </div>
+              </div>
+
+              {/* Pembagian */}
+              <div className="bg-purple-50/70 border-2 border-purple-200 hover:border-purple-400 rounded-3xl p-5 flex flex-col items-center text-center gap-3 transition hover:shadow-md">
+                <div className="w-14 h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-2xl font-black shadow-sm shadow-purple-400/30">
+                  ÷
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 font-fredoka text-lg">Pembagian</h3>
+                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Bagi per bagian & cek perkalian</p>
+                </div>
+                <div className="flex flex-col gap-1.5 w-full mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("÷");
+                      setCurrentOp("÷");
+                      setActiveNav("belajar");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs transition cursor-pointer shadow-2xs"
+                  >
+                    Belajar Konsep
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOp("÷");
+                      generateProblem("÷", placeValueCombo, focusOption);
+                      setActiveNav("latihan");
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-purple-100 text-purple-800 border border-purple-300 font-black text-xs transition cursor-pointer"
+                  >
+                    Mulai Latihan
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          </main>
+        )}
 
-          {/* KARTU SOAL LATIHAN DENGAN PAPAN NILAI TEMPAT & ALAT BANTU BALOK */}
-          <PracticeCard
-            num1={num1}
-            num2={num2}
-            currentOp={currentOp}
-            levelName={`Level ${Math.floor(score / 30) + 1} – ${
-              COMBO_LABELS[placeValueCombo]?.code || placeValueCombo
-            }`}
-            questionNumber={sessionLogs.length + 1}
-            totalQuestions={10}
-            userAnswerInput={userAnswerInput}
-            setUserAnswerInput={setUserAnswerInput}
-            carryValues={carryValues}
-            setCarryValues={setCarryValues}
-            ansValues={ansValues}
-            setAnsValues={setAnsValues}
-            onCheckAnswer={handleCheckAnswer}
-            onNewProblem={() => generateProblem()}
-            onNeedHelp={() => {
-              setIsHelpActive(true);
-              showToast("Perhatikan Petunjuk Bertingkat di sebelah kanan ya! 💡", "👉", "bg-sky-600");
-            }}
-            diagnosticHint={diagnosticHint}
-            activePlace={activePlace}
-            setActivePlace={setActivePlace}
-            isShaking={isShaking}
-            isSuccess={isSuccess}
-            showDienesBlocks={showDienesBlocks}
-            setShowDienesBlocks={setShowDienesBlocks}
-            placeValueCombo={placeValueCombo}
-            onSelectCombo={(combo) => {
-              setPlaceValueCombo(combo);
-              generateProblem(selectedOp, combo, focusOption);
-              const info = COMBO_LABELS[combo];
-              showToast(
-                `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
-                "🔢",
-                "bg-blue-600"
-              );
-            }}
-          />
-        </main>
+        {/* MODE BELAJAR TERPANDU (Gambar 1 Step 2–5, Gambar 2, Gambar 3) */}
+        {activeNav === "belajar" && (
+          <main className="flex-1 w-full min-w-0">
+            <GuidedLearningFlow
+              initialOp={currentOp}
+              onBackToHome={() => setActiveNav("beranda")}
+              onFinish={() => setActiveNav("latihan")}
+              onGoToPractice={(op) => {
+                setSelectedOp(op);
+                generateProblem(op, placeValueCombo, focusOption);
+                setActiveNav("latihan");
+              }}
+            />
+          </main>
+        )}
 
-        {/* SIDEBAR KANAN: PETUNJUK BERTINGKAT, STRATEGI, & MASKOT ANAK PEREMPUAN */}
-        <div className="w-full xl:w-72 2xl:w-80 shrink-0">
-          <RightHelperPanel
-            currentOp={currentOp}
-            num1={num1}
-            num2={num2}
-            isHighlighted={isHelpActive}
-            onSelectStrategy={(strat) => {
-              if (strat === "blocks") {
-                setShowDienesBlocks(true);
-                showToast("Alat Bantu Balok 3D dibuka!", "🧱", "bg-amber-600");
-              } else if (strat === "place-value") {
-                showToast("Strategi Pecah Nilai (Dekomposisi) aktif!", "✨", "bg-emerald-600");
-              } else if (strat === "unit-first") {
-                setActivePlace("u");
-                showToast("Fokus hitung kolom Satuan terlebih dahulu!", "👉", "bg-blue-600");
-              } else if (strat === "check") {
-                showToast("Gunakan operasi kebalikan untuk memeriksa jawaban!", "🔍", "bg-purple-600");
-              }
-            }}
-          />
-        </div>
+        {/* MODE PROFIL BELAJARKU (Gambar 1 Step 10) */}
+        {activeNav === "profil" && (
+          <main className="flex-1 w-full min-w-0">
+            <StudentProfileView
+              studentName={currentUser}
+              onBackToHome={() => setActiveNav("beranda")}
+              onStartRecommendedPractice={(op, combo) => {
+                setSelectedOp(op);
+                if (combo) setPlaceValueCombo(combo);
+                generateProblem(op, combo || placeValueCombo, focusOption);
+                setActiveNav("latihan");
+              }}
+            />
+          </main>
+        )}
+
+        {/* MODE LATIHAN (Gambar 4) */}
+        {activeNav === "latihan" && (
+          <>
+            <main className="flex-1 w-full flex flex-col gap-4 min-w-0">
+              <PracticeCard
+                num1={num1}
+                num2={num2}
+                currentOp={currentOp}
+                levelName={`Level ${Math.floor(score / 30) + 1} – ${
+                  COMBO_LABELS[placeValueCombo]?.code || placeValueCombo
+                }`}
+                questionNumber={sessionLogs.length + 1}
+                totalQuestions={10}
+                userAnswerInput={userAnswerInput}
+                setUserAnswerInput={setUserAnswerInput}
+                carryValues={carryValues}
+                setCarryValues={setCarryValues}
+                ansValues={ansValues}
+                setAnsValues={setAnsValues}
+                onCheckAnswer={handleCheckAnswer}
+                onNewProblem={() => generateProblem()}
+                onNeedHelp={() => {
+                  setIsHelpActive(true);
+                  setIsMultiLevelHelpOpen(true);
+                }}
+                onBack={() => setActiveNav("beranda")}
+                diagnosticHint={diagnosticHint}
+                activePlace={activePlace}
+                setActivePlace={setActivePlace}
+                isShaking={isShaking}
+                isSuccess={isSuccess}
+                showDienesBlocks={showDienesBlocks}
+                setShowDienesBlocks={setShowDienesBlocks}
+                placeValueCombo={placeValueCombo}
+                onSelectCombo={(combo) => {
+                  setPlaceValueCombo(combo);
+                  generateProblem(selectedOp, combo, focusOption);
+                  const info = COMBO_LABELS[combo];
+                  showToast(
+                    `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
+                    "🔢",
+                    "bg-blue-600"
+                  );
+                }}
+              />
+            </main>
+
+            {/* SIDEBAR KANAN: LANGKAHKU & BUTUH BANTUAN */}
+            <div className="w-full xl:w-72 2xl:w-80 shrink-0">
+              <RightHelperPanel
+                currentOp={currentOp}
+                num1={num1}
+                num2={num2}
+                activeStep={isSuccess ? 4 : userAnswerInput.trim() !== "" ? 3 : 2}
+                isHighlighted={isHelpActive}
+                onOpenMultiLevelHelp={() => setIsMultiLevelHelpOpen(true)}
+                onSelectStrategy={(strat) => {
+                  if (strat === "blocks") {
+                    setShowDienesBlocks(true);
+                    showToast("Alat Bantu Balok 3D dibuka!", "🧱", "bg-amber-600");
+                  } else if (strat === "place-value") {
+                    showToast("Strategi Pecah Nilai aktif!", "✨", "bg-emerald-600");
+                  }
+                }}
+              />
+            </div>
+          </>
+        )}
       </div>
+
+      {/* MULTI-LEVEL HELP MODAL (Level 1–4) */}
+      <MultiLevelHelpModal
+        isOpen={isMultiLevelHelpOpen}
+        onClose={() => setIsMultiLevelHelpOpen(false)}
+        operation={currentOp}
+        num1={num1}
+        num2={num2}
+      />
 
       {/* MODAL PENGATURAN MODE & LEVEL (JIKA KLIK IKON GEAR) */}
       {isSettingsModalOpen && (
