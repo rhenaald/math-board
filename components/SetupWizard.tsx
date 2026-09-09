@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { User, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 export type OperationType = "+" | "-" | "×" | "÷" | "mix";
@@ -19,6 +19,52 @@ interface SetupWizardProps {
   onComplete: (name: string, operation: OperationType, combo: string) => void;
 }
 
+const operations: Array<{ id: OperationType; symbol: string; title: string; desc: string }> = [
+  {
+    id: "+",
+    symbol: "+",
+    title: "Penjumlahan",
+    desc: "Menghitung penggabungan bilangan dengan konsep simpan",
+  },
+  {
+    id: "-",
+    symbol: "−",
+    title: "Pengurangan",
+    desc: "Melatih pengurangan kolom berjenjang dengan konsep pinjam",
+  },
+  {
+    id: "×",
+    symbol: "×",
+    title: "Perkalian",
+    desc: "Perkalian berbasis nilai tempat (ratusan, puluhan, satuan)",
+  },
+  {
+    id: "÷",
+    symbol: "÷",
+    title: "Pembagian",
+    desc: "Pembagian bertahap dengan dekomposisi nilai tempat",
+  },
+  {
+    id: "mix",
+    symbol: "🎲",
+    title: "Mode Campuran",
+    desc: "Kombinasi soal secara acak untuk menguji pemahaman menyeluruh",
+  },
+];
+
+// 9 Pilihan Kombinasi Digit (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
+const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
+  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
+  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
+  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
+  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
+  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
+  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
+  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
+  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
+  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
+];
+
 export default function SetupWizard({
   initialName = "",
   initialOp = "+",
@@ -31,68 +77,76 @@ export default function SetupWizard({
   const [selectedCombo, setSelectedCombo] = useState<string>(initialCombo);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  const handleNextFromStep1 = () => {
+  const handleNextFromStep1 = useCallback(() => {
     if (!name.trim()) {
       setErrorMsg("Silakan tuliskan nama Anda terlebih dahulu!");
       return;
     }
     setErrorMsg("");
     setStep(2);
-  };
+  }, [name]);
 
-  const handleNextFromStep2 = () => {
+  const handleNextFromStep2 = useCallback(() => {
     setStep(3);
-  };
+  }, []);
 
-  const handleFinish = () => {
+  const handleFinish = useCallback(() => {
     onComplete(name.trim(), selectedOp, selectedCombo);
-  };
+  }, [name, onComplete, selectedCombo, selectedOp]);
 
-  const operations: Array<{ id: OperationType; symbol: string; title: string; desc: string }> = [
-    {
-      id: "+",
-      symbol: "+",
-      title: "Penjumlahan",
-      desc: "Menghitung penggabungan bilangan dengan konsep simpan",
-    },
-    {
-      id: "-",
-      symbol: "−",
-      title: "Pengurangan",
-      desc: "Melatih pengurangan kolom berjenjang dengan konsep pinjam",
-    },
-    {
-      id: "×",
-      symbol: "×",
-      title: "Perkalian",
-      desc: "Perkalian berbasis nilai tempat (ratusan, puluhan, satuan)",
-    },
-    {
-      id: "÷",
-      symbol: "÷",
-      title: "Pembagian",
-      desc: "Pembagian bertahap dengan dekomposisi nilai tempat",
-    },
-    {
-      id: "mix",
-      symbol: "🎲",
-      title: "Mode Campuran",
-      desc: "Kombinasi soal secara acak untuk menguji pemahaman menyeluruh",
-    },
-  ];
+  // Listener keyboard global untuk navigasi Enter dan Tombol Panah
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Jika sedang mengetik di input nama, biarkan onKeyDown lokal input yang menangani
+      if (e.target instanceof HTMLInputElement) return;
 
-  // 9 Pilihan Kombinasi Digit (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
-  const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
-    { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
-    { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
-    { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
-    { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
-    { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
-    { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
-    { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
-    { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
-    { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
-  ];
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (step === 1) {
+          handleNextFromStep1();
+        } else if (step === 2) {
+          handleNextFromStep2();
+        } else if (step === 3) {
+          handleFinish();
+        }
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        if (step === 2) {
+          e.preventDefault();
+          setSelectedOp((prev) => {
+            const idx = operations.findIndex((o) => o.id === prev);
+            const nextIdx = (idx + 1) % operations.length;
+            return operations[nextIdx].id;
+          });
+        } else if (step === 3) {
+          e.preventDefault();
+          setSelectedCombo((prev) => {
+            const idx = combos.findIndex((c) => c.id === prev);
+            const nextIdx = (idx + 1) % combos.length;
+            return combos[nextIdx].id;
+          });
+        }
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        if (step === 2) {
+          e.preventDefault();
+          setSelectedOp((prev) => {
+            const idx = operations.findIndex((o) => o.id === prev);
+            const prevIdx = (idx - 1 + operations.length) % operations.length;
+            return operations[prevIdx].id;
+          });
+        } else if (step === 3) {
+          e.preventDefault();
+          setSelectedCombo((prev) => {
+            const idx = combos.findIndex((c) => c.id === prev);
+            const prevIdx = (idx - 1 + combos.length) % combos.length;
+            return combos[prevIdx].id;
+          });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [step, handleFinish, handleNextFromStep1, handleNextFromStep2]);
 
   return (
     <div id="setup-wizard-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
@@ -161,7 +215,7 @@ export default function SetupWizard({
 
             <button
               onClick={handleNextFromStep1}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/30 transition duration-200 transform active:scale-95 text-sm flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/30 transition duration-200 transform active:scale-95 text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               Lanjut ke Pilih Operasi <ArrowRight size={16} />
             </button>
@@ -191,9 +245,20 @@ export default function SetupWizard({
                     key={op.id}
                     type="button"
                     onClick={() => setSelectedOp(op.id)}
-                    className={`p-3.5 rounded-2xl border-2 text-left transition flex items-center justify-between ${
+                    onDoubleClick={() => {
+                      setSelectedOp(op.id);
+                      handleNextFromStep2();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setSelectedOp(op.id);
+                        handleNextFromStep2();
+                      }
+                    }}
+                    className={`p-3.5 rounded-2xl border-2 text-left transition flex items-center justify-between cursor-pointer ${
                       isSelected
-                        ? "border-blue-600 bg-blue-50/70 shadow-sm"
+                        ? "border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-300"
                         : "border-slate-200 bg-white hover:bg-slate-50"
                     }`}
                   >
@@ -222,17 +287,23 @@ export default function SetupWizard({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3.5 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-1.5"
+                className="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3.5 px-4 rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft size={14} /> Kembali
               </button>
               <button
                 type="button"
                 onClick={handleNextFromStep2}
-                className="w-2/3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-blue-600/30 transition text-xs flex items-center justify-center gap-2"
+                className="w-2/3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-blue-600/30 transition text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
-                Lanjut ke Pilih Nilai Tempat <ArrowRight size={14} />
+                Lanjut ke Pilih Digit <ArrowRight size={14} />
               </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-slate-400 font-bold">
+              <span>💡 Tekan</span>
+              <kbd className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-md text-[10px] font-mono font-black text-slate-700 shadow-2xs">Enter ↵</kbd>
+              <span>untuk lanjut</span>
             </div>
           </div>
         )}
@@ -260,6 +331,17 @@ export default function SetupWizard({
                     key={c.id}
                     type="button"
                     onClick={() => setSelectedCombo(c.id)}
+                    onDoubleClick={() => {
+                      setSelectedCombo(c.id);
+                      onComplete(name.trim(), selectedOp, c.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setSelectedCombo(c.id);
+                        onComplete(name.trim(), selectedOp, c.id);
+                      }
+                    }}
                     className={`p-3 rounded-2xl border-2 text-left transition flex flex-col justify-between gap-1.5 cursor-pointer ${
                       isSelected
                         ? "border-blue-600 bg-blue-50/90 shadow-sm ring-2 ring-blue-300"
@@ -301,6 +383,12 @@ export default function SetupWizard({
               >
                 Mulai Latihan Sekarang 🚀
               </button>
+            </div>
+
+            <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-slate-400 font-bold">
+              <span>💡 Tekan</span>
+              <kbd className="px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-md text-[10px] font-mono font-black text-slate-700 shadow-2xs">Enter ↵</kbd>
+              <span>untuk mulai latihan</span>
             </div>
           </div>
         )}
