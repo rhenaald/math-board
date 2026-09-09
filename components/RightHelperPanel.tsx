@@ -2,15 +2,13 @@
 
 import React, { useState } from "react";
 import {
-  ClipboardList,
-  CheckCircle2,
   Lightbulb,
   Sparkles,
   AlertCircle,
   ArrowRight,
   RotateCcw,
-  Check,
 } from "lucide-react";
+import BaseTenBlocksModal from "./BaseTenBlocksModal";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -34,49 +32,13 @@ export default function RightHelperPanel({
   isHighlighted = false,
 }: RightHelperPanelProps) {
   const [helpLevel, setHelpLevel] = useState<1 | 2 | 3 | 4>(1);
+  const [isBlocksModalOpen, setIsBlocksModalOpen] = useState<boolean>(false);
 
   // Decompose numbers for hint logic
   const u1 = num1 % 10;
   const t1 = Math.floor((num1 % 100) / 10);
   const u2 = num2 % 10;
   const t2 = Math.floor((num2 % 100) / 10);
-
-  // Checklist Langkahku dinamis berdasarkan operasi (Sesuai Gambar 2 & 4)
-  const getStepList = () => {
-    if (currentOp === "×") {
-      return [
-        { id: 1, title: "Pahami soal", desc: `${num1} × ${num2} artinya apa?` },
-        { id: 2, title: "Lihat gambar", desc: `${num1} kelompok @ ${num2} benda` },
-        { id: 3, title: "Hitung semua benda", desc: "Penjumlahan berulang" },
-        { id: 4, title: "Tulis jawaban", desc: "Hasil akhir perkalian" },
-      ];
-    }
-    if (currentOp === "÷") {
-      return [
-        { id: 1, title: "Pecah bilangan", desc: "Urai ratusan, puluhan, satuan" },
-        { id: 2, title: "Bagi setiap bagian", desc: `Bagi dengan angka ${num2}` },
-        { id: 3, title: "Gabungkan hasil", desc: "Jumlahkan hasil bagi" },
-        { id: 4, title: "Cek jawaban", desc: "Buktikan dengan perkalian" },
-      ];
-    }
-    if (currentOp === "-") {
-      return [
-        { id: 1, title: "Susun angka", desc: "Papan nilai tempat (P & S)" },
-        { id: 2, title: "Cek satuan", desc: "Pastikan satuan cukup dikurang" },
-        { id: 3, title: "Tukar & kurangkan", desc: "Regrouping 1 puluhan" },
-        { id: 4, title: "Gabungkan hasil", desc: "Tulis hasil pengurangan" },
-      ];
-    }
-    // Penjumlahan (Default)
-    return [
-      { id: 1, title: "Susun angka", desc: "Papan nilai tempat (P & S)" },
-      { id: 2, title: "Hitung satuan", desc: "Jumlahkan & simpan jika ≥ 10" },
-      { id: 3, title: "Hitung puluhan", desc: "Jumlahkan beserta simpanan" },
-      { id: 4, title: "Gabungkan hasil", desc: "Tulis hasil akhir" },
-    ];
-  };
-
-  const steps = getStepList();
 
   // Visual dot array for multiplication (Gambar 4)
   const renderVisualDots = () => {
@@ -106,66 +68,7 @@ export default function RightHelperPanel({
 
   return (
     <aside className={`flex flex-col gap-4 w-full select-none ${isHighlighted ? "ring-2 ring-amber-400 rounded-3xl" : ""}`}>
-      {/* 1. KARTU LANGKAHKU (Sesuai Gambar 2 & Gambar 4) */}
-      <div className="bg-white rounded-3xl p-4 md:p-5 border border-slate-200/90 shadow-xs flex flex-col gap-3">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-          <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-            <ClipboardList size={16} />
-          </div>
-          <h3 className="font-black text-slate-900 font-fredoka text-base">
-            Langkahku
-          </h3>
-        </div>
-
-        {/* Stepper Checklist */}
-        <div className="flex flex-col gap-2">
-          {steps.map((step) => {
-            const isDone = activeStep >= step.id;
-            const isCurrent = activeStep === step.id;
-
-            return (
-              <div
-                key={step.id}
-                className={`flex items-center justify-between p-2.5 rounded-2xl border transition ${
-                  isCurrent
-                    ? "bg-blue-50/80 border-blue-300 shadow-2xs"
-                    : isDone
-                    ? "bg-slate-50/60 border-slate-200/70"
-                    : "bg-white border-slate-100 opacity-60"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
-                      isDone
-                        ? "bg-emerald-500 text-white shadow-2xs"
-                        : "bg-slate-200 text-slate-600"
-                    }`}
-                  >
-                    {step.id}
-                  </span>
-                  <div className="leading-tight">
-                    <span className="text-xs font-black text-slate-800 block">
-                      {step.title}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium">
-                      {step.desc}
-                    </span>
-                  </div>
-                </div>
-
-                {isDone ? (
-                  <CheckCircle2 size={18} className="text-emerald-500 stroke-[2.5]" />
-                ) : (
-                  <div className="w-4 h-4 rounded-full border-2 border-slate-300" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 2. KARTU BANTUAN BERTINGKAT 4 LEVEL (Sesuai Gambar 1, 2, 4) */}
+      {/* KARTU BANTUAN BERTINGKAT 4 LEVEL (Sesuai Gambar 1, 2, 4) */}
       <div className="bg-white rounded-3xl p-4 md:p-5 border border-slate-200/90 shadow-xs flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div className="flex items-center gap-2">
@@ -251,7 +154,7 @@ export default function RightHelperPanel({
 
           {/* LEVEL 2: VISUAL */}
           {helpLevel === 2 && (
-            <div className="flex flex-col gap-2 bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-2xl">
+            <div className="flex flex-col gap-2.5 bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-2xl">
               <p className="text-[11px] font-black text-emerald-900">
                 📦 Level 2: Representasi Visual
               </p>
@@ -273,6 +176,16 @@ export default function RightHelperPanel({
                     : `Satuan cukup dikurangkan secara langsung.`}
                 </div>
               )}
+
+              {/* Tombol Balok 3D Nilai Tempat (Membuka Modal Lega) */}
+              <button
+                type="button"
+                onClick={() => setIsBlocksModalOpen(true)}
+                className="mt-1 text-[11px] font-black text-emerald-800 bg-white hover:bg-emerald-100/70 border border-emerald-300 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+              >
+                <span>📦</span>
+                <span>Buka Laboratorium Balok 3D ↗</span>
+              </button>
             </div>
           )}
 
@@ -367,6 +280,15 @@ export default function RightHelperPanel({
           </span>
         </div>
       </div>
+
+      {/* 4. MODAL LABORATORIUM BALOK 3D LEGA */}
+      <BaseTenBlocksModal
+        isOpen={isBlocksModalOpen}
+        onClose={() => setIsBlocksModalOpen(false)}
+        num1={num1}
+        num2={num2}
+        operation={currentOp}
+      />
     </aside>
   );
 }

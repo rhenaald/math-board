@@ -94,19 +94,17 @@ export default function GuruPage() {
   };
 
   const handleClearHistory = async () => {
-    if (confirm("Apakah Anda yakin ingin menghapus semua data rekap nilai siswa dari database? Tindakan ini tidak dapat dibatalkan.")) {
-      try {
-        const res = await fetch("/api/attempts/clear", { method: "POST" });
-        if (res.ok) {
-          setAttemptsHistory([]);
-          showToast("Semua riwayat rekap nilai dibersihkan dari database!", "🗑️", "bg-rose-600");
-        } else {
-          showToast("Gagal menghapus data dari database.", "❌", "bg-red-600");
-        }
-      } catch (e) {
-        console.error(e);
-        showToast("Terjadi kesalahan koneksi.", "❌", "bg-red-600");
+    try {
+      const res = await fetch("/api/attempts/clear", { method: "POST" });
+      if (res.ok) {
+        setAttemptsHistory([]);
+        showToast("Semua riwayat rekap nilai berhasil dibersihkan dari database!", "🗑️", "bg-rose-600");
+      } else {
+        showToast("Gagal menghapus data dari database.", "❌", "bg-red-600");
       }
+    } catch (e) {
+      console.error(e);
+      showToast("Terjadi kesalahan koneksi.", "❌", "bg-red-600");
     }
   };
 

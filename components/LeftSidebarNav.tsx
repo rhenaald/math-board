@@ -14,6 +14,7 @@ import {
   Shuffle,
   ChevronDown,
   Layers,
+  Unlock,
 } from "lucide-react";
 import { BoyMascotVector } from "./ChildMascots";
 import { OperationType } from "./SetupWizard";
@@ -204,6 +205,16 @@ export default function LeftSidebarNav({
           <History size={17} className="text-slate-500" />
           <span>Riwayat Latihan</span>
         </button>
+
+        {/* 🔑 Dashboard Guru */}
+        <a
+          href="/guru"
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-black text-blue-700 bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200/80 transition cursor-pointer"
+          title="Buka Dashboard Evaluasi Guru"
+        >
+          <Unlock size={17} className="text-blue-600" />
+          <span>Dashboard Guru</span>
+        </a>
 
         {/* 🔢 Dropdown Pilihan Digit (Collapsible) */}
         <div className="pt-2 border-t border-slate-100">

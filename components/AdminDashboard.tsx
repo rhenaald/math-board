@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Unlock, Download, Trash2, Search, Eye, LogOut, BookOpen, AlertTriangle } from "lucide-react";
-import AttemptDetailModal from "./AttemptDetailModal";
+import { Unlock, FileSpreadsheet, Trash2, Search, Eye, LogOut } from "lucide-react";
+import AttemptDetailFullScreen from "./AttemptDetailFullScreen";
+import { exportAllAttemptsToExcel } from "@/lib/excelExport";
 
 interface QuestionLog {
   no: number;
@@ -47,6 +48,18 @@ export default function AdminDashboard({
 }: AdminDashboardProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAttempt, setSelectedAttempt] = useState<AttemptRecord | null>(null);
+  const [isClearModalOpen, setIsClearModalOpen] = useState<boolean>(false);
+
+  // Jika guru memilih melihat detail sesi, tampilkan layar penuh (full screen view)
+  if (selectedAttempt) {
+    return (
+      <AttemptDetailFullScreen
+        selectedAttempt={selectedAttempt}
+        onBack={() => setSelectedAttempt(null)}
+        formatTimer={formatTimer}
+      />
+    );
+  }
 
   const filteredAttempts = attemptsHistory.filter((a) =>
     a.studentName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -68,57 +81,17 @@ export default function AdminDashboard({
       ? Math.round(attemptsHistory.reduce((sum, a) => sum + a.totalTime, 0) / totalAttempts)
       : 0;
 
-  const exportToCSV = () => {
+  const handleExportExcel = () => {
     try {
       if (attemptsHistory.length === 0) {
         showToast("Tidak ada data untuk diekspor!", "⚠️", "bg-amber-600");
         return;
       }
-
-      let csvContent = "\ufeff"; // BOM for Excel UTF-8
-      csvContent +=
-        "ID Sesi,Nama Siswa,Tanggal,Sesi Ke,Operasi Utama,Tingkat Satuan,Benar,Salah,Total Waktu (detik),Ringkasan Evaluasi,No Soal,Operasi Soal,Soal,Jawaban Siswa,Status,Waktu Pengerjaan (detik),Jenis Kesalahan,Detail Kesalahan,Saran Intervensi\n";
-
-      attemptsHistory.forEach((a) => {
-        a.questions.forEach((q) => {
-          const row = [
-            a.id,
-            `"${a.studentName.replace(/"/g, '""')}"`,
-            `"${a.dateStr}"`,
-            a.attemptNumber,
-            `"${(a.operation || "-").replace(/"/g, '""')}"`,
-            `"${(a.placeValueLevel || "-").replace(/"/g, '""')}"`,
-            a.correctCount,
-            a.wrongCount,
-            a.totalTime,
-            `"${(a.summaryErrors || "-").replace(/"/g, '""')}"`,
-            q.no,
-            q.operation,
-            `"${q.questionStr}"`,
-            q.userAnswer,
-            q.isCorrect ? "Benar" : "Salah",
-            q.timeTaken,
-            `"${(q.errorType || "-").replace(/"/g, '""')}"`,
-            `"${(q.errorDetail || "-").replace(/"/g, '""')}"`,
-            `"${(q.suggestedIntervention || "-").replace(/"/g, '""')}"`,
-          ].join(",");
-          csvContent += row + "\n";
-        });
-      });
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Rekap_Evaluasi_MathBoard_${new Date().toISOString().split("T")[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast("Berhasil mengekspor rekap evaluasi ke CSV!", "✅", "bg-emerald-600");
+      exportAllAttemptsToExcel(attemptsHistory);
+      showToast("Berhasil mengekspor rekap evaluasi ke Excel (.xlsx)!", "✅", "bg-emerald-600");
     } catch (e) {
       console.error(e);
-      showToast("Ekspor CSV gagal!", "❌", "bg-red-600");
+      showToast("Ekspor Excel gagal!", "❌", "bg-red-600");
     }
   };
 
@@ -135,20 +108,21 @@ export default function AdminDashboard({
         </div>
         <div className="flex flex-wrap gap-2.5">
           <button
-            onClick={exportToCSV}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl shadow-md transition flex items-center gap-2"
+            onClick={handleExportExcel}
+            className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer"
+            title="Download Rekap Evaluasi format Microsoft Excel (.xlsx)"
           >
-            <Download size={14} /> Ekspor CSV Evaluasi
+            <FileSpreadsheet size={15} /> Ekspor Excel (.xlsx)
           </button>
           <button
-            onClick={onClearHistory}
-            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition flex items-center gap-2"
+            onClick={() => setIsClearModalOpen(true)}
+            className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition flex items-center gap-2 cursor-pointer"
           >
             <Trash2 size={14} /> Bersihkan Data
           </button>
           <button
             onClick={onLogout}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition flex items-center gap-2"
+            className="bg-slate-800 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl transition flex items-center gap-2 cursor-pointer"
           >
             <LogOut size={14} /> Keluar
           </button>
@@ -196,8 +170,8 @@ export default function AdminDashboard({
               <th className="p-4">Tanggal Latihan</th>
               <th className="p-4">Operasi & Satuan</th>
               <th className="p-4 text-center">Sesi Ke-</th>
-              <th className="p-4 text-center">Benar</th>
-              <th className="p-4 text-center">Salah</th>
+              <th className="p-4 text-center">Benar (Mandiri)</th>
+              <th className="p-4 text-center">Perlu Bimbingan</th>
               <th className="p-4 text-center">Akurasi</th>
               <th className="p-4">Ringkasan Evaluasi</th>
               <th className="p-4 text-center">Aksi</th>
@@ -253,9 +227,9 @@ export default function AdminDashboard({
                       <button
                         onClick={() => setSelectedAttempt(attempt)}
                         type="button"
-                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-extrabold text-[10px] uppercase px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] uppercase px-3.5 py-1.5 rounded-xl transition inline-flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
                       >
-                        <Eye size={12} /> Detail
+                        <Eye size={13} /> Detail
                       </button>
                     </td>
                   </tr>
@@ -266,12 +240,40 @@ export default function AdminDashboard({
         </table>
       </div>
 
-      {selectedAttempt && (
-        <AttemptDetailModal
-          selectedAttempt={selectedAttempt}
-          onClose={() => setSelectedAttempt(null)}
-          formatTimer={formatTimer}
-        />
+      {/* MODAL KONFIRMASI BERSIHKAN DATA */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col gap-4 animate-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <Trash2 size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-slate-900 font-fredoka">Hapus Semua Riwayat Data?</h3>
+              <p className="text-xs text-slate-600 font-semibold mt-1.5 leading-relaxed">
+                Tindakan ini akan menghapus seluruh data sesi latihan dan evaluasi siswa dari database secara permanen. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsClearModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsClearModalOpen(false);
+                  onClearHistory();
+                }}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs transition cursor-pointer shadow-sm active:scale-95"
+              >
+                Ya, Bersihkan Data
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

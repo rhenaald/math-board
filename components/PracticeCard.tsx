@@ -1,27 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Volume2,
   CheckCircle2,
   RotateCcw,
   ArrowLeft,
-  Box,
-  Layers,
+  ArrowRight,
   HelpCircle,
-  Sparkles,
+  Box,
+  Check,
+  Award,
 } from "lucide-react";
-import MathBoardGrid from "./MathBoardGrid";
-import BaseTenBlocksVisualizer from "./BaseTenBlocksVisualizer";
-import { BoyMascotVector, GirlMascotVector } from "./ChildMascots";
+import { GirlMascotVector } from "./ChildMascots";
+import BaseTenBlocksVisualizer, { UnitCube3D, TenRod3D, HundredFlat3D } from "./BaseTenBlocksVisualizer";
+import { getSectionNamesForOp, type SectionDiagnostic } from "@/lib/errorDiagnostics";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
-
-interface DiagnosticHint {
-  message: string;
-  badge: string;
-  color: string;
-}
 
 interface PracticeCardProps {
   num1: number;
@@ -30,25 +25,13 @@ interface PracticeCardProps {
   levelName: string;
   questionNumber: number;
   totalQuestions: number;
-  userAnswerInput: string;
-  setUserAnswerInput: (val: string) => void;
-  carryValues: { th: string; h: string; t: string; u: string };
-  setCarryValues: React.Dispatch<React.SetStateAction<{ th: string; h: string; t: string; u: string }>>;
-  ansValues: { th: string; h: string; t: string; u: string };
-  setAnsValues: React.Dispatch<React.SetStateAction<{ th: string; h: string; t: string; u: string }>>;
-  onCheckAnswer: () => void;
+  onQuestionCompleted: (isAllCorrect: boolean, sections: SectionDiagnostic[]) => void;
   onNewProblem: () => void;
-  onNeedHelp?: () => void;
   onBack?: () => void;
-  diagnosticHint?: DiagnosticHint | null;
-  activePlace?: "th" | "h" | "t" | "u" | null;
-  setActivePlace?: (place: "th" | "h" | "t" | "u" | null) => void;
-  isShaking?: boolean;
-  isSuccess?: boolean;
-  placeValueCombo?: string;
-  onSelectCombo?: (combo: string) => void;
-  showDienesBlocks?: boolean;
-  setShowDienesBlocks?: (show: boolean | ((prev: boolean) => boolean)) => void;
+  onSectionChanged?: (secId: number) => void;
+  onFinishSession?: () => void;
+  hasAnsweredAny?: boolean;
+  isAutoSaving?: boolean;
 }
 
 export default function PracticeCard({
@@ -58,32 +41,87 @@ export default function PracticeCard({
   levelName = "Level 1 – Bilangan Kecil",
   questionNumber = 1,
   totalQuestions = 10,
-  userAnswerInput,
-  setUserAnswerInput,
-  carryValues,
-  setCarryValues,
-  ansValues,
-  setAnsValues,
-  onCheckAnswer,
+  onQuestionCompleted,
   onNewProblem,
-  onNeedHelp,
   onBack,
-  diagnosticHint,
-  activePlace,
-  setActivePlace,
-  isShaking = false,
-  isSuccess = false,
-  placeValueCombo = "P-P",
-  onSelectCombo,
-  showDienesBlocks: propShowBlocks,
-  setShowDienesBlocks: propSetShowBlocks,
+  onSectionChanged,
+  onFinishSession,
+  hasAnsweredAny = false,
+  isAutoSaving = false,
 }: PracticeCardProps) {
-  const [internalShowBlocks, setInternalShowBlocks] = useState<boolean>(false);
-  const showDienesBlocks = propShowBlocks !== undefined ? propShowBlocks : internalShowBlocks;
-  const setShowDienesBlocks = propSetShowBlocks || setInternalShowBlocks;
-  const [showVerticalBoard, setShowVerticalBoard] = useState<boolean>(false);
+  // Decompose numbers
+  const u1 = num1 % 10;
+  const t1 = Math.floor((num1 % 100) / 10);
+  const h1 = Math.floor((num1 % 1000) / 100);
 
-  // Text-to-speech audio reader
+  const u2 = num2 % 10;
+  const t2 = Math.floor((num2 % 100) / 10);
+  const h2 = Math.floor((num2 % 1000) / 100);
+
+  const hasHundreds = h1 > 0 || h2 > 0;
+  const hasTens = t1 > 0 || t2 > 0 || hasHundreds;
+  const isSingleDigit = !hasTens && !hasHundreds;
+  const totalSections = isSingleDigit ? 3 : 4;
+
+  // Stepper Section State (1 s/d totalSections)
+  const [currentSection, setCurrentSection] = useState<number>(1);
+  const [sectionErrorNotice, setSectionErrorNotice] = useState<string | null>(null);
+  const [isSectionShaking, setIsSectionShaking] = useState<boolean>(false);
+
+  // Section Interaction Inputs
+  const [secInputs, setSecInputs] = useState<{ [key: string]: string }>({});
+
+  const sectionMeta = getSectionNamesForOp(currentOp, isSingleDigit);
+
+  // Diagnostik status tiap section untuk soal aktif ini
+  const [sectionDiagnostics, setSectionDiagnostics] = useState<SectionDiagnostic[]>(() =>
+    sectionMeta.map((s) => ({
+      sectionId: s.id,
+      sectionName: s.title,
+      status: "skipped",
+    }))
+  );
+
+  const [hasFailedAnySection, setHasFailedAnySection] = useState<boolean>(false);
+  const [isQuestionFinished, setIsQuestionFinished] = useState<boolean>(false);
+
+  // Sync active section to parent (RightHelperPanel sync)
+  useEffect(() => {
+    if (onSectionChanged) onSectionChanged(currentSection);
+  }, [currentSection, onSectionChanged]);
+
+  // Sound effects
+  const playSound = (type: "success" | "error") => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === "success") {
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } else {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      }
+    } catch (e) {
+      console.log("Audio non-blocking handled", e);
+    }
+  };
+
+  // Text-to-speech
   const speakProblem = () => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const opWords: Record<SimpleOperation, string> = {
@@ -100,6 +138,51 @@ export default function PracticeCard({
     window.speechSynthesis.speak(utterance);
   };
 
+  const rawSumU = u1 + u2;
+  const carryT = rawSumU >= 10 ? 1 : 0;
+  const expSumU = rawSumU % 10;
+  const rawSumT = t1 + t2 + carryT;
+  const carryH = hasHundreds && rawSumT >= 10 ? 1 : 0;
+  const expSumT = hasHundreds ? rawSumT % 10 : rawSumT;
+  const expSumH = hasHundreds ? h1 + h2 + carryH : 0;
+
+  const borrowFromT = u1 < u2 ? 1 : 0;
+  const effectiveU1 = borrowFromT ? u1 + 10 : u1;
+  const remT1 = t1 - borrowFromT;
+  const borrowFromH = hasHundreds && remT1 < t2 ? 1 : 0;
+  const effectiveT1 = borrowFromH ? remT1 + 10 : remT1;
+  const effectiveH1 = hasHundreds ? h1 - borrowFromH : 0;
+
+  const expDiffU = effectiveU1 - u2;
+  const expDiffT = effectiveT1 - t2;
+  const expDiffH = hasHundreds ? effectiveH1 - h2 : 0;
+
+  const expPartH = h1 * 100 * num2;
+  const expPartT = t1 * 10 * num2;
+  const expPartU = u1 * num2;
+
+  const expQuotH = h1 > 0 ? Math.floor((h1 * 100) / num2) : 0;
+  const expQuotT = t1 > 0 ? Math.floor((t1 * 10) / num2) : 0;
+  const expQuotU = Math.floor(u1 / num2);
+
+  const combinedPlaceholder =
+    currentOp === "×"
+      ? h1 > 0
+        ? `${secInputs["partH"] || expPartH} + ${secInputs["partT"] || expPartT} + ${secInputs["partU"] || expPartU}`
+        : t1 > 0
+        ? `${secInputs["partT"] || expPartT} + ${secInputs["partU"] || expPartU}`
+        : `${secInputs["partU"] || expPartU}`
+      : currentOp === "÷"
+      ? h1 > 0
+        ? `${secInputs["quotH"] || expQuotH} + ${secInputs["quotT"] || expQuotT} + ${secInputs["quotU"] || expQuotU}`
+        : t1 > 0
+        ? `${secInputs["quotT"] || expQuotT} + ${secInputs["quotU"] || expQuotU}`
+        : `${secInputs["quotU"] || expQuotU}`
+      : "?";
+
+  const expectedFinalAnswer =
+    currentOp === "+" ? num1 + num2 : currentOp === "-" ? num1 - num2 : currentOp === "×" ? num1 * num2 : Math.floor(num1 / num2);
+
   const opSymbol = currentOp === "-" ? "−" : currentOp;
 
   const opColors: Record<SimpleOperation, { bg: string; text: string; badgeBg: string }> = {
@@ -109,219 +192,444 @@ export default function PracticeCard({
     "÷": { bg: "bg-purple-600", text: "text-purple-600", badgeBg: "bg-purple-100 text-purple-800" },
   };
 
-  const opTitle: Record<SimpleOperation, string> = {
-    "+": "Penjumlahan",
-    "-": "Pengurangan",
-    "×": "Perkalian",
-    "÷": "Pembagian",
+  const handleFieldInput = (
+    key: string,
+    val: string,
+    nextKey?: string,
+    autoAdvanceLength: number = 1
+  ) => {
+    const cleanVal = val.replace(/[^0-9\-]/g, "").replace(/(?!^)-/g, "");
+    setSecInputs((prev) => ({ ...prev, [key]: cleanVal }));
+    // Pindah kursor otomatis ke kotak berikutnya setelah mengetik
+    if (autoAdvanceLength > 0 && cleanVal.length >= autoAdvanceLength && cleanVal !== "-" && nextKey) {
+      setTimeout(() => {
+        const nextEl = document.querySelector<HTMLInputElement>(`[data-field-key="${nextKey}"]`);
+        if (nextEl) {
+          nextEl.focus();
+          nextEl.select();
+        }
+      }, 20);
+    }
   };
 
-  // Multiplication 4-Quadrant Renderer (Sesuai Gambar 4)
-  const renderMultiplicationQuadrants = () => {
-    const groups = Math.min(Math.max(num1, 2), 6);
-    const perGroup = Math.min(Math.max(num2, 1), 6);
-    const expectedAns = num1 * num2;
-    const isAnsweredCorrectly = userAnswerInput === String(expectedAns) || isSuccess;
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    prevKey?: string,
+    nextKey?: string
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleValidateSection(currentSection);
+    } else if (
+      e.key === "Backspace" &&
+      !secInputs[(e.target as HTMLInputElement).getAttribute("data-field-key") || ""] &&
+      prevKey
+    ) {
+      const prevEl = document.querySelector<HTMLInputElement>(`[data-field-key="${prevKey}"]`);
+      if (prevEl) {
+        prevEl.focus();
+        prevEl.select();
+      }
+    } else if (e.key === "ArrowRight" && nextKey) {
+      const nextEl = document.querySelector<HTMLInputElement>(`[data-field-key="${nextKey}"]`);
+      if (nextEl) {
+        nextEl.focus();
+        nextEl.select();
+      }
+    } else if (e.key === "ArrowLeft" && prevKey) {
+      const prevEl = document.querySelector<HTMLInputElement>(`[data-field-key="${prevKey}"]`);
+      if (prevEl) {
+        prevEl.focus();
+        prevEl.select();
+      }
+    }
+  };
 
-    return (
-      <div className="flex flex-col gap-4 animate-in fade-in duration-200">
-        {/* Soal Card + Mascot Speech (Gambar 4) */}
-        <div className="bg-rose-50/70 border border-rose-200 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-black text-rose-700 bg-rose-100 px-3 py-1 rounded-xl">
-              Soal:
-            </span>
-            <div className="text-3xl sm:text-4xl font-black text-slate-900 font-fredoka tracking-tight flex items-center gap-2">
-              <span>{num1} × {num2} = ?</span>
-              <button
-                type="button"
-                onClick={speakProblem}
-                className="p-2 rounded-xl bg-white text-rose-600 hover:bg-rose-100 transition shadow-2xs cursor-pointer"
-                title="Dengarkan Soal"
-              >
-                <Volume2 size={20} />
-              </button>
+  // Auto-focus input pertama saat masuk ke section baru
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      let firstKey = "";
+      if (currentSection === 1) {
+        firstKey = hasHundreds ? "h1" : hasTens ? "t1" : "u1";
+      } else if (currentSection === 2) {
+        if (currentOp === "+") firstKey = "sumU";
+        else if (currentOp === "-") firstKey = u1 < u2 ? "newT1" : "";
+        else if (currentOp === "×") firstKey = num1 < 10 ? "repSum" : h1 > 0 ? "partH" : t1 > 0 ? "partT" : "partU";
+        else if (currentOp === "÷") firstKey = h1 > 0 ? "quotH" : t1 > 0 ? "quotT" : "quotU";
+      } else if (currentSection === 3) {
+        if (isSingleDigit) {
+          firstKey = "finalAnswer";
+        } else {
+          if (currentOp === "+") firstKey = "sumT";
+          else if (currentOp === "-") firstKey = "diffU";
+          else firstKey = "combined";
+        }
+      } else if (currentSection === 4) {
+        firstKey = "finalAnswer";
+      }
 
-              {onNeedHelp && (
-                <button
-                  type="button"
-                  onClick={onNeedHelp}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition cursor-pointer shadow-2xs"
-                  title="Buka Bantuan Bertingkat"
-                >
-                  <Sparkles size={14} className="text-amber-600" />
-                  <span>Bantuan Bertingkat</span>
-                </button>
-              )}
-            </div>
+      if (firstKey) {
+        const el = document.querySelector<HTMLInputElement>(`[data-field-key="${firstKey}"]`);
+        if (el) {
+          el.focus();
+          el.select();
+        }
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [currentSection, currentOp, hasHundreds, hasTens, isSingleDigit, u1, u2, num1, h1, t1]);
+
+  // -------------------------------------------------------------------------
+  // VALIDASI SETIAP SECTION
+  // -------------------------------------------------------------------------
+  const handleValidateSection = (secId: number) => {
+    let isCorrect = false;
+    let errorMessage = "";
+    let detectedErrorType: string | undefined;
+    let detectedErrorDetail: string | undefined;
+    let detectedIntervention: string | undefined;
+    const studentInputsStr = JSON.stringify(secInputs);
+
+    if (secId === 1) {
+      // Susun kolom nilai tempat untuk SEMUA operasi (+, -, ×, ÷)
+      const inU1 = parseInt(secInputs["u1"] || "0", 10);
+      const inT1 = parseInt(secInputs["t1"] || "0", 10);
+      const inH1 = parseInt(secInputs["h1"] || "0", 10);
+
+      const inU2 = parseInt(secInputs["u2"] || "0", 10);
+      const inT2 = parseInt(secInputs["t2"] || "0", 10);
+      const inH2 = parseInt(secInputs["h2"] || "0", 10);
+
+      const u1Ok = inU1 === u1;
+      const t1Ok = !hasTens || inT1 === t1 || (t1 > 0 && inT1 === t1 * 10);
+      const h1Ok = !hasHundreds || inH1 === h1 || (h1 > 0 && inH1 === h1 * 100);
+
+      const u2Ok = inU2 === u2;
+      const t2Ok = !hasTens || (t2 === 0 ? true : inT2 === t2 || (t2 > 0 && inT2 === t2 * 10));
+      const h2Ok = !hasHundreds || (h2 === 0 ? true : inH2 === h2 || (h2 > 0 && inH2 === h2 * 100));
+
+      isCorrect = u1Ok && t1Ok && h1Ok && u2Ok && t2Ok && h2Ok;
+      if (!isCorrect) {
+        detectedErrorType = "SALAH_SECTION_1";
+        if (currentOp === "×") {
+          errorMessage = `Susun digit bilangan ${num1} dan pengali ${num2} pada kolom nilai tempat dengan tepat.`;
+        } else if (currentOp === "÷") {
+          errorMessage = `Susun digit bilangan ${num1} dan pembagi ${num2} pada kolom nilai tempat dengan tepat.`;
+        } else if (currentOp === "-") {
+          errorMessage = `Susun digit bilangan ${num1} dan pengurang ${num2} pada kolom nilai tempat dengan tepat.`;
+        } else {
+          errorMessage = `Susun digit bilangan ${num1} dan ${num2} pada kolom nilai tempat dengan tepat.`;
+        }
+        detectedErrorDetail = errorMessage;
+        detectedIntervention = "Pandu siswa mengenali susunan kolom nilai tempat: satuan di paling kanan, disusul puluhan dan ratusan di kirinya.";
+      }
+    } else if (isSingleDigit && secId === 3) {
+      // Validasi Hasil Akhir untuk bilangan satuan (Tahap 3)
+      const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+      isCorrect = inFinal === expectedFinalAnswer;
+      if (!isCorrect) {
+        detectedErrorType = "SALAH_HASIL_AKHIR";
+        errorMessage = "Hitung kembali hasil akhirnya dengan teliti ya!";
+        detectedErrorDetail = `Hasil akhir ditulis ${inFinal}, kunci yang benar adalah ${expectedFinalAnswer}.`;
+        detectedIntervention = "Ajak siswa mengecek kembali hasil perhitungan dengan balok satuan.";
+      }
+    } else if (currentOp === "+") {
+      if (secId === 2) {
+        // Hitung Satuan & Simpanan
+        const inSumU = parseInt(secInputs["sumU"] || "0", 10);
+        const inCarry = parseInt(secInputs["carryT"] || "0", 10);
+        const rawSum = u1 + u2;
+        const expU = rawSum % 10;
+        const expCarry = rawSum >= 10 ? 1 : 0;
+        isCorrect = inSumU === expU && (rawSum >= 10 ? inCarry === expCarry : true);
+        if (!isCorrect) {
+          if (rawSum >= 10 && inCarry !== expCarry) {
+            detectedErrorType = "LUPA_SIMPAN_PULUHAN";
+            errorMessage = "Karena hasil penjumlahan satuan mencapai 10 atau lebih, jangan lupa simpan angka puluhannya di atas ya!";
+            detectedErrorDetail = `Siswa tidak menuliskan angka simpanan ${expCarry} ke kolom puluhan dari ${u1} + ${u2} = ${rawSum}.`;
+            detectedIntervention = "Gunakan balok satuan untuk menunjukkan bahwa 10 kubus satuan ditukar menjadi 1 batang puluhan yang disimpan di kolom atas.";
+          } else {
+            detectedErrorType = "SALAH_HITUNG_SATUAN";
+            errorMessage = rawSum >= 10
+              ? "Periksa kembali hitungan balok satuan dan angka simpanan di atasnya ya!"
+              : "Hitung kembali jumlah balok satuan dengan teliti.";
+            detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
+            detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
+          }
+        }
+      } else if (secId === 3) {
+        // Hitung Puluhan & Ratusan
+        const inSumT = parseInt(secInputs["sumT"] || "-1", 10);
+        const inCarryH = parseInt(secInputs["carryH"] || "0", 10);
+        const inSumH = parseInt(secInputs["sumH"] || "-1", 10);
+
+        if (hasHundreds) {
+          const tOk = inSumT === expSumT;
+          const carryHOk = rawSumT >= 10 ? inCarryH === carryH : true;
+          const hOk = inSumH === expSumH;
+          isCorrect = tOk && carryHOk && hOk;
+          if (!isCorrect) {
+            if (carryT > 0 && inSumT === (t1 + t2) % 10) {
+              detectedErrorType = "LUPA_TAMBAH_SIMPANAN";
+              detectedErrorDetail = `Siswa menjumlahkan puluhan tanpa menambahkan simpanan 1 (${t1} + ${t2} = ${t1 + t2}, seharusnya ${expSumT}).`;
+              detectedIntervention = "Ingatkan siswa untuk selalu melingkari dan menambahkan angka simpanan kecil di atas kolom puluhan.";
+            } else {
+              detectedErrorType = "SALAH_HITUNG_PULUHAN";
+              detectedErrorDetail = `Kekeliruan penjumlahan puluhan/ratusan pada bilangan ratusan.`;
+              detectedIntervention = "Bimbing siswa menjumlahkan balok puluhan dan ratusan satu per satu.";
+            }
+            errorMessage = carryT > 0 || carryH > 0
+              ? "Jangan lupa tambahkan angka simpanan saat menjumlahkan nilai tempat puluhan dan ratusan ya!"
+              : "Coba periksa kembali penjumlahan pada kolom puluhan dan ratusan.";
+          }
+        } else {
+          isCorrect = inSumT === expSumT;
+          if (!isCorrect) {
+            if (carryT > 0 && inSumT === t1 + t2) {
+              detectedErrorType = "LUPA_TAMBAH_SIMPANAN";
+              detectedErrorDetail = `Siswa menjumlahkan puluhan (${t1} + ${t2} = ${t1 + t2}) tanpa menambahkan angka simpanan ${carryT}.`;
+              detectedIntervention = "Ingatkan siswa untuk selalu menyertakan angka simpanan di atas kolom puluhan saat menjumlahkan.";
+            } else {
+              detectedErrorType = "SALAH_HITUNG_PULUHAN";
+              detectedErrorDetail = `Kekeliruan penjumlahan puluhan: ${t1} + ${t2}${carryT > 0 ? ` + ${carryT}` : ""} diisi ${inSumT}.`;
+              detectedIntervention = "Ajak siswa menjumlahkan batang balok puluhan secara bertahap.";
+            }
+            errorMessage = carryT > 0
+              ? "Ingat untuk menambahkan angka simpanan kecil di atas kolom puluhan ya!"
+              : "Coba hitung kembali penjumlahan batang puluhan.";
+          }
+        }
+      } else if (secId === 4) {
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_4";
+          errorMessage = "Periksa kembali gabungan digit nilai tempat dari hasil perhitungan sebelumnya ya!";
+          detectedErrorDetail = `Hasil akhir penjumlahan ditulis ${inFinal}, kunci yang benar adalah ${expectedFinalAnswer}.`;
+          detectedIntervention = "Minta siswa memeriksa kembali gabungan digit kolom kerja dari kanan ke kiri.";
+        }
+      }
+    } else if (currentOp === "-") {
+      if (secId === 2) {
+        // Cek Satuan & Tukar Puluhan (Regrouping)
+        if (u1 < u2) {
+          const inNewU = parseInt(secInputs["newU1"] || "0", 10);
+          const inNewT = parseInt(secInputs["newT1"] || "0", 10);
+          isCorrect = inNewU === u1 + 10 && inNewT === t1 - 1;
+          if (!isCorrect) {
+            detectedErrorType = "PENGURANGAN_TERBALIK";
+            errorMessage = `Angka satuan di atas (${u1}) lebih kecil dari bawah (${u2}). Tukar 1 puluhan menjadi 10 satuan ya!`;
+            detectedErrorDetail = `Satuan ${u1} < ${u2}, tetapi siswa tidak melakukan penukaran puluhan (regrouping/pinjam).`;
+            detectedIntervention = "Demonstrasikan pembongkaran 1 batang puluhan menjadi 10 kubus satuan pada visual balok.";
+          }
+        } else {
+          isCorrect = true; // Satuan cukup dikurang langsung
+        }
+      } else if (secId === 3) {
+        const inDiffU = parseInt(secInputs["diffU"] || "-1", 10);
+        const inDiffT = parseInt(secInputs["diffT"] || "-1", 10);
+        const inDiffH = parseInt(secInputs["diffH"] || "-1", 10);
+
+        if (hasHundreds) {
+          isCorrect = inDiffU === expDiffU && inDiffT === expDiffT && inDiffH === expDiffH;
+          if (!isCorrect) {
+            detectedErrorType = "LUPA_KURANGI_PINJAMAN";
+            errorMessage = "Periksa kembali pengurangan setiap kolom nilai tempat, ingat kolom yang sudah dipinjam!";
+            detectedErrorDetail = `Kekeliruan saat mengurangi kolom nilai tempat.`;
+            detectedIntervention = "Ingatkan siswa untuk mencoret nilai tempat yang telah dipinjam.";
+          }
+        } else {
+          isCorrect = inDiffU === expDiffU && inDiffT === expDiffT;
+          if (!isCorrect) {
+            if (borrowFromT > 0 && inDiffT === t1 - t2) {
+              detectedErrorType = "LUPA_KURANGI_PINJAMAN";
+              detectedErrorDetail = `Siswa mengurangi puluhan (${t1} − ${t2}) tanpa mengingat bahwa 1 puluhan telah dipinjam oleh satuan.`;
+              detectedIntervention = "Tekankan kebiasaan mencoret angka puluhan awal dan menuliskan angka sisa di atasnya setelah dipinjam.";
+            } else {
+              detectedErrorType = "SALAH_HITUNG_PULUHAN";
+              detectedErrorDetail = `Kekeliruan pada selisih puluhan.`;
+              detectedIntervention = "Bimbing siswa mengurangi batang puluhan dengan bantuan visual balok.";
+            }
+            errorMessage = borrowFromT > 0
+              ? "Perhatikan batang puluhan yang tersisa setelah 1 puluhan dipinjam oleh satuan ya!"
+              : "Hitung kembali selisih pada kolom satuan dan puluhan.";
+          }
+        }
+      } else if (secId === 4) {
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_4";
+          errorMessage = "Periksa kembali hasil pengurangan akhir dari setiap kolom nilai tempat.";
+          detectedErrorDetail = `Hasil akhir pengurangan ditulis ${inFinal}, seharusnya ${expectedFinalAnswer}.`;
+          detectedIntervention = "Ajak siswa mengecek kembali hasil pengurangan tiap kolom.";
+        }
+      }
+    } else if (currentOp === "×") {
+      if (secId === 2) {
+        if (num1 >= 10) {
+          const inPartH = h1 > 0 ? parseInt(secInputs["partH"] || "0", 10) : 0;
+          const inPartT = t1 > 0 ? parseInt(secInputs["partT"] || "0", 10) : 0;
+          const inPartU = parseInt(secInputs["partU"] || "0", 10);
+
+          const expH = h1 * 100 * num2;
+          const expT = t1 * 10 * num2;
+          const expU = u1 * num2;
+
+          const hOk = h1 === 0 || inPartH === expH;
+          const tOk = t1 === 0 || inPartT === expT;
+          const uOk = inPartU === expU;
+
+          isCorrect = hOk && tOk && uOk;
+          if (!isCorrect) {
+            detectedErrorType = "LUPA_SIMPAN_KALI";
+            errorMessage = "Hitung perkalian untuk setiap nilai tempat (satuan, puluhan, ratusan) dengan teliti ya!";
+            detectedErrorDetail = `Kekeliruan dalam menghitung perkalian bagian nilai tempat.`;
+            detectedIntervention = "Ajak siswa mengalikan nilai tempat satu per satu dengan balok perkalian.";
+          }
+        } else {
+          const inRepeatedSum = parseInt(secInputs["repSum"] || "0", 10);
+          isCorrect = inRepeatedSum === num1 * num2;
+          if (!isCorrect) {
+            detectedErrorType = "SALAH_SECTION_2";
+            errorMessage = "Hitung total penjumlahan berulang semua kelompok balok ya!";
+            detectedErrorDetail = `Kekeliruan konsep perkalian sebagai penjumlahan berulang.`;
+            detectedIntervention = "Gunakan balok untuk menghitung kelompok benda berulang.";
+          }
+        }
+      } else if (secId === 3) {
+        const inCombined = parseInt(secInputs["combined"] || "0", 10);
+        isCorrect = inCombined === num1 * num2;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_3";
+          errorMessage = "Jumlahkan hasil tiap bagian untuk mendapatkan total gabungan yang benar.";
+          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil parsial perkalian.`;
+          detectedIntervention = "Bimbing siswa menjumlahkan hasil bagian secara berurutan.";
+        }
+      } else if (secId === 4) {
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_4";
+          errorMessage = "Periksa kembali gabungan hasil kali bagian untuk jawaban akhirnya.";
+          detectedErrorDetail = `Hasil akhir perkalian ditulis ${inFinal}, seharusnya ${expectedFinalAnswer}.`;
+          detectedIntervention = "Periksa kembali penjumlahan hasil kali bagian.";
+        }
+      }
+    } else if (currentOp === "÷") {
+      if (secId === 2) {
+        const inQuotH = h1 > 0 ? parseInt(secInputs["quotH"] || "0", 10) : 0;
+        const inQuotT = t1 > 0 ? parseInt(secInputs["quotT"] || "0", 10) : 0;
+        const inQuotU = parseInt(secInputs["quotU"] || "0", 10);
+
+        const expQuotH = Math.floor((h1 * 100) / num2);
+        const expQuotT = Math.floor((t1 * 10) / num2);
+        const expQuotU = Math.floor(u1 / num2);
+
+        const hOk = h1 === 0 || inQuotH === expQuotH;
+        const tOk = t1 === 0 || inQuotT === expQuotT;
+        const uOk = inQuotU === expQuotU;
+
+        isCorrect = hOk && tOk && uOk;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_2";
+          errorMessage = `Bagi setiap kelompok nilai tempat dengan ${num2} sama rata ya!`;
+          detectedErrorDetail = `Kekeliruan pembagian per nilai tempat.`;
+          detectedIntervention = "Gunakan balok untuk membagi rata nilai tempat ke kelompok pembagi.";
+        }
+      } else if (secId === 3) {
+        const inCombined = parseInt(secInputs["combined"] || "0", 10);
+        isCorrect = inCombined === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_3";
+          errorMessage = "Gabungkan hasil bagi untuk mendapatkan hasil bagi total!";
+          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil bagi tiap bagian.`;
+          detectedIntervention = "Bimbing siswa menjumlahkan hasil bagi parsial.";
+        }
+      } else if (secId === 4) {
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_SECTION_4";
+          errorMessage = "Periksa kembali gabungan hasil bagi dari setiap kelompok nilai tempat.";
+          detectedErrorDetail = `Hasil akhir pembagian ditulis ${inFinal}, seharusnya ${expectedFinalAnswer}.`;
+          detectedIntervention = "Uji kembali hasil pembagian dengan perkalian terbalik.";
+        }
+      }
+    }
+
+    // UPDATE SECTION DIAGNOSTICS DENGAN RIWAYAT KESALAHAN
+    const updated = sectionDiagnostics.map((sec) => {
+      if (sec.sectionId === secId) {
+        const hadPreviousMistake = sec.hadMistake || !isCorrect;
+        return {
+          ...sec,
+          status: isCorrect ? ("correct" as const) : ("incorrect" as const),
+          studentInput: studentInputsStr,
+          expectedValue: String(expectedFinalAnswer),
+          diagnosticNote: !isCorrect ? errorMessage : sec.diagnosticNote,
+          hadMistake: hadPreviousMistake,
+          attempts: (sec.attempts || 0) + 1,
+          errorType: !isCorrect ? detectedErrorType : sec.errorType,
+          errorDetail: !isCorrect ? detectedErrorDetail : sec.errorDetail,
+          suggestedIntervention: !isCorrect ? detectedIntervention : sec.suggestedIntervention,
+        };
+      }
+      return sec;
+    });
+    setSectionDiagnostics(updated);
+
+    if (!isCorrect) {
+      playSound("error");
+      setSectionErrorNotice(errorMessage);
+      setIsSectionShaking(true);
+      setTimeout(() => setIsSectionShaking(false), 500);
+      setHasFailedAnySection(true);
+    } else {
+      playSound("success");
+      setSectionErrorNotice(null);
+
+      if (secId < totalSections) {
+        setCurrentSection(secId + 1);
+      } else {
+        // Tuntas semua section!
+        setIsQuestionFinished(true);
+        const hasAnyMistake = hasFailedAnySection || updated.some((s) => s.hadMistake);
+        const isCleanPass = !hasAnyMistake;
+        onQuestionCompleted(isCleanPass, updated);
+      }
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col w-full select-none transition-all duration-300">
+      {/* 1. HEADER KARTU: JUDUL OPERASI, LEVEL & NO SOAL */}
+      <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl ${opColors[currentOp].bg} text-white flex items-center justify-center text-sm font-black shadow-2xs`}>
+            {opSymbol}
           </div>
-
-          <div className="flex items-center gap-3 bg-white/90 px-4 py-2 rounded-2xl border border-rose-100 shadow-2xs">
-            <div className="w-12 h-12 shrink-0">
-              <BoyMascotVector size={48} />
-            </div>
-            <p className="text-xs font-bold text-slate-700 leading-snug">
-              &quot;Kita bisa menggunakan gambar untuk memahami perkalian!&quot;
+          <div>
+            <h3 className="text-base font-black text-slate-900 font-fredoka leading-none">
+              Latihan {currentOp === "+" ? "Penjumlahan" : currentOp === "-" ? "Pengurangan" : currentOp === "×" ? "Perkalian" : "Pembagian"}
+            </h3>
+            <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+              Alur Terpandu per Tahap (CPA Method)
             </p>
           </div>
         </div>
 
-        {/* 4 Kuadran Grid (Gambar 4) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 1. Pahami Soal */}
-          <div className="bg-sky-50/70 border border-sky-200 rounded-3xl p-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs">
-                1
-              </span>
-              <h4 className="font-black text-slate-800 font-fredoka text-sm">
-                Pahami Soal
-              </h4>
-            </div>
-            <div className="text-xs font-bold text-slate-700">
-              {num1} × {num2} artinya apa?
-            </div>
-            <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-xs font-bold text-amber-950 mt-1">
-              Ada {num1} kelompok, setiap kelompok berisi {num2} benda.
-            </div>
-          </div>
-
-          {/* 2. Lihat Gambar */}
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-3xl p-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
-                2
-              </span>
-              <h4 className="font-black text-slate-800 font-fredoka text-sm">
-                Lihat Gambar
-              </h4>
-            </div>
-            <div className="text-xs font-bold text-slate-700">
-              Mari kita gambar {groups} kelompok yang masing-masing berisi {perGroup} benda:
-            </div>
-
-            {/* Visual Dot Array (Gambar 4) */}
-            <div className="flex flex-wrap items-center gap-2 py-1 justify-center">
-              {Array.from({ length: groups }).map((_, gIdx) => (
-                <div
-                  key={gIdx}
-                  className="p-2 bg-white rounded-xl border border-rose-200 shadow-2xs flex flex-col items-center gap-1"
-                >
-                  <div className="grid grid-cols-3 gap-1">
-                    {Array.from({ length: perGroup }).map((_, dIdx) => (
-                      <div key={dIdx} className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-2xs" />
-                    ))}
-                  </div>
-                  <span className="text-[9px] font-black text-slate-600">
-                    Kelompok {gIdx + 1} ({perGroup})
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. Hitung Semua Benda */}
-          <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-xs">
-                3
-              </span>
-              <h4 className="font-black text-slate-800 font-fredoka text-sm">
-                Hitung Semua Benda
-              </h4>
-            </div>
-            <div className="text-xs font-bold text-slate-700">
-              Kita jumlahkan semua kelompok:
-            </div>
-
-            <div className="flex flex-col items-center gap-1 py-1">
-              <div className="font-mono font-black text-slate-800 text-sm sm:text-base">
-                {Array.from({ length: groups }).map(() => perGroup).join(" + ")}
-              </div>
-              <svg className="w-32 h-5 stroke-slate-400 stroke-[2]" fill="none" viewBox="0 0 100 20">
-                <path d="M10 2 Q50 2 50 18" />
-                <path d="M90 2 Q50 2 50 18" />
-              </svg>
-              <div className="bg-rose-100 border border-rose-300 px-4 py-1 rounded-xl text-lg font-black text-rose-700 font-fredoka">
-                {expectedAns}
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Tulis Jawaban */}
-          <div className="bg-purple-50/70 border border-purple-200 rounded-3xl p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center font-black text-xs">
-                4
-              </span>
-              <h4 className="font-black text-slate-800 font-fredoka text-sm">
-                Tulis Jawaban
-              </h4>
-            </div>
-
-            {/* Input Jawaban / Tampilan Jawaban */}
-            <div className="flex items-center justify-center gap-3 py-1">
-              <span className="text-xl sm:text-2xl font-black text-slate-800 font-fredoka">
-                {num1} × {num2} =
-              </span>
-              <input
-                type="text"
-                id="practice-user-answer"
-                value={userAnswerInput}
-                onChange={(e) => setUserAnswerInput(e.target.value.replace(/[^0-9]/g, ""))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onCheckAnswer();
-                }}
-                placeholder="?"
-                className="w-20 sm:w-24 h-12 text-center font-black text-2xl font-fredoka text-rose-900 bg-white border-2 border-rose-300 rounded-2xl shadow-xs focus:ring-4 focus:ring-rose-200 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={onCheckAnswer}
-                className="px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer"
-              >
-                Cek
-              </button>
-            </div>
-
-            {/* Apresiasi Maskot saat Benar */}
-            {isAnsweredCorrectly && (
-              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 p-2.5 rounded-2xl animate-in zoom-in-95">
-                <div className="w-10 h-10 shrink-0">
-                  <GirlMascotVector size={40} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-emerald-900 font-fredoka">Hebat!</p>
-                  <p className="text-[11px] font-bold text-slate-600">
-                    Kamu sudah menyelesaikan perkalian ini dengan sangat baik!
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div
-      className={`bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col w-full select-none transition-all duration-300 ${
-        isShaking ? "animate-shake ring-2 ring-rose-400" : ""
-      } ${isSuccess ? "ring-4 ring-emerald-400 shadow-md" : ""}`}
-    >
-      {/* HEADER: BADGE OPERASI, LEVEL & SOAL KE-X (Sesuai Gambar 4) */}
-      <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-xl ${opColors[currentOp].bg} text-white flex items-center justify-center text-xs font-black shadow-2xs`}>
-            {opSymbol}
-          </div>
-          <h3 className="text-base font-black text-slate-900 font-fredoka">
-            {opTitle[currentOp]}
-          </h3>
-        </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAutoSaving ? (
+            <span className="text-[11px] font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 animate-pulse flex items-center gap-1">
+              💾 Menyimpan...
+            </span>
+          ) : hasAnsweredAny ? (
+            <span className="text-[11px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+              ✅ Tersimpan ke Guru
+            </span>
+          ) : null}
           <span className="px-3 py-1 rounded-full bg-slate-200/80 text-slate-700 text-xs font-black">
             {levelName}
           </span>
@@ -331,171 +639,1344 @@ export default function PracticeCard({
         </div>
       </div>
 
-      {/* BODY KARTU */}
-      <div className="p-4 sm:p-6 flex flex-col gap-4">
-        {/* JIKA PERKALIAN: TAMPILKAN 4 KUADRAN (GAMBAR 4) */}
-        {currentOp === "×" ? (
-          renderMultiplicationQuadrants()
-        ) : (
-          /* JIKA +, -, ATAU ÷: TAMPILKAN PERSAMAAN BESAR & PAPAN NILAI TEMPAT */
-          <div className="flex flex-col gap-4">
-            {/* Persamaan Utama */}
-            <div className="flex flex-wrap items-center justify-center gap-4 py-3 bg-slate-50/70 border border-slate-200 rounded-3xl">
-              <div className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 font-fredoka tracking-tight flex items-center gap-3">
-                <span>{num1}</span>
-                <span className={opColors[currentOp].text}>{opSymbol}</span>
-                <span>{num2}</span>
-                <span className="text-slate-400">=</span>
-              </div>
+      {/* 2. STEPPER PROGRESS BAR (3 SECTIONS UNTUK SATUAN, 4 SECTIONS UNTUK PULUHAN/RATUSAN) */}
+      <div className="bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-emerald-50/60 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
+        <div className={`grid ${isSingleDigit ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
+          {sectionMeta.map((sec) => {
+            const isActive = currentSection === sec.id;
+            const diag = sectionDiagnostics.find((d) => d.sectionId === sec.id);
+            const isDone = diag?.status === "correct";
+            const isFailed = diag?.status === "incorrect";
 
-              {/* Input Jawaban */}
-              <input
-                type="text"
-                id="main-practice-input"
-                value={userAnswerInput}
-                onChange={(e) => setUserAnswerInput(e.target.value.replace(/[^0-9]/g, ""))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onCheckAnswer();
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => {
+                  // Hanya bisa klik ke section yang sudah pernah dicapai
+                  if (sec.id <= currentSection || isQuestionFinished) {
+                    setCurrentSection(sec.id);
+                  }
                 }}
-                placeholder="?"
-                className="w-24 sm:w-28 h-14 text-center font-black text-2xl sm:text-3xl font-fredoka text-slate-900 bg-white border-3 border-blue-300 rounded-2xl shadow-xs focus:ring-4 focus:ring-blue-200 focus:outline-none"
-              />
-
-              <button
-                type="button"
-                onClick={speakProblem}
-                className="w-12 h-12 rounded-2xl bg-sky-100 hover:bg-sky-200 text-sky-700 flex items-center justify-center border border-sky-300 shadow-2xs transition cursor-pointer"
-                title="Dengarkan Soal"
+                className={`flex items-center gap-2 p-2 rounded-2xl text-left transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-white shadow-xs border-2 border-blue-400 scale-[1.02]"
+                    : isDone
+                    ? "bg-emerald-50/80 border border-emerald-200 hover:bg-emerald-100/60"
+                    : isFailed
+                    ? "bg-rose-50 border border-rose-200"
+                    : "bg-slate-100/60 border border-transparent opacity-60"
+                }`}
               >
-                <Volume2 size={22} />
-              </button>
-
-              <button
-                type="button"
-                onClick={onCheckAnswer}
-                className="px-5 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-md shadow-blue-500/30 transition cursor-pointer"
-              >
-                Cek Jawaban
-              </button>
-
-              {onNeedHelp && (
-                <button
-                  type="button"
-                  onClick={onNeedHelp}
-                  className="px-4 py-3 rounded-2xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs sm:text-sm border border-amber-300 shadow-2xs transition cursor-pointer flex items-center gap-1.5"
-                  title="Buka Bantuan Bertingkat"
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                    isDone
+                      ? "bg-emerald-600 text-white"
+                      : isFailed
+                      ? "bg-rose-500 text-white"
+                      : isActive
+                      ? "bg-blue-600 text-white animate-pulse"
+                      : "bg-slate-300 text-slate-700"
+                  }`}
                 >
-                  <Sparkles size={16} className="text-amber-600" />
-                  <span>Bantuan</span>
-                </button>
-              )}
+                  {isDone ? <Check size={14} /> : sec.id}
+                </div>
+                <div className="hidden sm:block overflow-hidden">
+                  <p className="text-[11px] font-black text-slate-800 truncate font-fredoka">
+                    Tahap {sec.id}
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-500 truncate">
+                    {sec.title}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. PERSAMAAN SOAL UTAMA & AUDIO */}
+      <div className="px-4 sm:px-6 pt-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="text-2xl sm:text-3xl font-black text-slate-900 font-fredoka tracking-tight flex items-center gap-2">
+            <span>{num1}</span>
+            <span className={opColors[currentOp].text}>{opSymbol}</span>
+            <span>{num2}</span>
+            <span className="text-slate-400">=</span>
+            <span className="text-blue-600 font-mono">?</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={speakProblem}
+            className="w-9 h-9 rounded-xl bg-sky-100 hover:bg-sky-200 text-sky-700 flex items-center justify-center border border-sky-300 transition cursor-pointer"
+            title="Dengarkan Soal"
+          >
+            <Volume2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* 4. KONTEN TAHAP AKTIF (SECTION 1 s/d 4) */}
+      <div className={`p-4 sm:p-6 flex flex-col gap-5 ${isSectionShaking ? "animate-shake ring-2 ring-rose-400 rounded-2xl" : ""}`}>
+        {/* ================================================================= */}
+        {/* SECTION 1: PENGURAIAN NILAI TEMPAT */}
+        {/* ================================================================= */}
+        {currentSection === 1 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black">
+                1
+              </span>
+              <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
+                {sectionMeta[0].title}
+              </h4>
             </div>
 
-            {/* Papan Nilai Tempat Susun Mini / Balok Dienes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Papan Nilai Tempat */}
-              <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200 flex flex-col gap-2">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                  <span className="text-xs font-black text-slate-800 font-fredoka flex items-center gap-1.5">
-                    <Box size={15} className="text-blue-600" /> Papan Nilai Tempat
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowVerticalBoard(!showVerticalBoard)}
-                    className="text-[10px] font-black px-2 py-1 rounded-lg bg-white hover:bg-slate-100 text-blue-700 border border-blue-200 transition cursor-pointer"
-                  >
-                    {showVerticalBoard ? "Tutup Papan Susun" : "Buka Papan Susun"}
-                  </button>
-                </div>
+            <p className="text-xs sm:text-sm font-semibold text-slate-600">
+              {currentOp === "+"
+                ? `Susun bilangan ${num1} dan ${num2} ke dalam kolom nilai tempat bersusun di bawah ini:`
+                : currentOp === "-"
+                ? `Susun bilangan ${num1} dan pengurang ${num2} ke dalam kolom nilai tempat bersusun:`
+                : currentOp === "×"
+                ? `Susun bilangan ${num1} dan pengali ${num2} ke dalam kolom nilai tempat bersusun:`
+                : `Susun bilangan yang dibagi ${num1} dan pembagi ${num2} ke dalam kolom nilai tempat bersusun:`}
+            </p>
 
-                <div className="grid grid-cols-2 gap-2 text-center text-xs font-black">
-                  <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900">
-                    Puluhan (P): {Math.floor(num1 / 10)} {opSymbol} {Math.floor(num2 / 10)}
+            {/* PAPAN SUSUN NILAI TEMPAT PRESISI DENGAN CSS GRID (UNTUK SEMUA OPERASI: +, -, ×, ÷) */}
+            <div className="bg-gradient-to-b from-slate-50 via-white to-blue-50/20 border-2 border-slate-200/90 rounded-3xl p-4 sm:p-6 flex flex-col items-center gap-4 shadow-sm">
+              <div className="text-center">
+                <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka tracking-wide">
+                  Papan Susun Nilai Tempat
+                </span>
+                <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5">
+                  Tulis digit nilai tempat untuk <span className="text-blue-700 font-black">{num1}</span> dan <span className="text-purple-700 font-black">{num2}</span>
+                </p>
+              </div>
+
+              {/* Whiteboard Kotak-Kotak Presisi */}
+              <div className="bg-white rounded-2xl border-2 border-slate-300 p-4 sm:p-6 shadow-sm flex flex-col items-center">
+                <div
+                  className={`grid ${
+                    hasHundreds
+                      ? "grid-cols-[auto_repeat(3,minmax(72px,88px))]"
+                      : hasTens
+                      ? "grid-cols-[auto_repeat(2,minmax(72px,88px))]"
+                      : "grid-cols-[auto_minmax(72px,88px)]"
+                  } gap-x-3 sm:gap-x-4 gap-y-3 items-center text-center`}
+                >
+                  {/* Header Row: Label Kolom Nilai Tempat */}
+                  <div className="text-right font-black text-[11px] uppercase tracking-wider text-slate-400 pr-2">
+                    Operasi
                   </div>
-                  <div className="p-2 bg-amber-50 rounded-xl border border-amber-200 text-amber-900">
-                    Satuan (S): {num1 % 10} {opSymbol} {num2 % 10}
+                  {hasHundreds && (
+                    <div className="py-1.5 px-2 bg-blue-100 text-blue-900 rounded-xl text-xs sm:text-sm font-black font-fredoka border border-blue-200 shadow-2xs">
+                      Ratusan
+                    </div>
+                  )}
+                  {hasTens && (
+                    <div className="py-1.5 px-2 bg-emerald-100 text-emerald-900 rounded-xl text-xs sm:text-sm font-black font-fredoka border border-emerald-200 shadow-2xs">
+                      Puluhan
+                    </div>
+                  )}
+                  <div className="py-1.5 px-2 bg-amber-100 text-amber-900 rounded-xl text-xs sm:text-sm font-black font-fredoka border border-amber-200 shadow-2xs">
+                    Satuan
+                  </div>
+
+                  {/* Baris 1: Bilangan Pertama (num1) */}
+                  <div className="flex items-center justify-end gap-2 pr-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                      {currentOp === "÷" ? "Dibagi" : "Bil. 1"}
+                    </span>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-fredoka font-black text-base sm:text-lg shadow-2xs min-w-[54px]">
+                      {num1}
+                    </div>
+                  </div>
+                  {hasHundreds && (
+                    <input
+                      type="text"
+                      data-field-key="h1"
+                      maxLength={1}
+                      value={secInputs["h1"] || ""}
+                      onChange={(e) => handleFieldInput("h1", e.target.value, hasTens ? "t1" : "u1", 1)}
+                      onKeyDown={(e) => handleKeyDown(e, undefined, hasTens ? "t1" : "u1")}
+                      placeholder="?"
+                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
+                    />
+                  )}
+                  {hasTens && (
+                    <input
+                      type="text"
+                      data-field-key="t1"
+                      maxLength={1}
+                      value={secInputs["t1"] || ""}
+                      onChange={(e) => handleFieldInput("t1", e.target.value, "u1", 1)}
+                      onKeyDown={(e) => handleKeyDown(e, hasHundreds ? "h1" : undefined, "u1")}
+                      placeholder="?"
+                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
+                    />
+                  )}
+                  <input
+                    type="text"
+                    data-field-key="u1"
+                    maxLength={1}
+                    value={secInputs["u1"] || ""}
+                    onChange={(e) =>
+                      handleFieldInput(
+                        "u1",
+                        e.target.value,
+                        hasHundreds && h2 > 0 ? "h2" : hasTens && t2 > 0 ? "t2" : "u2",
+                        1
+                      )
+                    }
+                    onKeyDown={(e) =>
+                      handleKeyDown(
+                        e,
+                        hasTens ? "t1" : hasHundreds ? "h1" : undefined,
+                        hasHundreds && h2 > 0 ? "h2" : hasTens && t2 > 0 ? "t2" : "u2"
+                      )
+                    }
+                    placeholder="?"
+                    className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-amber-50/50 border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition placeholder:text-amber-300 shadow-2xs"
+                  />
+
+                  {/* Baris 2: Bilangan Kedua (num2) */}
+                  <div className="flex items-center justify-end gap-2 pr-2">
+                    <span
+                      className={`w-6 h-6 rounded-lg ${opColors[currentOp].bg} text-white flex items-center justify-center text-xs font-black shadow-xs shrink-0`}
+                    >
+                      {opSymbol}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                      {currentOp === "×" ? "Pengali" : currentOp === "÷" ? "Pembagi" : currentOp === "-" ? "Pengurang" : "Bil. 2"}
+                    </span>
+                    <div className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-fredoka font-black text-base sm:text-lg shadow-2xs min-w-[54px]">
+                      {num2}
+                    </div>
+                  </div>
+                  {hasHundreds && (
+                    h2 > 0 ? (
+                      <input
+                        type="text"
+                        data-field-key="h2"
+                        maxLength={1}
+                        value={secInputs["h2"] || ""}
+                        onChange={(e) => handleFieldInput("h2", e.target.value, t2 > 0 ? "t2" : "u2", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, "u1", t2 > 0 ? "t2" : "u2")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center bg-slate-100/60 border border-slate-200 rounded-2xl text-slate-400 font-bold text-xl">
+                        —
+                      </div>
+                    )
+                  )}
+                  {hasTens && (
+                    t2 > 0 ? (
+                      <input
+                        type="text"
+                        data-field-key="t2"
+                        maxLength={1}
+                        value={secInputs["t2"] || ""}
+                        onChange={(e) => handleFieldInput("t2", e.target.value, "u2", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, hasHundreds && h2 > 0 ? "h2" : "u1", "u2")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center bg-slate-100/60 border border-slate-200 rounded-2xl text-slate-400 font-bold text-xl">
+                        —
+                      </div>
+                    )
+                  )}
+                  <input
+                    type="text"
+                    data-field-key="u2"
+                    maxLength={1}
+                    value={secInputs["u2"] || ""}
+                    onChange={(e) => handleFieldInput("u2", e.target.value, undefined, 1)}
+                    onKeyDown={(e) =>
+                      handleKeyDown(
+                        e,
+                        hasTens && t2 > 0 ? "t2" : hasHundreds && h2 > 0 ? "h2" : "u1",
+                        undefined
+                      )
+                    }
+                    placeholder="?"
+                    className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-amber-50/50 border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition placeholder:text-amber-300 shadow-2xs"
+                  />
+
+                  {/* Garis Pembatas Operasi Bersusun */}
+                  <div className="col-span-full h-1 sm:h-1.5 bg-slate-800 rounded-full my-1.5 w-full" />
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleValidateSection(1)}
+              className="self-end px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-sm"
+            >
+              <span>Periksa & Lanjut ke Tahap 2</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* SECTION 2: HITUNG BAGIAN PER NILAI TEMPAT & BALOK 3D */}
+        {/* ================================================================= */}
+        {currentSection === 2 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">
+                2
+              </span>
+              <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
+                {sectionMeta[1].title}
+              </h4>
+            </div>
+
+            {/* A. OPERASI PERKALIAN (×) */}
+            {currentOp === "×" ? (
+              num1 < 10 ? (
+                <div className="p-4 bg-rose-50/70 border-2 border-rose-200/90 rounded-2xl flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-xs font-black text-rose-900 font-fredoka">
+                    <Box size={16} className="text-rose-600" />
+                    Penjumlahan Berulang Balok ({num1} kelompok masing-masing {num2} kubus):
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-rose-200 flex flex-wrap gap-4 items-center justify-center">
+                    {Array.from({ length: num1 }).map((_, gIdx) => (
+                      <div key={gIdx} className="flex flex-col items-center gap-1 p-2 bg-amber-50/80 rounded-lg border border-amber-200">
+                        <span className="text-[10px] font-black text-amber-800">Kel. {gIdx + 1}</span>
+                        <div className="flex flex-wrap gap-1 items-center justify-center max-w-[90px]">
+                          {Array.from({ length: num2 }).map((_, cIdx) => (
+                            <UnitCube3D key={cIdx} size={16} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-center gap-3 pt-1">
+                    <span className="text-sm font-black text-slate-700 font-fredoka">
+                      Jumlah semua benda ({Array.from({ length: num1 }).map(() => num2).join(" + ")}) =
+                    </span>
+                    <input
+                      type="text"
+                      data-field-key="repSum"
+                      value={secInputs["repSum"] || ""}
+                      onChange={(e) => handleFieldInput("repSum", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      placeholder="?"
+                      className="w-18 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-rose-300 rounded-2xl outline-none focus:ring-4 focus:ring-rose-200 shadow-2xs"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Perkalian Bilangan Bersusun / Nilai Tempat (Panel 4 media_1788888132609.jpg) */
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs sm:text-sm font-bold text-slate-600">
+                    Hitung hasil perkalian setiap bagian berikut:
+                  </p>
+                  <div className={`grid grid-cols-1 ${h1 > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
+                    {/* Kartu 1: Ratusan (jika ada) */}
+                    {h1 > 0 && (
+                      <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
+                        <div className="px-3 py-1 bg-blue-100/90 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                          {h1 * 100} × {num2} = ?
+                        </div>
+                        {/* Visual Balok Ratusan */}
+                        <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                          <div className={`flex flex-col items-center justify-center ${h1 > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
+                            {Array.from({ length: h1 }).map((_, i) => (
+                              <HundredFlat3D key={i} width={74} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold text-blue-600 font-fredoka mt-1">
+                            {h1} lempeng ratusan ({h1 * 100})
+                          </span>
+                        </div>
+                        {/* Input Box */}
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          <div className="flex items-center justify-center gap-2">
+                            <input
+                              type="text"
+                              data-field-key="partH"
+                              value={secInputs["partH"] || ""}
+                              onChange={(e) =>
+                                handleFieldInput("partH", e.target.value, t1 > 0 ? "partT" : "partU", String(expPartH).length)
+                              }
+                              onKeyDown={(e) => handleKeyDown(e, undefined, t1 > 0 ? "partT" : "partU")}
+                              placeholder="?"
+                              className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Kartu 2: Puluhan (jika ada) */}
+                    {t1 > 0 && (
+                      <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
+                        <div className="px-3 py-1 bg-emerald-100/90 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                          {t1 * 10} × {num2} = ?
+                        </div>
+                        {/* Visual Balok Puluhan */}
+                        <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                          <div className="flex flex-wrap items-end justify-center gap-2">
+                            {Array.from({ length: t1 }).map((_, i) => (
+                              <TenRod3D key={i} height={82} />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-600 font-fredoka">
+                            {t1} batang puluhan ({t1 * 10})
+                          </span>
+                        </div>
+                        {/* Input Box */}
+                        <div className="flex flex-col items-center gap-1 w-full">
+                          <div className="flex items-center justify-center gap-2">
+                            <input
+                              type="text"
+                              data-field-key="partT"
+                              value={secInputs["partT"] || ""}
+                              onChange={(e) =>
+                                handleFieldInput("partT", e.target.value, "partU", String(expPartT).length)
+                              }
+                              onKeyDown={(e) => handleKeyDown(e, h1 > 0 ? "partH" : undefined, "partU")}
+                              placeholder="?"
+                              className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Kartu 3: Satuan */}
+                    <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
+                      <div className="px-3 py-1 bg-amber-100/90 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                        {u1} × {num2} = ?
+                      </div>
+                      {/* Visual Balok Satuan */}
+                      <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
+                          {Array.from({ length: u1 }).map((_, i) => (
+                            <UnitCube3D key={i} size={18} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-amber-600 font-fredoka">
+                          {u1} kubus satuan
+                        </span>
+                      </div>
+                      {/* Input Box */}
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="text"
+                            data-field-key="partU"
+                            value={secInputs["partU"] || ""}
+                            onChange={(e) =>
+                              handleFieldInput("partU", e.target.value, undefined, String(expPartU).length)
+                            }
+                            onKeyDown={(e) =>
+                              handleKeyDown(e, t1 > 0 ? "partT" : h1 > 0 ? "partH" : undefined)
+                            }
+                            placeholder="?"
+                            className="w-20 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            ) : currentOp === "÷" ? (
+              /* B. OPERASI PEMBAGIAN (÷) (Panel 8 media_1788888132609.jpg) */
+              <div className="flex flex-col gap-3">
+                <p className="text-xs sm:text-sm font-bold text-slate-600">
+                  Ayo lengkapi hasil pembagian setiap bagian berikut:
+                </p>
+                <div className={`grid grid-cols-1 ${h1 > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
+                  {/* Kartu 1: Ratusan (jika ada) */}
+                  {h1 > 0 && (
+                    <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
+                      <div className="px-3 py-1 bg-blue-100/90 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                        {h1 * 100} ÷ {num2} = ?
+                      </div>
+                      {/* Visual Balok Ratusan */}
+                      <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                        <div className={`flex flex-col items-center justify-center ${h1 > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
+                          {Array.from({ length: h1 }).map((_, i) => (
+                            <HundredFlat3D key={i} width={74} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-600 font-fredoka mt-1">
+                          {h1} lempeng ratusan ({h1 * 100})
+                        </span>
+                      </div>
+                      {/* Input Box */}
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="text"
+                            data-field-key="quotH"
+                            value={secInputs["quotH"] || ""}
+                            onChange={(e) =>
+                              handleFieldInput("quotH", e.target.value, t1 > 0 ? "quotT" : "quotU", String(expQuotH).length)
+                            }
+                            onKeyDown={(e) => handleKeyDown(e, undefined, t1 > 0 ? "quotT" : "quotU")}
+                            placeholder="?"
+                            className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kartu 2: Puluhan (jika ada) */}
+                  {t1 > 0 && (
+                    <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
+                      <div className="px-3 py-1 bg-emerald-100/90 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                        {t1 * 10} ÷ {num2} = ?
+                      </div>
+                      {/* Visual Balok Puluhan */}
+                      <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                        <div className="flex flex-wrap items-end justify-center gap-2">
+                          {Array.from({ length: t1 }).map((_, i) => (
+                            <TenRod3D key={i} height={82} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-600 font-fredoka">
+                          {t1} batang puluhan ({t1 * 10})
+                        </span>
+                      </div>
+                      {/* Input Box */}
+                      <div className="flex flex-col items-center gap-1 w-full">
+                        <div className="flex items-center justify-center gap-2">
+                          <input
+                            type="text"
+                            data-field-key="quotT"
+                            value={secInputs["quotT"] || ""}
+                            onChange={(e) =>
+                              handleFieldInput("quotT", e.target.value, "quotU", String(expQuotT).length)
+                            }
+                            onKeyDown={(e) => handleKeyDown(e, h1 > 0 ? "quotH" : undefined, "quotU")}
+                            placeholder="?"
+                            className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kartu 3: Satuan */}
+                  <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
+                    <div className="px-3 py-1 bg-amber-100/90 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                      {u1} ÷ {num2} = ?
+                    </div>
+                    {/* Visual Balok Satuan */}
+                    <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
+                        {Array.from({ length: u1 }).map((_, i) => (
+                          <UnitCube3D key={i} size={18} />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-600 font-fredoka">
+                        {u1} kubus satuan
+                      </span>
+                    </div>
+                    {/* Input Box */}
+                    <div className="flex flex-col items-center gap-1 w-full">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="text"
+                          data-field-key="quotU"
+                          value={secInputs["quotU"] || ""}
+                          onChange={(e) =>
+                            handleFieldInput("quotU", e.target.value, undefined, String(expQuotU).length)
+                          }
+                          onKeyDown={(e) =>
+                            handleKeyDown(e, t1 > 0 ? "quotT" : h1 > 0 ? "quotH" : undefined)
+                          }
+                          placeholder="?"
+                          className="w-20 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : currentOp === "+" ? (
+              /* C. OPERASI PENJUMLAHAN (+) (Fokus Satuan) */
+              <div className="flex flex-col gap-3.5">
+                <p className="text-xs sm:text-sm font-bold text-slate-600">
+                  Hitung balok pada kolom satuan:
+                </p>
+                {/* Visual Balok Kubus Satuan yang Bersih & Proporsional */}
+                <div className="bg-gradient-to-b from-amber-50/70 via-white to-amber-50/40 border-2 border-amber-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
+                  <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
+                    {/* Kartu Satuan Bilangan 1 */}
+                    <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-amber-200/90 shadow-2xs min-w-[115px]">
+                      <span className="text-xs font-black text-amber-900 font-fredoka">
+                        {u1} Satuan
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px]">
+                        {Array.from({ length: u1 }).map((_, i) => (
+                          <UnitCube3D key={i} size={18} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <span className="w-8 h-8 rounded-full bg-amber-100/80 border border-amber-200 text-amber-800 flex items-center justify-center font-black text-base shadow-2xs">
+                      +
+                    </span>
+
+                    {/* Kartu Satuan Bilangan 2 */}
+                    <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-amber-200/90 shadow-2xs min-w-[115px]">
+                      <span className="text-xs font-black text-amber-900 font-fredoka">
+                        {u2} Satuan
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px]">
+                        {Array.from({ length: u2 }).map((_, i) => (
+                          <UnitCube3D key={i} size={18} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                      =
+                    </span>
+
+                  {/* Kotak Pertanyaan / Hasil */}
+                  <div className="flex flex-col items-center justify-center gap-0.5 px-4 py-3 bg-amber-50 rounded-2xl border-2 border-dashed border-amber-300 min-w-[100px] min-h-[64px]">
+                    <span className="text-[11px] font-bold text-amber-800">Total Satuan</span>
+                    <span className="text-lg font-black text-amber-950 font-fredoka">
+                      ?
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Alat Bantu Balok */}
-              <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between gap-2">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                  <span className="text-xs font-black text-slate-800 font-fredoka flex items-center gap-1.5">
-                    <Layers size={15} className="text-blue-600" /> Balok Dienes
+              {/* Input Satuan & Simpanan */}
+              <div className="p-4 bg-slate-50/90 border border-slate-200 rounded-2xl flex flex-wrap items-center justify-center gap-4 sm:gap-6 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs sm:text-sm font-black text-amber-950 font-fredoka">
+                    Tulis Angka Satuan:
                   </span>
-                  <span className="text-[10px] text-blue-700 font-black bg-blue-100 px-2 py-0.5 rounded-full">
-                    Visualisasi 3D
-                  </span>
+                  <input
+                    type="text"
+                    data-field-key="sumU"
+                    maxLength={1}
+                    value={secInputs["sumU"] || ""}
+                    onChange={(e) =>
+                      handleFieldInput("sumU", e.target.value, rawSumU >= 10 ? "carryT" : undefined, 1)
+                    }
+                    onKeyDown={(e) => handleKeyDown(e, undefined, rawSumU >= 10 ? "carryT" : undefined)}
+                    placeholder="?"
+                    className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-400 text-amber-950 rounded-2xl outline-none focus:ring-4 focus:ring-amber-200 shadow-2xs"
+                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-600">
-                    Tampilkan alat bantu balok satuan & puluhan.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowDienesBlocks(!showDienesBlocks)}
-                    className="text-xs font-black px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition shadow-2xs cursor-pointer"
-                  >
-                    {showDienesBlocks ? "Sembunyikan" : "Buka Balok"}
-                  </button>
-                </div>
+
+                {/* Input Simpanan ke Puluhan (hanya muncul jika satuan >= 10) */}
+                {rawSumU >= 10 && (
+                  <div className="flex items-center gap-2.5 animate-in fade-in">
+                    <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
+                      Simpan ke Puluhan:
+                    </span>
+                    <input
+                      type="text"
+                      data-field-key="carryT"
+                      maxLength={1}
+                      value={secInputs["carryT"] || ""}
+                      onChange={(e) => handleFieldInput("carryT", e.target.value, undefined, 1)}
+                      onKeyDown={(e) => handleKeyDown(e, "sumU")}
+                      placeholder="?"
+                      className="w-14 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-500 text-emerald-950 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200 shadow-2xs"
+                    />
+                  </div>
+                )}
               </div>
             </div>
+          ) : (
+            /* D. OPERASI PENGURANGAN (-) (Fokus Cek Satuan) */
+            <div className="flex flex-col gap-3">
+              <p className="text-xs sm:text-sm font-bold text-slate-600">
+                Periksa angka satuan apakah cukup untuk dikurangkan:
+              </p>
+              <div className="bg-gradient-to-r from-orange-50/80 via-white to-orange-50/80 border-2 border-orange-200/90 rounded-2xl p-4 flex flex-col items-center gap-3">
+                <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                  <div className="flex flex-col items-center gap-1 p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/70">
+                    <span className="text-xs font-black text-amber-800 font-fredoka">{u1} satuan</span>
+                    <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center p-1.5 bg-white rounded-lg border border-amber-200">
+                      {Array.from({ length: u1 }).map((_, i) => (
+                        <UnitCube3D key={i} size={18} />
+                      ))}
+                    </div>
+                  </div>
 
-            {/* Papan Susun Grid Interaktif */}
-            {showVerticalBoard && (
-              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
-                <MathBoardGrid
-                  currentUser="Siswa"
-                  selectedOp={currentOp}
-                  currentOp={currentOp}
-                  placeValueCombo={placeValueCombo}
-                  num1={num1}
-                  num2={num2}
-                  carryValues={carryValues}
-                  setCarryValues={setCarryValues}
-                  ansValues={ansValues}
-                  setAnsValues={setAnsValues}
-                  onCheckAnswer={onCheckAnswer}
-                  opNameMap={{ "+": "Penjumlahan", "-": "Pengurangan", "×": "Perkalian", "÷": "Pembagian" }}
-                  diagnosticHint={diagnosticHint}
-                />
+                  <span className="text-2xl font-black text-orange-600">−</span>
+
+                  <div className="flex flex-col items-center gap-1 p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/70">
+                    <span className="text-xs font-black text-amber-800 font-fredoka">{u2} satuan</span>
+                    <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center p-1.5 bg-white rounded-lg border border-amber-200">
+                      {Array.from({ length: u2 }).map((_, i) => (
+                        <UnitCube3D key={i} size={18} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {u1 < u2 ? (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm font-bold animate-in zoom-in-95">
+                    <span>⚠️ Satuan {u1} &lt; {u2}, perlu menukar dari nilai tempat puluhan di Tahap 3.</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-bold">
+                    <span>✅ Satuan {u1} &ge; {u2}, cukup untuk dikurangkan langsung.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+            {/* Navigasi Section 2 */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setCurrentSection(1)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+              >
+                &larr; Kembali ke Tahap 1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleValidateSection(2)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-sm"
+              >
+                <span>{isSingleDigit ? "Periksa & Lanjut ke Hasil Akhir" : "Periksa & Lanjut ke Tahap 3"}</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* SECTION 3: OPERASI PULUHAN / PENGGABUNGAN HASIL & BALOK 3D (Hanya untuk Multi-Digit) */}
+        {/* ================================================================= */}
+        {!isSingleDigit && currentSection === 3 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black">
+                3
+              </span>
+              <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
+                {sectionMeta[2]?.title}
+              </h4>
+            </div>
+
+            {/* A. PENJUMLAHAN (+) : HITUNG PULUHAN & RATUSAN */}
+            {currentOp === "+" ? (
+              <div className="flex flex-col gap-4">
+                <p className="text-xs sm:text-sm font-bold text-slate-600">
+                  {hasHundreds
+                    ? "Hitung nilai tempat puluhan dan ratusan:"
+                    : "Hitung nilai tempat puluhan:"}
+                </p>
+
+                <div className={`grid grid-cols-1 ${hasHundreds ? "sm:grid-cols-2" : "max-w-md mx-auto"} gap-3.5`}>
+                  {/* 1. BAGIAN PULUHAN */}
+                  <div className="bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-4 flex flex-col items-center justify-between gap-3 shadow-2xs">
+                    <div className="flex items-center justify-between w-full border-b border-emerald-100 pb-1.5">
+                      <span className="text-xs font-black text-emerald-900 font-fredoka uppercase tracking-wider">
+                        Kolom Puluhan
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-700">
+                        {t1} + {t2} {carryT > 0 ? "+ 1 simpanan" : ""}
+                      </span>
+                    </div>
+
+                    {/* Visual Balok Puluhan */}
+                    <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                      {/* Batang t1 */}
+                      <div className="flex flex-col items-center gap-1 p-2 bg-emerald-50/60 rounded-xl border border-emerald-200/70">
+                        <span className="text-xs font-black text-emerald-800 font-fredoka">{t1} puluhan</span>
+                        <div className="flex flex-wrap gap-1.5 items-end justify-center min-h-[85px] p-1 bg-white rounded-lg border border-emerald-200">
+                          {Array.from({ length: t1 }).map((_, i) => (
+                            <TenRod3D key={i} height={76} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="text-xl font-black text-emerald-600">+</span>
+
+                      {/* Batang t2 */}
+                      <div className="flex flex-col items-center gap-1 p-2 bg-emerald-50/60 rounded-xl border border-emerald-200/70">
+                        <span className="text-xs font-black text-emerald-800 font-fredoka">{t2} puluhan</span>
+                        <div className="flex flex-wrap gap-1.5 items-end justify-center min-h-[85px] p-1 bg-white rounded-lg border border-emerald-200">
+                          {Array.from({ length: t2 }).map((_, i) => (
+                            <TenRod3D key={i} height={76} />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Batang Simpanan (jika ada) */}
+                      {carryT > 0 && (
+                        <>
+                          <span className="text-xl font-black text-amber-600">+</span>
+                          <div className="flex flex-col items-center gap-1 p-2 bg-amber-50/60 rounded-xl border border-amber-200/70">
+                            <span className="text-xs font-black text-amber-800 font-fredoka">1 simpanan</span>
+                            <div className="flex flex-wrap gap-1.5 items-end justify-center min-h-[85px] p-1 bg-white rounded-lg border border-amber-200">
+                              <TenRod3D variant="amber" height={76} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Input Puluhan */}
+                    <div className="flex items-center justify-center gap-3 pt-1 flex-wrap">
+                      <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
+                        {hasHundreds ? "Tulis Digit Puluhan:" : `${t1} + ${t2} ${carryT > 0 ? "+ 1" : ""} =`}
+                      </span>
+                      <input
+                        type="text"
+                        data-field-key="sumT"
+                        maxLength={hasHundreds ? 1 : 2}
+                        value={secInputs["sumT"] || ""}
+                        onChange={(e) =>
+                          handleFieldInput(
+                            "sumT",
+                            e.target.value,
+                            hasHundreds ? (rawSumT >= 10 ? "carryH" : "sumH") : undefined,
+                            hasHundreds ? 1 : String(expSumT).length
+                          )
+                        }
+                        onKeyDown={(e) =>
+                          handleKeyDown(
+                            e,
+                            undefined,
+                            hasHundreds ? (rawSumT >= 10 ? "carryH" : "sumH") : undefined
+                          )
+                        }
+                        placeholder="?"
+                        className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-400 text-emerald-950 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200 shadow-2xs"
+                      />
+
+                      {hasHundreds && rawSumT >= 10 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-blue-950 font-fredoka">
+                            Simpanan Ratusan:
+                          </span>
+                          <input
+                            type="text"
+                            data-field-key="carryH"
+                            maxLength={1}
+                            value={secInputs["carryH"] || ""}
+                            onChange={(e) => handleFieldInput("carryH", e.target.value, "sumH", 1)}
+                            onKeyDown={(e) => handleKeyDown(e, "sumT", "sumH")}
+                            placeholder="?"
+                            className="w-14 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-2xl outline-none focus:ring-4 focus:ring-blue-200 shadow-2xs"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2. BAGIAN RATUSAN (JIKA BILANGAN RATUSAN) */}
+                  {hasHundreds && (
+                    <div className="bg-gradient-to-r from-blue-50/70 via-white to-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-4 flex flex-col items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-center justify-between w-full border-b border-blue-100 pb-1.5">
+                        <span className="text-xs font-black text-blue-900 font-fredoka uppercase tracking-wider">
+                          Kolom Ratusan
+                        </span>
+                        <span className="text-[11px] font-bold text-blue-700">
+                          {h1} + {h2} {carryH > 0 ? "+ 1 simpanan" : ""}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                        {/* Balok h1 */}
+                        <div className="flex flex-col items-center gap-1 p-2 bg-blue-50/60 rounded-xl border border-blue-200/70">
+                          <span className="text-xs font-black text-blue-800 font-fredoka">{h1} ratusan</span>
+                          <div className={`flex items-center justify-center min-h-[75px] p-1 bg-white rounded-lg border border-blue-200 ${h1 > 3 ? "grid grid-cols-2 gap-1" : "flex-col -space-y-2"}`}>
+                            {Array.from({ length: h1 }).map((_, i) => (
+                              <HundredFlat3D key={i} width={h1 > 3 ? 56 : 68} />
+                            ))}
+                          </div>
+                        </div>
+
+                        <span className="text-xl font-black text-blue-600">+</span>
+
+                        {/* Balok h2 */}
+                        <div className="flex flex-col items-center gap-1 p-2 bg-blue-50/60 rounded-xl border border-blue-200/70">
+                          <span className="text-xs font-black text-blue-800 font-fredoka">{h2} ratusan</span>
+                          <div className={`flex items-center justify-center min-h-[75px] p-1 bg-white rounded-lg border border-blue-200 ${h2 > 3 ? "grid grid-cols-2 gap-1" : "flex-col -space-y-2"}`}>
+                            {Array.from({ length: h2 }).map((_, i) => (
+                              <HundredFlat3D key={i} width={h2 > 3 ? 56 : 68} />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Simpanan Ratusan (jika ada) */}
+                        {carryH > 0 && (
+                          <>
+                            <span className="text-xl font-black text-amber-600">+</span>
+                            <div className="flex flex-col items-center gap-1 p-2 bg-amber-50/60 rounded-xl border border-amber-200/70">
+                              <span className="text-xs font-black text-amber-800 font-fredoka">1 simpanan</span>
+                              <div className="flex flex-col items-center justify-center min-h-[75px] p-1 bg-white rounded-lg border border-amber-200">
+                                <HundredFlat3D width={68} />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Input Ratusan */}
+                      <div className="flex items-center justify-center gap-3 pt-1 flex-wrap">
+                        <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
+                          Tulis Digit Ratusan:
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="sumH"
+                          maxLength={2}
+                          value={secInputs["sumH"] || ""}
+                          onChange={(e) => handleFieldInput("sumH", e.target.value, undefined, String(expSumH).length)}
+                          onKeyDown={(e) => handleKeyDown(e, rawSumT >= 10 ? "carryH" : "sumT")}
+                          placeholder="?"
+                          className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-2xl outline-none focus:ring-4 focus:ring-blue-200 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : currentOp === "-" ? (
+              /* B. PENGURANGAN (-) : HITUNG PER NILAI TEMPAT */
+              <div className="flex flex-col gap-3.5">
+                <p className="text-xs sm:text-sm font-bold text-slate-600">
+                  Kurangkan setiap nilai tempat berikut:
+                </p>
+
+                {(borrowFromT > 0 || borrowFromH > 0) && (
+                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+                    <span>💡 {borrowFromT > 0 && borrowFromH > 0
+                      ? "Nilai tempat ratusan dan puluhan telah ditukar/dipinjam agar cukup dikurangkan."
+                      : borrowFromT > 0
+                      ? "1 puluhan telah ditukar menjadi 10 satuan."
+                      : "1 ratusan telah ditukar menjadi 10 puluhan."}
+                    </span>
+                  </div>
+                )}
+
+                {/* Kartu Visualisasi & Input Per Digit */}
+                <div className={`grid grid-cols-1 ${hasHundreds ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3.5`}>
+                  {/* KARTU 1: SATUAN */}
+                  <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
+                    <div className="px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs font-black font-fredoka shadow-2xs">
+                      Kolom Satuan
+                    </div>
+
+                    {/* Visual Balok Satuan */}
+                    <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
+                        {Array.from({ length: effectiveU1 }).map((_, i) => (
+                          <UnitCube3D key={i} size={18} />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700 font-fredoka">
+                        {effectiveU1} kubus satuan
+                      </span>
+                    </div>
+
+                    {/* Formula & Input Box */}
+                    <div className="flex flex-col items-center gap-1 w-full pt-1">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-amber-950 font-fredoka">
+                          {effectiveU1} − {u2} =
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="diffU"
+                          value={secInputs["diffU"] || ""}
+                          onChange={(e) => handleFieldInput("diffU", e.target.value, "diffT", 1)}
+                          onKeyDown={(e) => handleKeyDown(e, undefined, "diffT")}
+                          placeholder="?"
+                          className="w-16 h-11 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-400 text-amber-950 rounded-xl outline-none focus:ring-3 focus:ring-amber-200 shadow-2xs"
+                        />
+                        <span className="text-xs font-bold text-amber-800">satuan</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* KARTU 2: PULUHAN */}
+                  <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
+                    <div className="px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-full text-xs font-black font-fredoka shadow-2xs">
+                      Kolom Puluhan
+                    </div>
+
+                    {/* Visual Balok Puluhan */}
+                    <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
+                      <div className="flex flex-wrap items-end justify-center gap-1.5 max-w-[150px]">
+                        {Array.from({ length: effectiveT1 }).map((_, i) => (
+                          <TenRod3D key={i} height={72} />
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 font-fredoka">
+                        {effectiveT1} batang puluhan ({effectiveT1 * 10})
+                      </span>
+                    </div>
+
+                    {/* Formula & Input Box */}
+                    <div className="flex flex-col items-center gap-1 w-full pt-1">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-xs sm:text-sm font-black text-emerald-950 font-fredoka">
+                          {effectiveT1} − {t2} =
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="diffT"
+                          value={secInputs["diffT"] || ""}
+                          onChange={(e) => handleFieldInput("diffT", e.target.value, hasHundreds ? "diffH" : undefined, 1)}
+                          onKeyDown={(e) => handleKeyDown(e, "diffU", hasHundreds ? "diffH" : undefined)}
+                          placeholder="?"
+                          className="w-16 h-11 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-400 text-emerald-950 rounded-xl outline-none focus:ring-3 focus:ring-emerald-200 shadow-2xs"
+                        />
+                        <span className="text-xs font-bold text-emerald-800">puluhan</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* KARTU 3: RATUSAN (JIKA ADA) */}
+                  {hasHundreds && (
+                    <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
+                      <div className="px-3 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs font-black font-fredoka shadow-2xs">
+                        Kolom Ratusan
+                      </div>
+
+                      {/* Visual Balok Ratusan */}
+                      <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
+                        <div className={`flex items-center justify-center ${effectiveH1 > 3 ? "grid grid-cols-2 gap-1.5" : "flex-col -space-y-2"}`}>
+                          {Array.from({ length: effectiveH1 }).map((_, i) => (
+                            <HundredFlat3D key={i} width={effectiveH1 > 3 ? 56 : 68} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-700 font-fredoka">
+                          {effectiveH1} lempeng ratusan ({effectiveH1 * 100})
+                        </span>
+                      </div>
+
+                      {/* Formula & Input Box */}
+                      <div className="flex flex-col items-center gap-1 w-full pt-1">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-blue-950 font-fredoka">
+                            {effectiveH1} − {h2} =
+                          </span>
+                          <input
+                            type="text"
+                            data-field-key="diffH"
+                            value={secInputs["diffH"] || ""}
+                            onChange={(e) => handleFieldInput("diffH", e.target.value, undefined, 1)}
+                            onKeyDown={(e) => handleKeyDown(e, "diffT")}
+                            placeholder="?"
+                            className="w-16 h-11 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-xl outline-none focus:ring-3 focus:ring-blue-200 shadow-2xs"
+                          />
+                          <span className="text-xs font-bold text-blue-800">ratusan</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* C. PERKALIAN (×) & PEMBAGIAN (÷) : GABUNGKAN HASIL */
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-xs sm:text-sm font-bold text-slate-600 text-center">
+                  Sekarang, gabungkan semua hasil bagian di atas:
+                </p>
+
+                {/* Top Row: Kartu-kartu pecahan hasil dari Tahap 2 */}
+                <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+                  {h1 > 0 && (
+                    <>
+                      <div className="px-4 py-2 rounded-2xl bg-blue-100 border-2 border-blue-300 text-blue-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
+                        {currentOp === "×"
+                          ? secInputs["partH"] || expPartH
+                          : secInputs["quotH"] || expQuotH}
+                      </div>
+                      <span className="text-xl font-black text-slate-400">+</span>
+                    </>
+                  )}
+
+                  {t1 > 0 && (
+                    <>
+                      <div className="px-4 py-2 rounded-2xl bg-emerald-100 border-2 border-emerald-300 text-emerald-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
+                        {currentOp === "×"
+                          ? secInputs["partT"] || expPartT
+                          : secInputs["quotT"] || expQuotT}
+                      </div>
+                      <span className="text-xl font-black text-slate-400">+</span>
+                    </>
+                  )}
+
+                  <div className="px-4 py-2 rounded-2xl bg-amber-100 border-2 border-amber-300 text-amber-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
+                    {currentOp === "×"
+                      ? secInputs["partU"] || expPartU
+                      : secInputs["quotU"] || expQuotU}
+                  </div>
+                </div>
+
+                {/* Curly Bracket SVG Menunjuk ke Bawah */}
+                <svg className="w-56 h-6 text-rose-300" viewBox="0 0 200 24" fill="none">
+                  <path
+                    d="M 10 2 Q 10 14 50 14 L 90 14 Q 100 14 100 22 Q 100 14 110 14 L 150 14 Q 190 14 190 2"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+
+                {/* Big Pink Combined Input Box dengan Placeholder Hasil Perhitungan Sebelumnya */}
+                <div className="flex flex-col items-center gap-2">
+                  <input
+                    type="text"
+                    data-field-key="combined"
+                    value={secInputs["combined"] || ""}
+                    onChange={(e) => handleFieldInput("combined", e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e)}
+                    placeholder={combinedPlaceholder}
+                    className="w-48 sm:w-60 h-14 text-center font-black text-xl sm:text-2xl font-fredoka bg-rose-100/90 border-3 border-rose-300 text-rose-950 rounded-2xl focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-200 outline-none transition shadow-xs placeholder:text-rose-400/80"
+                  />
+                  <span className="text-xs sm:text-sm font-black text-slate-700 font-fredoka">
+                    Jadi, {num1} {opSymbol} {num2} = ?
+                  </span>
+                </div>
               </div>
             )}
 
-            {/* Balok Visualizer */}
-            {showDienesBlocks && (
-              <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
-                <BaseTenBlocksVisualizer
-                  num1={num1}
-                  num2={num2}
-                  operation={currentOp}
-                  activePlace={activePlace}
-                />
+            {/* Navigasi Section 3 */}
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setCurrentSection(2)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+              >
+                &larr; Kembali ke Tahap 2
+              </button>
+              <button
+                type="button"
+                onClick={() => handleValidateSection(3)}
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-sm"
+              >
+                <span>Periksa & Lanjut ke Tahap 4</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* SECTION HASIL AKHIR & VALIDASI KESELURUHAN (Tahap 3 jika satuan, Tahap 4 jika multi-digit) */}
+        {/* ================================================================= */}
+        {((isSingleDigit && currentSection === 3) || (!isSingleDigit && currentSection === 4)) && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">
+                {isSingleDigit ? 3 : 4}
+              </span>
+              <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
+                {sectionMeta[isSingleDigit ? 2 : 3]?.title || "Hasil Akhir & Validasi"}
+              </h4>
+            </div>
+
+            <p className="text-xs sm:text-sm font-semibold text-slate-600 text-center">
+              Tulis hasil akhirnya.
+            </p>
+
+            {/* TABEL RINGKASAN NILAI TEMPAT DARI PERHITUNGAN SEBELUMNYA (SESUAI GAMBAR) */}
+            {(() => {
+              const absAns = Math.abs(expectedFinalAnswer);
+              const ansRTh = Math.floor(absAns / 100000) % 10; // Ratus Ribuan (0-9)
+              const ansPTh = Math.floor(absAns / 10000) % 10;  // Puluh Ribuan (0-9)
+              const ansTh = Math.floor(absAns / 1000) % 10;    // Ribuan (0-9)
+              const ansH = Math.floor(absAns / 100) % 10;      // Ratusan (0-9)
+              const ansT = Math.floor(absAns / 10) % 10;       // Puluhan (0-9)
+              const ansU = absAns % 10;                        // Satuan (0-9)
+
+              const showRTh = absAns >= 100000;
+              const showPTh = absAns >= 10000;
+              const showTh = absAns >= 1000;
+              const showH = absAns >= 100 || hasHundreds;
+              const showT = absAns >= 10 || hasTens || showH;
+
+              return (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-full max-w-sm sm:max-w-xl rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-2xs">
+                    <div
+                      className={`grid ${
+                        showRTh
+                          ? "grid-cols-6"
+                          : showPTh
+                          ? "grid-cols-5"
+                          : showTh
+                          ? "grid-cols-4"
+                          : showH
+                          ? "grid-cols-3"
+                          : showT
+                          ? "grid-cols-2"
+                          : "grid-cols-1"
+                      } text-center`}
+                    >
+                      {/* Header Row */}
+                      {showRTh && (
+                        <div className="py-2.5 bg-teal-100 text-teal-900 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                          Ratus Rb
+                        </div>
+                      )}
+                      {showPTh && (
+                        <div className="py-2.5 bg-indigo-100 text-indigo-900 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                          Puluh Rb
+                        </div>
+                      )}
+                      {showTh && (
+                        <div className="py-2.5 bg-purple-100 text-purple-900 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                          Ribuan (Rb)
+                        </div>
+                      )}
+                      {showH && (
+                        <div className="py-2.5 bg-blue-100 text-blue-900 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                          Ratusan (R)
+                        </div>
+                      )}
+                      {showT && (
+                        <div className={`py-2.5 bg-sky-100 text-sky-900 border-b-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka ${showT ? "border-r-2" : ""}`}>
+                          Puluhan (P)
+                        </div>
+                      )}
+                      <div className="py-2.5 bg-rose-100 text-rose-900 border-b-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                        Satuan (S)
+                      </div>
+
+                      {/* Values Row - Setiap kolom menampilkan 1 digit (0-9) */}
+                      {showRTh && (
+                        <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-teal-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                            {ansRTh}
+                          </div>
+                        </div>
+                      )}
+                      {showPTh && (
+                        <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-indigo-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                            {ansPTh}
+                          </div>
+                        </div>
+                      )}
+                      {showTh && (
+                        <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-purple-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                            {ansTh}
+                          </div>
+                        </div>
+                      )}
+                      {showH && (
+                        <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-sky-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                            {ansH}
+                          </div>
+                        </div>
+                      )}
+                      {showT && (
+                        <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-blue-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                            {ansT}
+                          </div>
+                        </div>
+                      )}
+                      <div className="p-3.5 flex items-center justify-center bg-white">
+                        <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-rose-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
+                          {ansU}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* KARTU HIJAU HASIL AKHIR - PLACEHOLDER TIDAK MEMBOCORKAN JAWABAN */}
+                  <div className="w-full max-w-sm sm:max-w-md p-4 bg-emerald-100/90 border-2 border-emerald-300 rounded-2xl flex flex-wrap items-center justify-center gap-3 shadow-2xs">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-900 font-fredoka">
+                      {num1} {opSymbol} {num2} =
+                    </span>
+                    <input
+                      type="text"
+                      id="practice-final-answer"
+                      data-field-key="finalAnswer"
+                      value={secInputs["finalAnswer"] || ""}
+                      onChange={(e) => handleFieldInput("finalAnswer", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      placeholder="?"
+                      className="w-24 sm:w-28 h-12 sm:h-14 text-center font-black text-2xl sm:text-3xl font-fredoka text-emerald-950 bg-white border-2 border-emerald-500 rounded-2xl shadow-xs outline-none focus:ring-4 focus:ring-emerald-200 placeholder:text-emerald-400/50"
+                    />
+
+                    {!isQuestionFinished && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentSection(isSingleDigit ? 2 : 3)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                        >
+                          &larr; {isSingleDigit ? "Kembali ke Tahap 2" : "Kembali ke Tahap 3"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleValidateSection(isSingleDigit ? 3 : 4)}
+                          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm shadow-sm transition cursor-pointer"
+                        >
+                          Selesaikan Soal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Apresiasi Maskot saat Berhasil Tuntas */}
+            {isQuestionFinished && (
+              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl animate-in zoom-in-95">
+                <div className="w-12 h-12 shrink-0">
+                  <GirlMascotVector size={48} />
+                </div>
+                <div>
+                  <p className="text-sm font-black text-emerald-900 font-fredoka">
+                    Hebat Sekali! Semua Tahap Selesai! 🎉
+                  </p>
+                  <p className="text-xs font-bold text-slate-600">
+                    Kamu berhasil menyelesaikan alur latihan ini langkah demi langkah dengan sangat baik!
+                  </p>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Diagnostic Hint jika salah */}
-        {diagnosticHint && (
+        {/* FEEDBACK DIAGNOSTIK JIKA ADA KESALAHAN PADA SECTION */}
+        {sectionErrorNotice && (
           <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl flex items-start gap-2.5 animate-in shake">
             <HelpCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
             <div>
               <span className="text-xs font-black text-rose-900 block font-fredoka">
-                {diagnosticHint.badge || "Perhatian:"}
+                Perhatian di Tahap {currentSection}:
               </span>
               <span className="text-xs font-semibold text-rose-800">
-                {diagnosticHint.message}
+                {sectionErrorNotice}
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* BOTTOM ACTION BAR (Sesuai Gambar 4: < Kembali, 🔄 Ulangi Soal, ✅ Soal Berikutnya) */}
-      <div className="bg-slate-50 border-t border-slate-200/80 px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+      {/* 5. BOTTOM ACTION BAR: KEMBALI, SELESAI & REKAP, ULANGI SOAL, SOAL BERIKUTNYA */}
+      <div className="bg-slate-50 border-t border-slate-200/80 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 flex-wrap">
         <button
           type="button"
           onClick={onBack}
@@ -505,7 +1986,19 @@ export default function PracticeCard({
           <span>Kembali</span>
         </button>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {onFinishSession && hasAnsweredAny && (
+            <button
+              type="button"
+              onClick={onFinishSession}
+              className="flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-xs sm:text-sm border border-indigo-200 transition cursor-pointer shadow-2xs"
+              title="Lihat rekap evaluasi dan selesaikan sesi latihan"
+            >
+              <Award size={15} />
+              <span>Selesai & Rekap Sesi</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onNewProblem}
@@ -518,11 +2011,27 @@ export default function PracticeCard({
 
           <button
             type="button"
-            onClick={onNewProblem}
-            className="flex items-center gap-2 px-5 sm:px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-500/25 transition cursor-pointer"
+            onClick={() => {
+              if (questionNumber >= totalQuestions && isQuestionFinished && onFinishSession) {
+                onFinishSession();
+              } else {
+                onNewProblem();
+              }
+            }}
+            className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 rounded-2xl text-white font-black text-xs sm:text-sm shadow-md transition cursor-pointer ${
+              isQuestionFinished
+                ? "bg-emerald-600 hover:bg-emerald-700 active:scale-95 shadow-emerald-500/25 ring-2 ring-emerald-300"
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25"
+            }`}
           >
             <CheckCircle2 size={16} />
-            <span>Soal Berikutnya</span>
+            <span>
+              {isQuestionFinished
+                ? questionNumber >= totalQuestions
+                  ? "Selesai & Lihat Rapor 🎉"
+                  : "Soal Berikutnya ➔"
+                : "Lewati / Soal Baru"}
+            </span>
           </button>
         </div>
       </div>

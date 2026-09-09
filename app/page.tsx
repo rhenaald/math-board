@@ -18,7 +18,13 @@ import StudentProfileView from "@/components/StudentProfileView";
 import MultiLevelHelpModal from "@/components/MultiLevelHelpModal";
 
 // Error Diagnostics Engine
-import { diagnoseError, generateSessionSummary, type ErrorDiagnosticResult } from "@/lib/errorDiagnostics";
+import {
+  diagnoseError,
+  generateSessionSummary,
+  analyzeSectionPerformance,
+  type ErrorDiagnosticResult,
+  type SectionDiagnostic,
+} from "@/lib/errorDiagnostics";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -34,6 +40,9 @@ interface PracticeQuestionLog {
   errorType?: string | null;
   errorDetail?: string | null;
   suggestedIntervention?: string | null;
+  sections?: SectionDiagnostic[];
+  failedSectionId?: number | null;
+  failedSectionName?: string | null;
 }
 
 const COMBO_LABELS: Record<string, { code: string; label: string }> = {
@@ -54,7 +63,6 @@ export default function Home() {
   const [isSetupOpen, setIsSetupOpen] = useState<boolean>(true);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
-  const [showDienesBlocks, setShowDienesBlocks] = useState<boolean>(false);
   const [activeNav, setActiveNav] = useState<"beranda" | "belajar" | "latihan" | "profil">("latihan");
   const [isMultiLevelHelpOpen, setIsMultiLevelHelpOpen] = useState<boolean>(false);
 
@@ -82,17 +90,33 @@ export default function Home() {
   const [isHelpActive, setIsHelpActive] = useState<boolean>(false);
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [activePracticeSection, setActivePracticeSection] = useState<number>(1);
 
   // TOAST NOTIFICATIONS
   const [toast, setToast] = useState<{ message: string; icon: string; bgColor: string; visible: boolean } | null>(null);
 
   // SESSION TRACKING & TIMING
   const [sessionLogs, setSessionLogs] = useState<PracticeQuestionLog[]>([]);
+  const [currentSessionAttemptId, setCurrentSessionAttemptId] = useState<string | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState<boolean>(false);
   const [questionSecondsElapsed, setQuestionSecondsElapsed] = useState<number>(0);
   const [totalSessionSeconds, setTotalSessionSeconds] = useState<number>(0);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Inisialisasi nama siswa dari localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem("mathboard_student_name");
+      if (savedName && savedName.trim()) {
+        setTimeout(() => {
+          setCurrentUser(savedName.trim());
+          setIsSetupOpen(false);
+        }, 0);
+      }
+    }
+  }, []);
 
   // Tick timer while student is active in practice
   useEffect(() => {
@@ -281,9 +305,6 @@ export default function Home() {
     } else if (op === "×") {
       n1 = getRandomNumberInRange(r1.min, r1.max);
       n2 = getRandomNumberInRange(r2.min, r2.max);
-      while (n1 * n2 > 9999) {
-        n1 = Math.floor(n1 * 0.8);
-      }
       correct = n1 * n2;
     } else if (op === "÷") {
       if (r1.min < r2.min) {
@@ -315,7 +336,11 @@ export default function Home() {
 
   // Completion from Setup Wizard
   const handleCompleteSetup = (name: string, op: OperationType, combo: string) => {
-    setCurrentUser(name);
+    const finalName = name.trim() || "Dika";
+    setCurrentUser(finalName);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mathboard_student_name", finalName);
+    }
     setSelectedOp(op);
     setPlaceValueCombo(combo);
     setIsSetupOpen(false);
@@ -405,24 +430,22 @@ export default function Home() {
     setSessionLogs(updatedLogs);
   };
 
-  // Submit practice session records to database
-  const handleSaveSession = async () => {
-    if (sessionLogs.length === 0) {
-      showToast("Belum ada soal yang dikerjakan!", "⚠️", "bg-amber-600");
-      return;
-    }
-
+  // Auto-sync session records to database in background
+  const syncSessionToDB = async (logsToSync: PracticeQuestionLog[]): Promise<string | null> => {
+    if (logsToSync.length === 0) return null;
+    setIsAutoSaving(true);
     try {
-      const correctCount = sessionLogs.filter((q) => q.isCorrect).length;
-      const wrongCount = sessionLogs.length - correctCount;
-      const totalTime = sessionLogs.reduce((sum, q) => sum + q.timeTaken, 0);
-      const summaryErrors = generateSessionSummary(sessionLogs);
+      const correctCount = logsToSync.filter((q) => q.isCorrect).length;
+      const wrongCount = logsToSync.length - correctCount;
+      const totalTime = logsToSync.reduce((sum, q) => sum + (q.timeTaken || 0), 0);
+      const summaryErrors = generateSessionSummary(logsToSync);
 
       const res = await fetch("/api/attempts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentName: currentUser,
+          attemptId: currentSessionAttemptId,
+          studentName: currentUser?.trim() || "Dika",
           dateStr: new Date().toLocaleString("id-ID", {
             dateStyle: "medium",
             timeStyle: "short",
@@ -433,17 +456,104 @@ export default function Home() {
           wrongCount,
           totalTime,
           summaryErrors,
-          questions: sessionLogs,
+          questions: logsToSync,
         }),
       });
 
       if (res.ok) {
+        const data = await res.json();
+        if (data.attempt?.id) {
+          setCurrentSessionAttemptId(data.attempt.id);
+          return data.attempt.id;
+        }
+      }
+    } catch (e) {
+      console.error("Auto-sync attempt failed:", e);
+    } finally {
+      setIsAutoSaving(false);
+    }
+    return null;
+  };
+
+  // Handler saat sebuah soal latihan tuntas diselesaikan melalui 4 tahapan beralur
+  const handlePracticeQuestionCompleted = (isCleanPass: boolean, sections: SectionDiagnostic[]) => {
+    const timeSpent = Math.max(1, questionSecondsElapsed);
+    // Cari section yang mengalami kendala (hadMistake atau status === "incorrect")
+    const failedSec = sections.find((s) => s.hadMistake || s.status === "incorrect");
+
+    if (isCleanPass) {
+      playSound("fanfare");
+      setIsSuccess(true);
+      confetti({ particleCount: 85, spread: 70, origin: { y: 0.6 } });
+      setScore((prev) => prev + 10);
+      setStreak((prev) => prev + 1);
+      showToast("Luar biasa! Semua tahap selesai secara mandiri tanpa kesalahan! 🎉", "🌟", "bg-emerald-600");
+    } else {
+      playSound("success");
+      setStreak(0);
+      showToast(
+        `Bagus sudah menyelesaikan soal! Dicatat kendala pada ${failedSec?.sectionName || "tahap berhitung"} untuk evaluasi guru.`,
+        "💡",
+        "bg-amber-600"
+      );
+    }
+
+    const currentLog: PracticeQuestionLog = {
+      no: sessionLogs.length + 1,
+      operation: currentOp,
+      questionStr: `${num1} ${currentOp === "×" ? "×" : currentOp === "÷" ? "÷" : currentOp === "-" ? "−" : "+"} ${num2}`,
+      num1,
+      num2,
+      userAnswer: String(correctAnswer),
+      isCorrect: isCleanPass,
+      timeTaken: timeSpent,
+      errorType: isCleanPass
+        ? null
+        : failedSec?.errorType || (failedSec ? `SALAH_SECTION_${failedSec.sectionId}` : "SALAH_HITUNG_UMUM"),
+      errorDetail: isCleanPass
+        ? null
+        : failedSec?.errorDetail || failedSec?.diagnosticNote || (failedSec ? `Kendala pada tahap ${failedSec.sectionName}` : "Terdapat kekeliruan berhitung pada tahapan pengerjaan."),
+      suggestedIntervention: isCleanPass
+        ? null
+        : failedSec?.suggestedIntervention || (failedSec ? `Fokuskan pendampingan pada tahap ${failedSec.sectionName}` : "Bimbing siswa dengan alat bantu visual balok nilai tempat."),
+      sections,
+      failedSectionId: failedSec?.sectionId || null,
+      failedSectionName: failedSec?.sectionName || null,
+    };
+
+    const updatedLogs = [...sessionLogs, currentLog];
+    setSessionLogs(updatedLogs);
+    setQuestionSecondsElapsed(0);
+
+    // Auto-save this question to database in background
+    syncSessionToDB(updatedLogs);
+
+    // Jika telah mencapai target 10 soal, langsung buka evaluasi rapor sesi
+    if (updatedLogs.length >= 10) {
+      setTimeout(() => {
         playSound("fanfare");
         setShowSummaryModal(true);
-        showToast("Hasil latihan berhasil disimpan ke database guru! 🚀", "✅", "bg-emerald-600");
-      } else {
-        throw new Error("Gagal menyimpan");
-      }
+        showToast("Target 10 latihan tuntas & tersimpan di Dashboard Guru! 🏆", "🎉", "bg-emerald-600");
+      }, 1600);
+    }
+
+    setTimeout(() => {
+      setIsSuccess(false);
+    }, 1500);
+  };
+
+  // Submit practice session records to database
+  const handleSaveSession = async () => {
+    if (sessionLogs.length === 0) {
+      showToast("Belum ada soal yang dikerjakan!", "⚠️", "bg-amber-600");
+      return;
+    }
+
+    try {
+      await syncSessionToDB(sessionLogs);
+      playSound("fanfare");
+      setShowSummaryModal(true);
+      showToast("Hasil latihan berhasil disimpan ke database guru! 🚀", "✅", "bg-emerald-600");
     } catch (e) {
       console.error(e);
       showToast("Gagal menyimpan data latihan ke database.", "❌", "bg-red-600");
@@ -457,6 +567,7 @@ export default function Home() {
 
   const handleResetSession = () => {
     setShowSummaryModal(false);
+    setCurrentSessionAttemptId(null);
     setSessionLogs([]);
     setScore(0);
     setStreak(0);
@@ -530,7 +641,12 @@ export default function Home() {
                 "bg-blue-600"
               );
             }}
-            onOpenHistory={() => setShowSummaryModal(true)}
+            onOpenHistory={async () => {
+              if (sessionLogs.length > 0) {
+                await syncSessionToDB(sessionLogs);
+              }
+              setShowSummaryModal(true);
+            }}
           />
         </div>
 
@@ -566,38 +682,22 @@ export default function Home() {
                   2
                 </div>
                 {/* Balon Angka 3 */}
-                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-8 h-8 rounded-2xl bg-emerald-500 text-white font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-emerald-400/50 animate-bounce">
+                <div className="absolute -bottom-1 left-4 w-7 h-7 rounded-xl bg-emerald-400 text-emerald-950 font-black font-fredoka text-xs flex items-center justify-center shadow-md shadow-emerald-300/50">
                   3
                 </div>
-                {/* Balon Angka 4 */}
-                <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-8 h-8 rounded-2xl bg-rose-500 text-white font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-rose-400/50">
-                  4
-                </div>
-                {/* Balon Angka 5 */}
-                <div className="absolute -bottom-1 left-4 w-8 h-8 rounded-2xl bg-purple-500 text-white font-black font-fredoka text-xs flex items-center justify-center shadow-md shadow-purple-400/50 animate-pulse">
-                  5
-                </div>
-                {/* Balon Angka 7 */}
-                <div className="absolute -bottom-1 right-4 w-7 h-7 rounded-2xl bg-teal-400 text-teal-950 font-black font-fredoka text-xs flex items-center justify-center shadow-md shadow-teal-300/50 animate-bounce">
-                  7
-                </div>
-                {/* Simbol Operasi + dan × */}
-                <div className="absolute -top-3 right-1/3 w-6 h-6 rounded-xl bg-orange-400 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                {/* Balon Simbol + */}
+                <div className="absolute -bottom-2 right-4 w-8 h-8 rounded-2xl bg-purple-500 text-white font-black font-fredoka text-sm flex items-center justify-center shadow-md shadow-purple-400/50 animate-bounce">
                   +
                 </div>
-                <div className="absolute -bottom-2 left-1/3 w-6 h-6 rounded-xl bg-pink-400 text-white font-black text-xs flex items-center justify-center shadow-sm">
-                  ×
-                </div>
 
-                {/* Maskot Karakter Utama */}
-                <div className="relative z-10">
-                  <BoyMascotVector size={130} />
+                <div className="w-36 h-36">
+                  <BoyMascotVector size={144} />
                 </div>
               </div>
             </div>
 
-            {/* 4 KARTU OPERASI UTAMA BERWARNA BESAR (Gambar 1 Step 1) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* GRID KARTU OPERASI (4 KARTU MATEMATIKA UTAMA) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {/* Penjumlahan */}
               <div className="bg-emerald-50/70 border-2 border-emerald-200 hover:border-emerald-400 rounded-3xl p-5 flex flex-col items-center text-center gap-3 transition hover:shadow-md">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-2xl font-black shadow-sm shadow-emerald-400/30">
@@ -605,7 +705,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 font-fredoka text-lg">Penjumlahan</h3>
-                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Konsep simpan & nilai tempat</p>
+                  <p className="text-[11px] font-bold text-slate-500 mt-0.5">Konsep gabung & simpan nilai tempat</p>
                 </div>
                 <div className="flex flex-col gap-1.5 w-full mt-1">
                   <button
@@ -615,7 +715,7 @@ export default function Home() {
                       setCurrentOp("+");
                       setActiveNav("belajar");
                     }}
-                    className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition cursor-pointer shadow-2xs"
+                    className="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs transition cursor-pointer shadow-2xs"
                   >
                     Belajar Konsep
                   </button>
@@ -741,7 +841,7 @@ export default function Home() {
           </main>
         )}
 
-        {/* MODE BELAJAR TERPANDU (Gambar 1 Step 2–5, Gambar 2, Gambar 3) */}
+        {/* MODE BELAJAR (Guided Step-by-Step CPA Flow) */}
         {activeNav === "belajar" && (
           <main className="flex-1 w-full min-w-0">
             <GuidedLearningFlow
@@ -778,6 +878,7 @@ export default function Home() {
           <>
             <main className="flex-1 w-full flex flex-col gap-4 min-w-0">
               <PracticeCard
+                key={`${num1}-${currentOp}-${num2}-${sessionLogs.length}`}
                 num1={num1}
                 num2={num2}
                 currentOp={currentOp}
@@ -786,37 +887,18 @@ export default function Home() {
                 }`}
                 questionNumber={sessionLogs.length + 1}
                 totalQuestions={10}
-                userAnswerInput={userAnswerInput}
-                setUserAnswerInput={setUserAnswerInput}
-                carryValues={carryValues}
-                setCarryValues={setCarryValues}
-                ansValues={ansValues}
-                setAnsValues={setAnsValues}
-                onCheckAnswer={handleCheckAnswer}
+                onQuestionCompleted={handlePracticeQuestionCompleted}
                 onNewProblem={() => generateProblem()}
-                onNeedHelp={() => {
-                  setIsHelpActive(true);
-                  setIsMultiLevelHelpOpen(true);
-                }}
                 onBack={() => setActiveNav("beranda")}
-                diagnosticHint={diagnosticHint}
-                activePlace={activePlace}
-                setActivePlace={setActivePlace}
-                isShaking={isShaking}
-                isSuccess={isSuccess}
-                showDienesBlocks={showDienesBlocks}
-                setShowDienesBlocks={setShowDienesBlocks}
-                placeValueCombo={placeValueCombo}
-                onSelectCombo={(combo) => {
-                  setPlaceValueCombo(combo);
-                  generateProblem(selectedOp, combo, focusOption);
-                  const info = COMBO_LABELS[combo];
-                  showToast(
-                    `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
-                    "🔢",
-                    "bg-blue-600"
-                  );
+                onSectionChanged={(secId) => setActivePracticeSection(secId)}
+                onFinishSession={async () => {
+                  if (sessionLogs.length > 0) {
+                    await syncSessionToDB(sessionLogs);
+                  }
+                  setShowSummaryModal(true);
                 }}
+                hasAnsweredAny={sessionLogs.length > 0}
+                isAutoSaving={isAutoSaving}
               />
             </main>
 
@@ -826,13 +908,13 @@ export default function Home() {
                 currentOp={currentOp}
                 num1={num1}
                 num2={num2}
-                activeStep={isSuccess ? 4 : userAnswerInput.trim() !== "" ? 3 : 2}
+                activeStep={activePracticeSection}
                 isHighlighted={isHelpActive}
                 onOpenMultiLevelHelp={() => setIsMultiLevelHelpOpen(true)}
                 onSelectStrategy={(strat) => {
                   if (strat === "blocks") {
-                    setShowDienesBlocks(true);
-                    showToast("Alat Bantu Balok 3D dibuka!", "🧱", "bg-amber-600");
+                    setIsMultiLevelHelpOpen(true);
+                    showToast("Bantuan Visual Balok & Konsep dibuka!", "🧱", "bg-amber-600");
                   } else if (strat === "place-value") {
                     showToast("Strategi Pecah Nilai aktif!", "✨", "bg-emerald-600");
                   }
@@ -944,10 +1026,51 @@ export default function Home() {
               </div>
 
               {/* EVALUATION SUMMARY NOTE */}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-left text-xs font-bold text-blue-900">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-left text-xs font-bold text-blue-900 mb-3">
                 <span className="font-black block uppercase text-[10px] text-blue-600 mb-0.5">Ringkasan Evaluasi Belajar:</span>
                 {generateSessionSummary(sessionLogs)}
               </div>
+
+              {/* ANALISIS KESALAHAN PER SECTION / TAHAP (PEDAGOGI GURU) */}
+              {(() => {
+                const report = analyzeSectionPerformance(sessionLogs);
+                return (
+                  <div className="flex flex-col gap-2 text-left">
+                    {report.weakestSection && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-2">
+                        <span className="text-base">⚠️</span>
+                        <div>
+                          <span className="text-xs font-black text-rose-900 block font-fredoka">
+                            Kendala Terbanyak: {report.weakestSection.name}
+                          </span>
+                          <p className="text-[11px] font-semibold text-rose-800 mt-0.5">
+                            Siswa keliru {report.weakestSection.incorrect}x pada tahap ini. Disarankan penguatan peragaan konkret dengan balok nilai tempat.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-2xs">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                        Ketuntasan Tiap Tahap (Section)
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {Object.entries(report.sectionStats).map(([id, s]) => (
+                          <div key={id} className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                            <p className="text-[9px] font-black text-slate-500 uppercase">Tahap {id}</p>
+                            <p className={`text-sm font-black font-fredoka ${s.accuracy < 70 ? "text-rose-600" : "text-emerald-600"}`}>
+                              {s.accuracy}%
+                            </p>
+                            <span className="text-[9px] font-bold text-slate-400">
+                              {s.incorrect > 0 ? `${s.incorrect} keliru` : "Tuntas"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -974,7 +1097,7 @@ export default function Home() {
         onClose={() => setIsConceptModalOpen(false)}
         onOpenBlocks={() => {
           setIsConceptModalOpen(false);
-          setShowDienesBlocks(true);
+          setIsMultiLevelHelpOpen(true);
         }}
       />
 

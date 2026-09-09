@@ -251,7 +251,7 @@ export function diagnoseError(
     errorType: "SALAH_HITUNG_UMUM",
     badgeLabel: "Perlu Diteliti",
     badgeColor: "bg-slate-100 text-slate-800 border-slate-300",
-    studentFeedback: `Jawabanmu adalah ${userNum || userAnswerStr}, sedangkan kunci yang benar adalah ${correctAnswer}. Coba hitung ulang pelan-pelan ya!`,
+    studentFeedback: "Jawabanmu belum tepat nih. Coba periksa kembali perhitunganmu pelan-pelan dengan bantuan visual balok ya!",
     errorDetail: `Hasil siswa (${userNum || userAnswerStr}) tidak sesuai dengan kunci jawaban (${correctAnswer}).`,
     suggestedIntervention: "Ajak siswa mengulang perhitungan dengan bantuan visual balok nilai tempat langkah demi langkah."
   };
@@ -261,15 +261,15 @@ export function diagnoseError(
  * Ringkasan diagnosis dari sekumpulan soal latihan
  */
 export function generateSessionSummary(
-  questions: Array<{ isCorrect: boolean; errorType?: string | null }>
+  questions: Array<{ isCorrect: boolean; errorType?: string | null; errorDetail?: string | null }>
 ): string {
-  const errors = questions.filter((q) => !q.isCorrect && q.errorType);
-  if (errors.length === 0) {
+  const incorrectQuestions = questions.filter((q) => !q.isCorrect);
+  if (incorrectQuestions.length === 0) {
     return "Sempurna! Semua soal dijawab dengan benar tanpa miskonsepsi.";
   }
 
   const counts: Record<string, number> = {};
-  errors.forEach((q) => {
+  incorrectQuestions.forEach((q) => {
     const t = q.errorType || "SALAH_HITUNG_UMUM";
     counts[t] = (counts[t] || 0) + 1;
   });
@@ -277,6 +277,7 @@ export function generateSessionSummary(
   const readableNames: Record<string, string> = {
     LUPA_SIMPAN_PULUHAN: "Lupa Simpan Puluhan",
     LUPA_SIMPAN_RATUSAN: "Lupa Simpan Ratusan",
+    LUPA_TAMBAH_SIMPANAN: "Lupa Menambahkan Simpanan (+)",
     PENGURANGAN_TERBALIK: "Pengurangan Terbalik (Tanpa Pinjam)",
     LUPA_KURANGI_PINJAMAN: "Lupa Mengurangi Pinjaman",
     SALAH_NILAI_TEMPAT: "Pergeseran Nilai Tempat",
@@ -286,13 +287,165 @@ export function generateSessionSummary(
     OPERASI_TERTUKAR: "Operasi Tertukar",
     LUPA_SIMPAN_KALI: "Lupa Simpan Perkalian",
     MELIHAT_KELIPATAN_DEKAT: "Meleset Kelipatan",
-    SALAH_HITUNG_UMUM: "Kekeliruan Hitung Umum"
+    SALAH_HITUNG_UMUM: "Kekeliruan Hitung Umum",
+    SALAH_SECTION_1: "Kendala Tahap 1 (Susun Nilai Tempat)",
+    SALAH_SECTION_2: "Kendala Tahap 2 (Satuan / Simpanan)",
+    SALAH_SECTION_3: "Kendala Tahap 3 (Puluhan / Simpanan)",
+    SALAH_SECTION_4: "Kendala Tahap 4 (Hasil Akhir)"
   };
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   const primaryError = sorted[0];
+  const primaryLabel = readableNames[primaryError[0]] || primaryError[0];
 
-  return `Catatan Evaluasi: Terdapat ${errors.length} kesalahan. Pola terbanyak: ${
-    readableNames[primaryError[0]] || primaryError[0]
-  } (${primaryError[1]}x). Perlu bimbingan visual dengan balok.`;
+  return `Catatan Evaluasi: Terdapat ${incorrectQuestions.length} soal perlu bimbingan. Pola kendala: ${primaryLabel} (${primaryError[1]}x). Rekomendasi: Berikan latihan penguatan dengan alat bantu balok nilai tempat.`;
 }
+
+// ---------------------------------------------------------------------------
+// SECTION-LEVEL DIAGNOSTIC TRACKING (Untuk Latihan Beralur Bertahap)
+// ---------------------------------------------------------------------------
+
+export interface SectionDiagnostic {
+  sectionId: number;
+  sectionName: string;
+  status: "correct" | "incorrect" | "skipped";
+  studentInput?: string;
+  expectedValue?: string;
+  diagnosticNote?: string;
+  hadMistake?: boolean;
+  attempts?: number;
+  errorType?: string;
+  errorDetail?: string;
+  suggestedIntervention?: string;
+}
+
+export interface QuestionSectionEvaluation {
+  sections: SectionDiagnostic[];
+  failedSectionId?: number | null;
+  failedSectionName?: string | null;
+  summaryMessage: string;
+}
+
+/**
+ * Memberikan metadata section latihan berdasarkan jenis operasi matematika dan tingkat bilangan
+ */
+export function getSectionNamesForOp(
+  op: "+" | "-" | "×" | "÷" | string,
+  isSingleDigit: boolean = false
+): Array<{ id: number; title: string; subtitle: string }> {
+  if (isSingleDigit) {
+    if (op === "×") {
+      return [
+        { id: 1, title: "Pahami Nilai Satuan", subtitle: "Identifikasi bilangan satuan dan pengalinya" },
+        { id: 2, title: "Hitung Perkalian Balok", subtitle: "Hitung total benda/balok dengan visual" },
+        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil perkalian" },
+      ];
+    }
+    if (op === "÷") {
+      return [
+        { id: 1, title: "Pahami Pembagian Satuan", subtitle: "Identifikasi bilangan dan pembaginya" },
+        { id: 2, title: "Bagi Rata Satuan", subtitle: "Bagi balok satuan ke kelompok sama rata" },
+        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil bagi keseluruhan" },
+      ];
+    }
+    if (op === "-") {
+      return [
+        { id: 1, title: "Susun Kolom Satuan", subtitle: "Atur bilangan pada kolom satuan" },
+        { id: 2, title: "Hitung Selisih Satuan", subtitle: "Kurangkan angka satuan secara tepat" },
+        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan selisih akhir" },
+      ];
+    }
+    // Penjumlahan (Default)
+    return [
+      { id: 1, title: "Susun Kolom Satuan", subtitle: "Atur bilangan pada kolom satuan" },
+      { id: 2, title: "Hitung Satuan & Simpanan", subtitle: "Jumlahkan satuan (simpan puluhan jika ≥ 10)" },
+      { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan jumlah akhir keseluruhan" },
+    ];
+  }
+
+  // Multi-digit (Puluhan / Ratusan / Ribuan)
+  if (op === "×") {
+    return [
+      { id: 1, title: "Pahami & Pecah Nilai", subtitle: "Urai bilangan ke ratusan/puluhan/satuan" },
+      { id: 2, title: "Hitung Setiap Bagian (Visual Balok)", subtitle: "Perkalian tiap nilai tempat dengan balok" },
+      { id: 3, title: "Gabungkan Hasil Perkalian", subtitle: "Menjumlahkan hasil bagian" },
+      { id: 4, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil akhir keseluruhan" },
+    ];
+  }
+  if (op === "÷") {
+    return [
+      { id: 1, title: "Urai Nilai Tempat", subtitle: "Pecah bilangan menjadi ratusan, puluhan, satuan" },
+      { id: 2, title: "Bagi per Nilai Tempat", subtitle: "Bagi setiap kelompok bagian sama rata" },
+      { id: 3, title: "Gabungkan Hasil Bagi", subtitle: "Jumlahkan hasil bagi per kelompok" },
+      { id: 4, title: "Cek Perkalian Kebalikan", subtitle: "Buktikan dengan perkalian" },
+    ];
+  }
+  if (op === "-") {
+    return [
+      { id: 1, title: "Susun Kolom Nilai Tempat", subtitle: "Atur nilai tempat pada papan" },
+      { id: 2, title: "Cek Satuan & Tukar Puluhan", subtitle: "Tukar jika nilai tempat kurang (Regrouping)" },
+      { id: 3, title: "Hitung Pengurangan Nilai Tempat", subtitle: "Kurangkan kolom satuan, puluhan, dan ratusan" },
+      { id: 4, title: "Hasil Akhir", subtitle: "Tuliskan selisih akhir" },
+    ];
+  }
+  // Penjumlahan (Default)
+  return [
+    { id: 1, title: "Susun Kolom Nilai Tempat", subtitle: "Atur nilai tempat pada papan" },
+    { id: 2, title: "Hitung Satuan & Simpanan", subtitle: "Jumlahkan satuan dan simpan jika ≥ 10" },
+    { id: 3, title: "Hitung Puluhan & Ratusan", subtitle: "Jumlahkan puluhan dan ratusan beserta simpanan" },
+    { id: 4, title: "Hasil Akhir", subtitle: "Tuliskan jumlah akhir keseluruhan" },
+  ];
+}
+
+/**
+ * Menganalisis statistik kesalahan siswa per section dari seluruh sesi latihan
+ */
+export function analyzeSectionPerformance(
+  questionsWithSections: Array<{
+    sections?: SectionDiagnostic[];
+  }>
+): {
+  sectionStats: Record<number, { name: string; total: number; correct: number; incorrect: number; accuracy: number }>;
+  weakestSection: { id: number; name: string; incorrect: number } | null;
+} {
+  const stats: Record<number, { name: string; total: number; correct: number; incorrect: number; accuracy: number }> = {
+    1: { name: "Tahap 1: Penguraian Nilai Tempat", total: 0, correct: 0, incorrect: 0, accuracy: 100 },
+    2: { name: "Tahap 2: Operasi Satuan / Visual Balok", total: 0, correct: 0, incorrect: 0, accuracy: 100 },
+    3: { name: "Tahap 3: Operasi Puluhan / Penggabungan", total: 0, correct: 0, incorrect: 0, accuracy: 100 },
+    4: { name: "Tahap 4: Penulisan Hasil Akhir", total: 0, correct: 0, incorrect: 0, accuracy: 100 },
+  };
+
+  questionsWithSections.forEach((q) => {
+    if (q.sections && Array.isArray(q.sections)) {
+      q.sections.forEach((sec) => {
+        if (stats[sec.sectionId]) {
+          stats[sec.sectionId].total += 1;
+          if (sec.status === "correct") {
+            stats[sec.sectionId].correct += 1;
+          } else if (sec.status === "incorrect") {
+            stats[sec.sectionId].incorrect += 1;
+          }
+        }
+      });
+    }
+  });
+
+  // Hitung persentase
+  Object.keys(stats).forEach((k) => {
+    const s = stats[Number(k)];
+    s.accuracy = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 100;
+  });
+
+  // Cari section terlemah
+  let weakest: { id: number; name: string; incorrect: number } | null = null;
+  Object.entries(stats).forEach(([idStr, data]) => {
+    if (data.incorrect > 0) {
+      if (!weakest || data.incorrect > weakest.incorrect) {
+        weakest = { id: Number(idStr), name: data.name, incorrect: data.incorrect };
+      }
+    }
+  });
+
+  return { sectionStats: stats, weakestSection: weakest };
+}
+

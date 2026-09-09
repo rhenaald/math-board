@@ -45,6 +45,7 @@ export default function AttemptDetailModal({
     const map: Record<string, { label: string; color: string }> = {
       LUPA_SIMPAN_PULUHAN: { label: "Lupa Simpan Puluhan", color: "bg-rose-50 text-rose-700 border-rose-200" },
       LUPA_SIMPAN_RATUSAN: { label: "Lupa Simpan Ratusan", color: "bg-rose-50 text-rose-700 border-rose-200" },
+      LUPA_TAMBAH_SIMPANAN: { label: "Lupa Tambah Simpanan (+)", color: "bg-rose-50 text-rose-700 border-rose-200" },
       PENGURANGAN_TERBALIK: { label: "Pengurangan Terbalik", color: "bg-red-50 text-red-700 border-red-200" },
       LUPA_KURANGI_PINJAMAN: { label: "Lupa Kurang Pinjam", color: "bg-orange-50 text-orange-700 border-orange-200" },
       SALAH_NILAI_TEMPAT: { label: "Geser Nilai Tempat", color: "bg-purple-50 text-purple-700 border-purple-200" },
@@ -55,11 +56,13 @@ export default function AttemptDetailModal({
       LUPA_SIMPAN_KALI: { label: "Lupa Simpan Kali", color: "bg-rose-50 text-rose-700 border-rose-200" },
       MELIHAT_KELIPATAN_DEKAT: { label: "Meleset Kelipatan", color: "bg-amber-50 text-amber-700 border-amber-200" },
       SALAH_HITUNG_UMUM: { label: "Salah Hitung Umum", color: "bg-slate-100 text-slate-700 border-slate-200" },
+      SALAH_SECTION_1: { label: "Kendala Tahap 1 (Susun Nilai Tempat)", color: "bg-purple-50 text-purple-700 border-purple-200" },
+      SALAH_SECTION_2: { label: "Kendala Tahap 2 (Satuan / Simpan)", color: "bg-rose-50 text-rose-700 border-rose-200" },
+      SALAH_SECTION_3: { label: "Kendala Tahap 3 (Puluhan / Simpan)", color: "bg-amber-50 text-amber-700 border-amber-200" },
+      SALAH_SECTION_4: { label: "Kendala Tahap 4 (Hasil Akhir)", color: "bg-red-50 text-red-700 border-red-200" },
     };
     return map[type] || { label: type, color: "bg-slate-100 text-slate-700 border-slate-200" };
   };
-
-  const wrongQuestions = selectedAttempt.questions.filter((q) => !q.isCorrect);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
@@ -99,11 +102,11 @@ export default function AttemptDetailModal({
         {/* QUICK STATS */}
         <div className="grid grid-cols-3 gap-3 mb-4 text-center">
           <div className="bg-emerald-50/50 border border-emerald-100 p-2.5 rounded-2xl">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Benar</span>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Benar (Mandiri)</span>
             <span className="text-base font-black text-emerald-600 font-fredoka">{selectedAttempt.correctCount} Soal</span>
           </div>
           <div className="bg-rose-50/50 border border-rose-100 p-2.5 rounded-2xl">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Salah</span>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Perlu Bimbingan</span>
             <span className="text-base font-black text-rose-600 font-fredoka">{selectedAttempt.wrongCount} Soal</span>
           </div>
           <div className="bg-purple-50/50 border border-purple-100 p-2.5 rounded-2xl">
@@ -141,7 +144,7 @@ export default function AttemptDetailModal({
             </thead>
             <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
               {selectedAttempt.questions.map((q) => {
-                const badge = getBadgeForErrorType(q.errorType);
+                const badge = getBadgeForErrorType(q.errorType || (q.isCorrect ? null : "SALAH_HITUNG_UMUM"));
                 return (
                   <tr key={q.no} className="hover:bg-slate-50/50">
                     <td className="p-3 text-center text-slate-400">{q.no}</td>
@@ -156,13 +159,13 @@ export default function AttemptDetailModal({
                             : "bg-rose-50 text-rose-700 border-rose-200"
                         }`}
                       >
-                        {q.isCorrect ? "Benar" : "Salah"}
+                        {q.isCorrect ? "Benar (Mandiri)" : "Perlu Bimbingan"}
                       </span>
                     </td>
                     <td className="p-3 min-w-[220px]">
                       {q.isCorrect ? (
                         <span className="text-slate-400 italic text-[11px] flex items-center gap-1 font-semibold">
-                          <CheckCircle size={12} className="text-emerald-500 inline" /> Perhitungan tepat
+                          <CheckCircle size={12} className="text-emerald-500 inline" /> Diselesaikan mandiri tanpa kesalahan
                         </span>
                       ) : (
                         <div className="space-y-1">
@@ -171,16 +174,12 @@ export default function AttemptDetailModal({
                               {badge.label}
                             </span>
                           )}
-                          {q.errorDetail && (
-                            <p className="text-[11px] text-slate-600 font-medium leading-snug">
-                              {q.errorDetail}
-                            </p>
-                          )}
-                          {q.suggestedIntervention && (
-                            <p className="text-[10px] text-indigo-700 font-bold leading-snug bg-indigo-50/60 p-1 rounded border border-indigo-100">
-                              💡 Saran: {q.suggestedIntervention}
-                            </p>
-                          )}
+                          <p className="text-[11px] text-slate-600 font-medium leading-snug">
+                            {q.errorDetail || "Siswa mengalami kendala pada tahapan pengerjaan perhitungan."}
+                          </p>
+                          <p className="text-[10px] text-indigo-700 font-bold leading-snug bg-indigo-50/60 p-1 rounded border border-indigo-100">
+                            💡 Saran: {q.suggestedIntervention || "Ajak siswa mengulang tahapan perhitungan dengan bantuan visual balok nilai tempat."}
+                          </p>
                         </div>
                       )}
                     </td>

@@ -22,7 +22,10 @@ export async function POST() {
   }
 
   try {
-    await prisma.attempt.deleteMany();
+    await prisma.$transaction([
+      prisma.questionLog.deleteMany(),
+      prisma.attempt.deleteMany(),
+    ]);
     return NextResponse.json({ success: true, message: "Semua riwayat nilai dibersihkan!" });
   } catch (e) {
     console.error("Clear attempts failed:", e);

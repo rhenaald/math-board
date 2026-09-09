@@ -57,11 +57,12 @@ export async function GET() {
   }
 }
 
-// POST: Save a new attempt (Public)
+// POST: Save or update an attempt (Public)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
+      attemptId,
       studentName,
       dateStr,
       operation,
@@ -73,15 +74,73 @@ export async function POST(request: Request) {
       questions,
     } = body;
 
-    if (!studentName || !questions || !Array.isArray(questions)) {
-      return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
+    const finalStudentName = (studentName && studentName.trim()) ? studentName.trim() : "Siswa";
+
+    if (!questions || !Array.isArray(questions)) {
+      return NextResponse.json({ error: "Data soal tidak valid" }, { status: 400 });
     }
 
-    // Hitung attemptNumber untuk nama siswa ini
+    const questionCreateData = questions.map((q: AttemptQuestionItem) => ({
+      no: q.no,
+      operation: q.operation,
+      questionStr: q.questionStr,
+      num1: q.num1 !== undefined ? q.num1 : null,
+      num2: q.num2 !== undefined ? q.num2 : null,
+      userAnswer: q.userAnswer,
+      isCorrect: q.isCorrect,
+      timeTaken: q.timeTaken,
+      errorType: q.errorType || null,
+      errorDetail: q.errorDetail || null,
+      suggestedIntervention: q.suggestedIntervention || null,
+    }));
+
+    const finalCorrectCount = typeof correctCount === "number" ? correctCount : questions.filter(q => q.isCorrect).length;
+    const finalWrongCount = typeof wrongCount === "number" ? wrongCount : (questions.length - finalCorrectCount);
+    const finalTotalTime = typeof totalTime === "number" ? totalTime : questions.reduce((sum, q) => sum + (q.timeTaken || 0), 0);
+
+    // Jika attemptId diberikan, lakukan update sesi yang sedang berjalan
+    if (attemptId) {
+      const existing = await prisma.attempt.findUnique({
+        where: { id: attemptId },
+      });
+
+      if (existing) {
+        const [, updatedAttempt] = await prisma.$transaction([
+          prisma.questionLog.deleteMany({
+            where: { attemptId },
+          }),
+          prisma.attempt.update({
+            where: { id: attemptId },
+            data: {
+              studentName: finalStudentName,
+              dateStr: dateStr || existing.dateStr,
+              operation: operation || existing.operation,
+              placeValueLevel: placeValueLevel || existing.placeValueLevel,
+              correctCount: finalCorrectCount,
+              wrongCount: finalWrongCount,
+              totalTime: finalTotalTime,
+              summaryErrors: summaryErrors || null,
+              questions: {
+                create: questionCreateData,
+              },
+            },
+            include: {
+              questions: {
+                orderBy: { no: "asc" },
+              },
+            },
+          }),
+        ]);
+
+        return NextResponse.json({ success: true, attempt: updatedAttempt, updated: true });
+      }
+    }
+
+    // Jika belum ada attemptId atau tidak ditemukan, buat attempt baru
     const count = await prisma.attempt.count({
       where: {
         studentName: {
-          equals: studentName,
+          equals: finalStudentName,
           mode: "insensitive",
         },
       },
@@ -90,37 +149,27 @@ export async function POST(request: Request) {
 
     const attempt = await prisma.attempt.create({
       data: {
-        studentName,
-        dateStr,
+        studentName: finalStudentName,
+        dateStr: dateStr || new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
         attemptNumber,
         operation: operation || null,
         placeValueLevel: placeValueLevel || null,
-        correctCount,
-        wrongCount,
-        totalTime,
+        correctCount: finalCorrectCount,
+        wrongCount: finalWrongCount,
+        totalTime: finalTotalTime,
         summaryErrors: summaryErrors || null,
         questions: {
-          create: questions.map((q: AttemptQuestionItem) => ({
-            no: q.no,
-            operation: q.operation,
-            questionStr: q.questionStr,
-            num1: q.num1 !== undefined ? q.num1 : null,
-            num2: q.num2 !== undefined ? q.num2 : null,
-            userAnswer: q.userAnswer,
-            isCorrect: q.isCorrect,
-            timeTaken: q.timeTaken,
-            errorType: q.errorType || null,
-            errorDetail: q.errorDetail || null,
-            suggestedIntervention: q.suggestedIntervention || null,
-          })),
+          create: questionCreateData,
         },
       },
       include: {
-        questions: true,
+        questions: {
+          orderBy: { no: "asc" },
+        },
       },
     });
 
-    return NextResponse.json({ success: true, attempt });
+    return NextResponse.json({ success: true, attempt, created: true });
   } catch (e) {
     console.error("POST attempt failed:", e);
     return NextResponse.json({ error: "Gagal menyimpan hasil latihan" }, { status: 500 });

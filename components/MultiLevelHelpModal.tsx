@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { X, HelpCircle, Eye, BookOpen, CheckCircle, RotateCcw, ArrowRight } from "lucide-react";
 
 interface MultiLevelHelpModalProps {
@@ -23,12 +23,14 @@ export default function MultiLevelHelpModal({
   onTryAgain,
 }: MultiLevelHelpModalProps) {
   const [activeLevel, setActiveLevel] = useState<1 | 2 | 3 | 4>(initialLevel);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
 
-  useEffect(() => {
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setActiveLevel(initialLevel);
     }
-  }, [isOpen, initialLevel]);
+  }
 
   if (!isOpen) return null;
 
