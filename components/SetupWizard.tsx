@@ -52,17 +52,17 @@ const operations: Array<{ id: OperationType; symbol: string; title: string; desc
   },
 ];
 
-// 9 Pilihan Kombinasi Digit (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
+// 9 Pilihan Kombinasi Nilai Tempat (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
 const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
-  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
-  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
-  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
-  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
-  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
-  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
-  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
-  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
-  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
+  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "Satuan & Satuan", example: "Contoh: 7 + 5" },
+  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "Satuan & Puluhan", example: "Contoh: 8 + 34" },
+  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "Satuan & Ratusan", example: "Contoh: 6 + 142" },
+  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "Puluhan & Satuan", example: "Contoh: 45 + 8" },
+  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "Puluhan & Puluhan", example: "Contoh: 45 + 27" },
+  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "Puluhan & Ratusan", example: "Contoh: 54 + 236" },
+  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "Ratusan & Satuan", example: "Contoh: 324 + 7" },
+  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "Ratusan & Puluhan", example: "Contoh: 342 + 58" },
+  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "Ratusan & Ratusan", example: "Contoh: 456 + 278" },
 ];
 
 export default function SetupWizard({
@@ -159,7 +159,7 @@ export default function SetupWizard({
           <div className="flex items-center justify-between text-xs font-black text-slate-400 mb-2 font-fredoka">
             <span className={step >= 1 ? "text-blue-600 font-bold" : ""}>1. Nama Siswa</span>
             <span className={step >= 2 ? "text-blue-600 font-bold" : ""}>2. Pilih Operasi</span>
-            <span className={step >= 3 ? "text-blue-600 font-bold" : ""}>3. Pilih Digit</span>
+            <span className={step >= 3 ? "text-blue-600 font-bold" : ""}>3. Pilih Nilai Tempat</span>
           </div>
           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
             <div
@@ -296,7 +296,7 @@ export default function SetupWizard({
                 onClick={handleNextFromStep2}
                 className="w-2/3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-blue-600/30 transition text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
-                Lanjut ke Pilih Digit <ArrowRight size={14} />
+                Lanjut ke Pilih Nilai Tempat <ArrowRight size={14} />
               </button>
             </div>
 
@@ -308,18 +308,18 @@ export default function SetupWizard({
           </div>
         )}
 
-        {/* STEP 3: PILIH DIGIT (SS, SP, SR, PS, PP, PR, RS, RP, RR) */}
+        {/* STEP 3: PILIH NILAI TEMPAT (SS, SP, SR, PS, PP, PR, RS, RP, RR) */}
         {step === 3 && (
           <div className="relative z-10 space-y-4 text-left">
             <div className="text-center mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
-                Langkah 3 dari 3: Pilih Digit
+                Langkah 3 dari 3: Pilih Nilai Tempat
               </span>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1 font-fredoka">
-                Pilih Kombinasi Digit
+                Pilih Kombinasi Nilai Tempat
               </h2>
               <p className="text-slate-500 text-xs font-semibold">
-                Pilih kombinasi digit bilangan (SS, SP, SR, PS, PP, PR, RS, RP, RR):
+                Pilih kombinasi nilai tempat bilangan (SS, SP, SR, PS, PP, PR, RS, RP, RR):
               </p>
             </div>
 

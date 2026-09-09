@@ -336,30 +336,26 @@ export function getSectionNamesForOp(
   if (isSingleDigit) {
     if (op === "×") {
       return [
-        { id: 1, title: "Pahami Nilai Satuan", subtitle: "Identifikasi bilangan satuan dan pengalinya" },
-        { id: 2, title: "Hitung Perkalian Balok", subtitle: "Hitung total benda/balok dengan visual" },
-        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil perkalian" },
+        { id: 1, title: "Hitung Perkalian Balok", subtitle: "Hitung total benda/balok dengan visual" },
+        { id: 2, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil perkalian" },
       ];
     }
     if (op === "÷") {
       return [
-        { id: 1, title: "Pahami Pembagian Satuan", subtitle: "Identifikasi bilangan dan pembaginya" },
-        { id: 2, title: "Bagi Rata Satuan", subtitle: "Bagi balok satuan ke kelompok sama rata" },
-        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil bagi keseluruhan" },
+        { id: 1, title: "Bagi Rata Satuan", subtitle: "Bagi balok satuan ke kelompok sama rata" },
+        { id: 2, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil bagi keseluruhan" },
       ];
     }
     if (op === "-") {
       return [
-        { id: 1, title: "Susun Kolom Satuan", subtitle: "Atur bilangan pada kolom satuan" },
-        { id: 2, title: "Hitung Selisih Satuan", subtitle: "Kurangkan angka satuan secara tepat" },
-        { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan selisih akhir" },
+        { id: 1, title: "Hitung Selisih Satuan", subtitle: "Kurangkan angka satuan secara tepat" },
+        { id: 2, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan selisih akhir" },
       ];
     }
     // Penjumlahan (Default)
     return [
-      { id: 1, title: "Susun Kolom Satuan", subtitle: "Atur bilangan pada kolom satuan" },
-      { id: 2, title: "Hitung Satuan & Simpanan", subtitle: "Jumlahkan satuan (simpan puluhan jika ≥ 10)" },
-      { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan jumlah akhir keseluruhan" },
+      { id: 1, title: "Hitung Satuan & Simpanan", subtitle: "Jumlahkan satuan (simpan puluhan jika ≥ 10)" },
+      { id: 2, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan jumlah akhir keseluruhan" },
     ];
   }
 

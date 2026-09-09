@@ -79,15 +79,15 @@ export default function LeftSidebarNav({
   ];
 
   const digitCombinations = [
-    { id: "S-S", code: "SS", label: "Satuan & Satuan", desc: "1 Digit & 1 Digit" },
-    { id: "S-P", code: "SP", label: "Satuan & Puluhan", desc: "1 Digit & 2 Digit" },
-    { id: "S-R", code: "SR", label: "Satuan & Ratusan", desc: "1 Digit & 3 Digit" },
-    { id: "P-S", code: "PS", label: "Puluhan & Satuan", desc: "2 Digit & 1 Digit" },
-    { id: "P-P", code: "PP", label: "Puluhan & Puluhan", desc: "2 Digit & 2 Digit" },
-    { id: "P-R", code: "PR", label: "Puluhan & Ratusan", desc: "2 Digit & 3 Digit" },
-    { id: "R-S", code: "RS", label: "Ratusan & Satuan", desc: "3 Digit & 1 Digit" },
-    { id: "R-P", code: "RP", label: "Ratusan & Puluhan", desc: "3 Digit & 2 Digit" },
-    { id: "R-R", code: "RR", label: "Ratusan & Ratusan", desc: "3 Digit & 3 Digit" },
+    { id: "S-S", code: "SS", label: "Satuan & Satuan", desc: "Satuan & Satuan" },
+    { id: "S-P", code: "SP", label: "Satuan & Puluhan", desc: "Satuan & Puluhan" },
+    { id: "S-R", code: "SR", label: "Satuan & Ratusan", desc: "Satuan & Ratusan" },
+    { id: "P-S", code: "PS", label: "Puluhan & Satuan", desc: "Puluhan & Satuan" },
+    { id: "P-P", code: "PP", label: "Puluhan & Puluhan", desc: "Puluhan & Puluhan" },
+    { id: "P-R", code: "PR", label: "Puluhan & Ratusan", desc: "Puluhan & Ratusan" },
+    { id: "R-S", code: "RS", label: "Ratusan & Satuan", desc: "Ratusan & Satuan" },
+    { id: "R-P", code: "RP", label: "Ratusan & Puluhan", desc: "Ratusan & Puluhan" },
+    { id: "R-R", code: "RR", label: "Ratusan & Ratusan", desc: "Ratusan & Ratusan" },
   ];
 
   return (
@@ -215,7 +215,7 @@ export default function LeftSidebarNav({
           >
             <div className="flex items-center gap-2">
               <Layers size={14} className="text-indigo-600" />
-              <span>Digit: {placeValueCombo}</span>
+              <span>Nilai Tempat: {placeValueCombo}</span>
             </div>
             <ChevronDown
               size={14}

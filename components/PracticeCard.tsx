@@ -61,7 +61,7 @@ export default function PracticeCard({
   const hasHundreds = h1 > 0 || h2 > 0;
   const hasTens = t1 > 0 || t2 > 0 || hasHundreds;
   const isSingleDigit = !hasTens && !hasHundreds;
-  const totalSections = isSingleDigit ? 3 : 4;
+  const totalSections = isSingleDigit ? 2 : 4;
 
   // Stepper Section State (1 s/d totalSections)
   const [currentSection, setCurrentSection] = useState<number>(1);
@@ -250,20 +250,27 @@ export default function PracticeCard({
     const timer = setTimeout(() => {
       let firstKey = "";
       if (currentSection === 1) {
-        firstKey = hasHundreds ? "h1" : hasTens ? "t1" : "u1";
+        if (isSingleDigit) {
+          if (currentOp === "+") firstKey = "sumU";
+          else if (currentOp === "-") firstKey = "";
+          else if (currentOp === "×") firstKey = "repSum";
+          else if (currentOp === "÷") firstKey = "quotU";
+        } else {
+          firstKey = hasHundreds ? "h1" : hasTens ? "t1" : "u1";
+        }
       } else if (currentSection === 2) {
-        if (currentOp === "+") firstKey = "sumU";
-        else if (currentOp === "-") firstKey = u1 < u2 ? "newT1" : "";
-        else if (currentOp === "×") firstKey = num1 < 10 ? "repSum" : h1 > 0 ? "partH" : t1 > 0 ? "partT" : "partU";
-        else if (currentOp === "÷") firstKey = h1 > 0 ? "quotH" : t1 > 0 ? "quotT" : "quotU";
-      } else if (currentSection === 3) {
         if (isSingleDigit) {
           firstKey = "finalAnswer";
         } else {
-          if (currentOp === "+") firstKey = "sumT";
-          else if (currentOp === "-") firstKey = "diffU";
-          else firstKey = "combined";
+          if (currentOp === "+") firstKey = "sumU";
+          else if (currentOp === "-") firstKey = u1 < u2 ? "newT1" : "";
+          else if (currentOp === "×") firstKey = num1 < 10 ? "repSum" : h1 > 0 ? "partH" : t1 > 0 ? "partT" : "partU";
+          else if (currentOp === "÷") firstKey = h1 > 0 ? "quotH" : t1 > 0 ? "quotT" : "quotU";
         }
+      } else if (currentSection === 3) {
+        if (currentOp === "+") firstKey = "sumT";
+        else if (currentOp === "-") firstKey = "diffU";
+        else firstKey = "combined";
       } else if (currentSection === 4) {
         firstKey = "finalAnswer";
       }
@@ -291,7 +298,65 @@ export default function PracticeCard({
     let detectedIntervention: string | undefined;
     const studentInputsStr = JSON.stringify(secInputs);
 
-    if (secId === 1) {
+    if (isSingleDigit) {
+      if (secId === 1) {
+        if (currentOp === "+") {
+          // Hitung Satuan & Simpanan
+          const inSumU = parseInt(secInputs["sumU"] || "0", 10);
+          const inCarry = parseInt(secInputs["carryT"] || "0", 10);
+          const rawSum = u1 + u2;
+          const expU = rawSum % 10;
+          const expCarry = rawSum >= 10 ? 1 : 0;
+          isCorrect = inSumU === expU && (rawSum >= 10 ? inCarry === expCarry : true);
+          if (!isCorrect) {
+            if (rawSum >= 10 && inCarry !== expCarry) {
+              detectedErrorType = "LUPA_SIMPAN_PULUHAN";
+              errorMessage = "Karena hasil penjumlahan satuan mencapai 10 atau lebih, jangan lupa simpan angka puluhannya di atas ya!";
+              detectedErrorDetail = `Siswa tidak menuliskan angka simpanan ${expCarry} ke kolom puluhan dari ${u1} + ${u2} = ${rawSum}.`;
+              detectedIntervention = "Gunakan balok satuan untuk menunjukkan bahwa 10 kubus satuan ditukar menjadi 1 batang puluhan yang disimpan di kolom atas.";
+            } else {
+              detectedErrorType = "SALAH_HITUNG_SATUAN";
+              errorMessage = rawSum >= 10
+                ? "Periksa kembali hitungan balok satuan dan angka simpanan di atasnya ya!"
+                : "Hitung kembali jumlah balok satuan dengan teliti.";
+              detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
+              detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
+            }
+          }
+        } else if (currentOp === "-") {
+          isCorrect = true;
+        } else if (currentOp === "×") {
+          const inRepeatedSum = parseInt(secInputs["repSum"] || "0", 10);
+          isCorrect = inRepeatedSum === num1 * num2;
+          if (!isCorrect) {
+            detectedErrorType = "SALAH_SECTION_1";
+            errorMessage = "Hitung total penjumlahan berulang semua kelompok balok ya!";
+            detectedErrorDetail = `Kekeliruan konsep perkalian sebagai penjumlahan berulang.`;
+            detectedIntervention = "Gunakan balok untuk menghitung kelompok benda berulang.";
+          }
+        } else if (currentOp === "÷") {
+          const inQuotU = parseInt(secInputs["quotU"] || "0", 10);
+          const expQuotU = Math.floor(u1 / num2);
+          isCorrect = inQuotU === expQuotU;
+          if (!isCorrect) {
+            detectedErrorType = "SALAH_SECTION_1";
+            errorMessage = `Bagi setiap kubus satuan dengan ${num2} sama rata ya!`;
+            detectedErrorDetail = `Kekeliruan pembagian satuan.`;
+            detectedIntervention = "Gunakan balok untuk membagi rata ke kelompok pembagi.";
+          }
+        }
+      } else if (secId === 2) {
+        // Validasi Hasil Akhir untuk bilangan satuan (Tahap 2)
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_HASIL_AKHIR";
+          errorMessage = "Hitung kembali hasil akhirnya dengan teliti ya!";
+          detectedErrorDetail = `Hasil akhir ditulis ${inFinal}, kunci yang benar adalah ${expectedFinalAnswer}.`;
+          detectedIntervention = "Ajak siswa mengecek kembali hasil perhitungan dengan balok satuan.";
+        }
+      }
+    } else if (secId === 1) {
       // Susun kolom nilai tempat untuk SEMUA operasi (+, -, ×, ÷)
       const inU1 = parseInt(secInputs["u1"] || "0", 10);
       const inT1 = parseInt(secInputs["t1"] || "0", 10);
@@ -323,16 +388,6 @@ export default function PracticeCard({
         }
         detectedErrorDetail = errorMessage;
         detectedIntervention = "Pandu siswa mengenali susunan kolom nilai tempat: satuan di paling kanan, disusul puluhan dan ratusan di kirinya.";
-      }
-    } else if (isSingleDigit && secId === 3) {
-      // Validasi Hasil Akhir untuk bilangan satuan (Tahap 3)
-      const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
-      isCorrect = inFinal === expectedFinalAnswer;
-      if (!isCorrect) {
-        detectedErrorType = "SALAH_HASIL_AKHIR";
-        errorMessage = "Hitung kembali hasil akhirnya dengan teliti ya!";
-        detectedErrorDetail = `Hasil akhir ditulis ${inFinal}, kunci yang benar adalah ${expectedFinalAnswer}.`;
-        detectedIntervention = "Ajak siswa mengecek kembali hasil perhitungan dengan balok satuan.";
       }
     } else if (currentOp === "+") {
       if (secId === 2) {
@@ -641,7 +696,7 @@ export default function PracticeCard({
 
       {/* 2. STEPPER PROGRESS BAR (3 SECTIONS UNTUK SATUAN, 4 SECTIONS UNTUK PULUHAN/RATUSAN) */}
       <div className="bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-emerald-50/60 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
-        <div className={`grid ${isSingleDigit ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
+        <div className={`grid ${isSingleDigit ? "grid-cols-2" : "grid-cols-4"} gap-2`}>
           {sectionMeta.map((sec) => {
             const isActive = currentSection === sec.id;
             const diag = sectionDiagnostics.find((d) => d.sectionId === sec.id);
@@ -720,9 +775,9 @@ export default function PracticeCard({
       {/* 4. KONTEN TAHAP AKTIF (SECTION 1 s/d 4) */}
       <div className={`p-4 sm:p-6 flex flex-col gap-5 ${isSectionShaking ? "animate-shake ring-2 ring-rose-400 rounded-2xl" : ""}`}>
         {/* ================================================================= */}
-        {/* SECTION 1: PENGURAIAN NILAI TEMPAT */}
+        {/* SECTION 1: PENGURAIAN NILAI TEMPAT (Hanya untuk Multi-Digit) */}
         {/* ================================================================= */}
-        {currentSection === 1 && (
+        {!isSingleDigit && currentSection === 1 && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black">
@@ -925,16 +980,16 @@ export default function PracticeCard({
         )}
 
         {/* ================================================================= */}
-        {/* SECTION 2: HITUNG BAGIAN PER NILAI TEMPAT & BALOK 3D */}
+        {/* SECTION HITUNG BAGIAN PER NILAI TEMPAT & BALOK 3D (Tahap 1 jika satuan, Tahap 2 jika multi-digit) */}
         {/* ================================================================= */}
-        {currentSection === 2 && (
+        {((isSingleDigit && currentSection === 1) || (!isSingleDigit && currentSection === 2)) && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">
-                2
+                {isSingleDigit ? 1 : 2}
               </span>
               <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
-                {sectionMeta[1].title}
+                {sectionMeta[isSingleDigit ? 0 : 1]?.title}
               </h4>
             </div>
 
@@ -1339,18 +1394,22 @@ export default function PracticeCard({
             </div>
           )}
 
-            {/* Navigasi Section 2 */}
+            {/* Navigasi Section Hitung Satuan */}
             <div className="flex items-center justify-between pt-1">
+              {!isSingleDigit ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentSection(1)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  &larr; Kembali ke Tahap 1
+                </button>
+              ) : (
+                <div />
+              )}
               <button
                 type="button"
-                onClick={() => setCurrentSection(1)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
-              >
-                &larr; Kembali ke Tahap 1
-              </button>
-              <button
-                type="button"
-                onClick={() => handleValidateSection(2)}
+                onClick={() => handleValidateSection(isSingleDigit ? 1 : 2)}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-sm"
               >
                 <span>{isSingleDigit ? "Periksa & Lanjut ke Hasil Akhir" : "Periksa & Lanjut ke Tahap 3"}</span>
@@ -1776,16 +1835,16 @@ export default function PracticeCard({
         )}
 
         {/* ================================================================= */}
-        {/* SECTION HASIL AKHIR & VALIDASI KESELURUHAN (Tahap 3 jika satuan, Tahap 4 jika multi-digit) */}
+        {/* SECTION HASIL AKHIR & VALIDASI KESELURUHAN (Tahap 2 jika satuan, Tahap 4 jika multi-digit) */}
         {/* ================================================================= */}
-        {((isSingleDigit && currentSection === 3) || (!isSingleDigit && currentSection === 4)) && (
+        {((isSingleDigit && currentSection === 2) || (!isSingleDigit && currentSection === 4)) && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">
-                {isSingleDigit ? 3 : 4}
+                {isSingleDigit ? 2 : 4}
               </span>
               <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
-                {sectionMeta[isSingleDigit ? 2 : 3]?.title || "Hasil Akhir & Validasi"}
+                {sectionMeta[isSingleDigit ? 1 : 3]?.title || "Hasil Akhir & Validasi"}
               </h4>
             </div>
 
@@ -1921,14 +1980,14 @@ export default function PracticeCard({
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
                           type="button"
-                          onClick={() => setCurrentSection(isSingleDigit ? 2 : 3)}
+                          onClick={() => setCurrentSection(isSingleDigit ? 1 : 3)}
                           className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                         >
-                          &larr; {isSingleDigit ? "Kembali ke Tahap 2" : "Kembali ke Tahap 3"}
+                          &larr; {isSingleDigit ? "Kembali ke Tahap 1" : "Kembali ke Tahap 3"}
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleValidateSection(isSingleDigit ? 3 : 4)}
+                          onClick={() => handleValidateSection(isSingleDigit ? 2 : 4)}
                           className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm shadow-sm transition cursor-pointer"
                         >
                           Selesaikan Soal
