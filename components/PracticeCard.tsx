@@ -49,7 +49,7 @@ export default function PracticeCard({
   hasAnsweredAny = false,
   isAutoSaving = false,
 }: PracticeCardProps) {
-  // Decompose numbers
+  // Decompose numbers for Addition & Subtraction
   const u1 = num1 % 10;
   const t1 = Math.floor((num1 % 100) / 10);
   const h1 = Math.floor((num1 % 1000) / 100);
@@ -62,6 +62,39 @@ export default function PracticeCard({
   const hasTens = t1 > 0 || t2 > 0 || hasHundreds;
   const isSingleDigit = !hasTens && !hasHundreds;
   const totalSections = isSingleDigit ? 2 : 4;
+
+  // Smart Decomposition untuk Perkalian (×) & Pembagian (÷):
+  // Untuk perkalian: Bilangan yang dipecah (decompNum) adalah bilangan yang memiliki digit lebih banyak
+  // atau nilai tempat lebih besar (misal 526 pada 20 × 526). Bilangan lainnya (20) menjadi pengali.
+  // Untuk pembagian: Yang dipecah selalu bilangan yang dibagi (num1), pembaginya adalah num2.
+  const isMult = currentOp === "×";
+  const isDiv = currentOp === "÷";
+
+  let decompNum = num1;
+  let multiplierNum = num2;
+  if (isMult) {
+    if (String(num2).length > String(num1).length) {
+      decompNum = num2;
+      multiplierNum = num1;
+    } else {
+      decompNum = num1;
+      multiplierNum = num2;
+    }
+  } else if (isDiv) {
+    decompNum = num1;
+    multiplierNum = num2;
+  }
+
+  const decU = decompNum % 10;
+  const decT = Math.floor((decompNum % 100) / 10);
+  const decH = Math.floor((decompNum % 1000) / 100);
+
+  const hasDecH = decH > 0;
+  const hasDecT = decT > 0 || hasDecH;
+
+  const valH = decH * 100;
+  const valT = decT * 10;
+  const valU = decU;
 
   // Stepper Section State (1 s/d totalSections)
   const [currentSection, setCurrentSection] = useState<number>(1);
@@ -157,25 +190,25 @@ export default function PracticeCard({
   const expDiffT = effectiveT1 - t2;
   const expDiffH = hasHundreds ? effectiveH1 - h2 : 0;
 
-  const expPartH = h1 * 100 * num2;
-  const expPartT = t1 * 10 * num2;
-  const expPartU = u1 * num2;
+  const expPartH = valH * multiplierNum;
+  const expPartT = valT * multiplierNum;
+  const expPartU = valU * multiplierNum;
 
-  const expQuotH = h1 > 0 ? Math.floor((h1 * 100) / num2) : 0;
-  const expQuotT = t1 > 0 ? Math.floor((t1 * 10) / num2) : 0;
-  const expQuotU = Math.floor(u1 / num2);
+  const expQuotH = hasDecH ? Math.floor(valH / multiplierNum) : 0;
+  const expQuotT = hasDecT ? Math.floor(valT / multiplierNum) : 0;
+  const expQuotU = Math.floor(valU / multiplierNum);
 
   const combinedPlaceholder =
     currentOp === "×"
-      ? h1 > 0
+      ? hasDecH
         ? `${secInputs["partH"] || expPartH} + ${secInputs["partT"] || expPartT} + ${secInputs["partU"] || expPartU}`
-        : t1 > 0
+        : hasDecT
         ? `${secInputs["partT"] || expPartT} + ${secInputs["partU"] || expPartU}`
         : `${secInputs["partU"] || expPartU}`
       : currentOp === "÷"
-      ? h1 > 0
+      ? hasDecH
         ? `${secInputs["quotH"] || expQuotH} + ${secInputs["quotT"] || expQuotT} + ${secInputs["quotU"] || expQuotU}`
-        : t1 > 0
+        : hasDecT
         ? `${secInputs["quotT"] || expQuotT} + ${secInputs["quotU"] || expQuotU}`
         : `${secInputs["quotU"] || expQuotU}`
       : "?";
@@ -219,6 +252,14 @@ export default function PracticeCard({
   ) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      if (nextKey) {
+        const nextEl = document.querySelector<HTMLInputElement>(`[data-field-key="${nextKey}"]`);
+        if (nextEl && !nextEl.value) {
+          nextEl.focus();
+          nextEl.select();
+          return;
+        }
+      }
       handleValidateSection(currentSection);
     } else if (
       e.key === "Backspace" &&
@@ -264,13 +305,14 @@ export default function PracticeCard({
         } else {
           if (currentOp === "+") firstKey = "sumU";
           else if (currentOp === "-") firstKey = u1 < u2 ? "newT1" : "";
-          else if (currentOp === "×") firstKey = num1 < 10 ? "repSum" : h1 > 0 ? "partH" : t1 > 0 ? "partT" : "partU";
-          else if (currentOp === "÷") firstKey = h1 > 0 ? "quotH" : t1 > 0 ? "quotT" : "quotU";
+          else if (currentOp === "×" || currentOp === "÷")
+            firstKey = hasDecH ? "decH_val" : hasDecT ? "decT_val" : "decU_val";
         }
       } else if (currentSection === 3) {
         if (currentOp === "+") firstKey = "sumT";
         else if (currentOp === "-") firstKey = "diffU";
-        else firstKey = "combined";
+        else if (currentOp === "×" || currentOp === "÷")
+          firstKey = "combined";
       } else if (currentSection === 4) {
         firstKey = "finalAnswer";
       }
@@ -285,7 +327,7 @@ export default function PracticeCard({
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [currentSection, currentOp, hasHundreds, hasTens, isSingleDigit, u1, u2, num1, h1, t1]);
+  }, [currentSection, currentOp, hasHundreds, hasTens, isSingleDigit, u1, u2, num1, h1, t1, hasDecH, hasDecT, decompNum, multiplierNum]);
 
   // -------------------------------------------------------------------------
   // VALIDASI SETIAP SECTION
@@ -523,25 +565,21 @@ export default function PracticeCard({
       }
     } else if (currentOp === "×") {
       if (secId === 2) {
-        if (num1 >= 10) {
-          const inPartH = h1 > 0 ? parseInt(secInputs["partH"] || "0", 10) : 0;
-          const inPartT = t1 > 0 ? parseInt(secInputs["partT"] || "0", 10) : 0;
-          const inPartU = parseInt(secInputs["partU"] || "0", 10);
+        if (!isSingleDigit) {
+          const inDecH = hasDecH ? parseInt(secInputs["decH_val"] || "-1", 10) : 0;
+          const inDecT = hasDecT ? parseInt(secInputs["decT_val"] || "-1", 10) : 0;
+          const inDecU = parseInt(secInputs["decU_val"] || "-1", 10);
 
-          const expH = h1 * 100 * num2;
-          const expT = t1 * 10 * num2;
-          const expU = u1 * num2;
-
-          const hOk = h1 === 0 || inPartH === expH;
-          const tOk = t1 === 0 || inPartT === expT;
-          const uOk = inPartU === expU;
+          const hOk = !hasDecH || inDecH === valH || inDecH === decH || inDecH === expPartH;
+          const tOk = !hasDecT || inDecT === valT || inDecT === decT || inDecT === expPartT;
+          const uOk = inDecU === valU || inDecU === expPartU;
 
           isCorrect = hOk && tOk && uOk;
           if (!isCorrect) {
-            detectedErrorType = "LUPA_SIMPAN_KALI";
-            errorMessage = "Hitung perkalian untuk setiap nilai tempat (satuan, puluhan, ratusan) dengan teliti ya!";
-            detectedErrorDetail = `Kekeliruan dalam menghitung perkalian bagian nilai tempat.`;
-            detectedIntervention = "Ajak siswa mengalikan nilai tempat satu per satu dengan balok perkalian.";
+            detectedErrorType = "SALAH_PECAH_NILAI";
+            errorMessage = `Urai bilangan ${decompNum} ke dalam ratusan (${valH}), puluhan (${valT}), dan satuan (${valU}) atau hasil kali tiap bagiannya dengan tepat ya!`;
+            detectedErrorDetail = `Kekeliruan dalam mengisi nilai pecahan tempat atau hasil bagian bilangan ${decompNum}.`;
+            detectedIntervention = "Ajak siswa mengamati visual balok untuk mengenali ratusan, puluhan, dan satuan.";
           }
         } else {
           const inRepeatedSum = parseInt(secInputs["repSum"] || "0", 10);
@@ -554,12 +592,12 @@ export default function PracticeCard({
           }
         }
       } else if (secId === 3) {
-        const inCombined = parseInt(secInputs["combined"] || "0", 10);
-        isCorrect = inCombined === num1 * num2;
+        const inCombined = parseInt(secInputs["combined"] || "-1", 10);
+        isCorrect = inCombined === expectedFinalAnswer;
         if (!isCorrect) {
-          detectedErrorType = "SALAH_SECTION_3";
-          errorMessage = "Jumlahkan hasil tiap bagian untuk mendapatkan total gabungan yang benar.";
-          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil parsial perkalian.`;
+          detectedErrorType = "SALAH_GABUNG_HASIL";
+          errorMessage = "Jumlahkan semua hasil bagian di atas untuk mendapatkan totalnya ya!";
+          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil parsial perkalian. Ditulis ${inCombined}, seharusnya ${expectedFinalAnswer}.`;
           detectedIntervention = "Bimbing siswa menjumlahkan hasil bagian secara berurutan.";
         }
       } else if (secId === 4) {
@@ -574,32 +612,28 @@ export default function PracticeCard({
       }
     } else if (currentOp === "÷") {
       if (secId === 2) {
-        const inQuotH = h1 > 0 ? parseInt(secInputs["quotH"] || "0", 10) : 0;
-        const inQuotT = t1 > 0 ? parseInt(secInputs["quotT"] || "0", 10) : 0;
-        const inQuotU = parseInt(secInputs["quotU"] || "0", 10);
+        const inDecH = hasDecH ? parseInt(secInputs["decH_val"] || "-1", 10) : 0;
+        const inDecT = hasDecT ? parseInt(secInputs["decT_val"] || "-1", 10) : 0;
+        const inDecU = parseInt(secInputs["decU_val"] || "-1", 10);
 
-        const expQuotH = Math.floor((h1 * 100) / num2);
-        const expQuotT = Math.floor((t1 * 10) / num2);
-        const expQuotU = Math.floor(u1 / num2);
-
-        const hOk = h1 === 0 || inQuotH === expQuotH;
-        const tOk = t1 === 0 || inQuotT === expQuotT;
-        const uOk = inQuotU === expQuotU;
+        const hOk = !hasDecH || inDecH === valH || inDecH === decH || inDecH === expQuotH;
+        const tOk = !hasDecT || inDecT === valT || inDecT === decT || inDecT === expQuotT;
+        const uOk = inDecU === valU || inDecU === expQuotU;
 
         isCorrect = hOk && tOk && uOk;
         if (!isCorrect) {
-          detectedErrorType = "SALAH_SECTION_2";
-          errorMessage = `Bagi setiap kelompok nilai tempat dengan ${num2} sama rata ya!`;
-          detectedErrorDetail = `Kekeliruan pembagian per nilai tempat.`;
-          detectedIntervention = "Gunakan balok untuk membagi rata nilai tempat ke kelompok pembagi.";
+          detectedErrorType = "SALAH_PECAH_NILAI";
+          errorMessage = `Urai bilangan ${decompNum} ke dalam ratusan (${valH}), puluhan (${valT}), dan satuan (${valU}) atau hasil bagi tiap bagiannya dengan tepat ya!`;
+          detectedErrorDetail = `Kekeliruan dalam mengisi nilai pecahan tempat atau hasil bagian bilangan ${decompNum}.`;
+          detectedIntervention = "Ajak siswa mengamati visual balok untuk mengenali ratusan, puluhan, dan satuan.";
         }
       } else if (secId === 3) {
-        const inCombined = parseInt(secInputs["combined"] || "0", 10);
+        const inCombined = parseInt(secInputs["combined"] || "-1", 10);
         isCorrect = inCombined === expectedFinalAnswer;
         if (!isCorrect) {
-          detectedErrorType = "SALAH_SECTION_3";
-          errorMessage = "Gabungkan hasil bagi untuk mendapatkan hasil bagi total!";
-          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil bagi tiap bagian.`;
+          detectedErrorType = "SALAH_GABUNG_HASIL";
+          errorMessage = "Gabungkan (jumlahkan) hasil bagi tiap bagian untuk mendapatkan hasil total!";
+          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil bagi tiap bagian. Ditulis ${inCombined}, seharusnya ${expectedFinalAnswer}.`;
           detectedIntervention = "Bimbing siswa menjumlahkan hasil bagi parsial.";
         }
       } else if (secId === 4) {
@@ -1029,197 +1063,238 @@ export default function PracticeCard({
                   </div>
                 </div>
               ) : (
-                /* Perkalian Bilangan Bersusun / Nilai Tempat (Panel 4 media_1788888132609.jpg) */
-                <div className="flex flex-col gap-3">
-                  <p className="text-xs sm:text-sm font-bold text-slate-600">
-                    Hitung hasil perkalian setiap bagian berikut:
-                  </p>
-                  <div className={`grid grid-cols-1 ${h1 > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
+                /* Perkalian: Tahap 2 - Pecah Nilai Tempat & Visual Balok */
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xs sm:text-sm font-bold text-slate-700">
+                      Pecah bilangan <span className="text-blue-700 font-black">{decompNum}</span> ke dalam ratusan, puluhan, dan satuan untuk dikalikan dengan <span className="text-rose-600 font-black">{multiplierNum}</span>:
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-semibold">
+                      Tuliskan pecahan nilai tempat pada kotak di bawah sesuai balok bantuan, lalu periksa!
+                    </p>
+                  </div>
+
+                  <div className={`grid grid-cols-1 ${hasDecH ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
                     {/* Kartu 1: Ratusan (jika ada) */}
-                    {h1 > 0 && (
+                    {hasDecH && (
                       <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
-                        <div className="px-3 py-1 bg-blue-100/90 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                          {h1 * 100} × {num2} = ?
+                        <div className="px-3.5 py-1.5 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                          {multiplierNum} × {valH}
                         </div>
                         {/* Visual Balok Ratusan */}
                         <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                          <div className={`flex flex-col items-center justify-center ${h1 > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
-                            {Array.from({ length: h1 }).map((_, i) => (
+                          <div className={`flex flex-col items-center justify-center ${decH > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
+                            {Array.from({ length: decH }).map((_, i) => (
                               <HundredFlat3D key={i} width={74} />
                             ))}
                           </div>
                           <span className="text-[10px] font-bold text-blue-600 font-fredoka mt-1">
-                            {h1} lempeng ratusan ({h1 * 100})
+                            {decH} lempeng ratusan ({valH})
                           </span>
                         </div>
-                        {/* Input Box */}
+                        {/* Input Pecahan Nilai Ratusan */}
                         <div className="flex flex-col items-center gap-1 w-full">
-                          <div className="flex items-center justify-center gap-2">
-                            <input
-                              type="text"
-                              data-field-key="partH"
-                              value={secInputs["partH"] || ""}
-                              onChange={(e) =>
-                                handleFieldInput("partH", e.target.value, t1 > 0 ? "partT" : "partU", String(expPartH).length)
-                              }
-                              onKeyDown={(e) => handleKeyDown(e, undefined, t1 > 0 ? "partT" : "partU")}
-                              placeholder="?"
-                              className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
-                            />
-                          </div>
+                          <span className="text-[11px] font-bold text-slate-600">Nilai Ratusan:</span>
+                          <input
+                            type="text"
+                            data-field-key="decH_val"
+                            value={secInputs["decH_val"] || ""}
+                            onChange={(e) =>
+                              handleFieldInput(
+                                "decH_val",
+                                e.target.value,
+                                hasDecT ? "decT_val" : "decU_val",
+                                0
+                              )
+                            }
+                            onKeyDown={(e) => handleKeyDown(e, undefined, hasDecT ? "decT_val" : "decU_val")}
+                            placeholder=""
+                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
+                          />
                         </div>
                       </div>
                     )}
 
                     {/* Kartu 2: Puluhan (jika ada) */}
-                    {t1 > 0 && (
+                    {hasDecT && (
                       <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
-                        <div className="px-3 py-1 bg-emerald-100/90 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                          {t1 * 10} × {num2} = ?
+                        <div className="px-3.5 py-1.5 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                          {multiplierNum} × {valT}
                         </div>
                         {/* Visual Balok Puluhan */}
                         <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
                           <div className="flex flex-wrap items-end justify-center gap-2">
-                            {Array.from({ length: t1 }).map((_, i) => (
+                            {Array.from({ length: decT }).map((_, i) => (
                               <TenRod3D key={i} height={82} />
                             ))}
                           </div>
                           <span className="text-[10px] font-bold text-emerald-600 font-fredoka">
-                            {t1} batang puluhan ({t1 * 10})
+                            {decT} batang puluhan ({valT})
                           </span>
                         </div>
-                        {/* Input Box */}
+                        {/* Input Pecahan Nilai Puluhan */}
                         <div className="flex flex-col items-center gap-1 w-full">
-                          <div className="flex items-center justify-center gap-2">
-                            <input
-                              type="text"
-                              data-field-key="partT"
-                              value={secInputs["partT"] || ""}
-                              onChange={(e) =>
-                                handleFieldInput("partT", e.target.value, "partU", String(expPartT).length)
-                              }
-                              onKeyDown={(e) => handleKeyDown(e, h1 > 0 ? "partH" : undefined, "partU")}
-                              placeholder="?"
-                              className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
-                            />
-                          </div>
+                          <span className="text-[11px] font-bold text-slate-600">Nilai Puluhan:</span>
+                          <input
+                            type="text"
+                            data-field-key="decT_val"
+                            value={secInputs["decT_val"] || ""}
+                            onChange={(e) =>
+                              handleFieldInput("decT_val", e.target.value, "decU_val", 0)
+                            }
+                            onKeyDown={(e) => handleKeyDown(e, hasDecH ? "decH_val" : undefined, "decU_val")}
+                            placeholder=""
+                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
+                          />
                         </div>
                       </div>
                     )}
 
                     {/* Kartu 3: Satuan */}
                     <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
-                      <div className="px-3 py-1 bg-amber-100/90 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                        {u1} × {num2} = ?
+                      <div className="px-3.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                        {multiplierNum} × {valU}
                       </div>
                       {/* Visual Balok Satuan */}
                       <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
                         <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
-                          {Array.from({ length: u1 }).map((_, i) => (
+                          {Array.from({ length: decU }).map((_, i) => (
                             <UnitCube3D key={i} size={18} />
                           ))}
                         </div>
                         <span className="text-[10px] font-bold text-amber-600 font-fredoka">
-                          {u1} kubus satuan
+                          {decU} kubus satuan ({valU})
                         </span>
                       </div>
-                      {/* Input Box */}
+                      {/* Input Pecahan Nilai Satuan */}
                       <div className="flex flex-col items-center gap-1 w-full">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="text"
-                            data-field-key="partU"
-                            value={secInputs["partU"] || ""}
-                            onChange={(e) =>
-                              handleFieldInput("partU", e.target.value, undefined, String(expPartU).length)
-                            }
-                            onKeyDown={(e) =>
-                              handleKeyDown(e, t1 > 0 ? "partT" : h1 > 0 ? "partH" : undefined)
-                            }
-                            placeholder="?"
-                            className="w-20 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
-                          />
-                        </div>
+                        <span className="text-[11px] font-bold text-slate-600">Nilai Satuan:</span>
+                        <input
+                          type="text"
+                          data-field-key="decU_val"
+                          value={secInputs["decU_val"] || ""}
+                          onChange={(e) =>
+                            handleFieldInput("decU_val", e.target.value, undefined, 0)
+                          }
+                          onKeyDown={(e) =>
+                            handleKeyDown(e, hasDecT ? "decT_val" : hasDecH ? "decH_val" : undefined)
+                          }
+                          placeholder=""
+                          className="w-20 sm:w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
+                        />
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Ringkasan Bentuk Pemecahan */}
+                  <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-emerald-50/80 border-2 border-indigo-200/80 rounded-2xl p-3.5 text-center shadow-2xs">
+                    <span className="text-xs font-black text-indigo-900 font-fredoka block mb-1">
+                      Bentuk Pemecahan Perkalian (Sifat Distributif):
+                    </span>
+                    <div className="text-xs sm:text-sm font-black text-slate-800 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
+                      <span>{num1} × {num2}</span>
+                      <span>=</span>
+                      {hasDecH && (
+                        <>
+                          <span>({multiplierNum} × <span className="text-blue-700 underline font-black">{valH}</span>)</span>
+                          <span>+</span>
+                        </>
+                      )}
+                      {hasDecT && (
+                        <>
+                          <span>({multiplierNum} × <span className="text-emerald-700 underline font-black">{valT}</span>)</span>
+                          <span>+</span>
+                        </>
+                      )}
+                      <span>({multiplierNum} × <span className="text-amber-700 underline font-black">{valU}</span>)</span>
                     </div>
                   </div>
                 </div>
               )
             ) : currentOp === "÷" ? (
-              /* B. OPERASI PEMBAGIAN (÷) (Panel 8 media_1788888132609.jpg) */
-              <div className="flex flex-col gap-3">
-                <p className="text-xs sm:text-sm font-bold text-slate-600">
-                  Ayo lengkapi hasil pembagian setiap bagian berikut:
-                </p>
-                <div className={`grid grid-cols-1 ${h1 > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
+              /* Pembagian: Tahap 2 - Pecah Nilai Tempat & Visual Balok */
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs sm:text-sm font-bold text-slate-700">
+                    Pecah bilangan <span className="text-purple-700 font-black">{decompNum}</span> ke dalam ratusan, puluhan, dan satuan untuk dibagi dengan <span className="text-slate-900 font-black">{multiplierNum}</span>:
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    Tuliskan pecahan nilai tempat pada kotak di bawah sesuai balok bantuan, lalu periksa!
+                  </p>
+                </div>
+
+                <div className={`grid grid-cols-1 ${hasDecH ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
                   {/* Kartu 1: Ratusan (jika ada) */}
-                  {h1 > 0 && (
+                  {hasDecH && (
                     <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
                       <div className="px-3 py-1 bg-blue-100/90 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                        {h1 * 100} ÷ {num2} = ?
+                        {valH} ÷ {multiplierNum}
                       </div>
                       {/* Visual Balok Ratusan */}
                       <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                        <div className={`flex flex-col items-center justify-center ${h1 > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
-                          {Array.from({ length: h1 }).map((_, i) => (
+                        <div className={`flex flex-col items-center justify-center ${decH > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
+                          {Array.from({ length: decH }).map((_, i) => (
                             <HundredFlat3D key={i} width={74} />
                           ))}
                         </div>
                         <span className="text-[10px] font-bold text-blue-600 font-fredoka mt-1">
-                          {h1} lempeng ratusan ({h1 * 100})
+                          {decH} lempeng ratusan ({valH})
                         </span>
                       </div>
-                      {/* Input Box */}
+                      {/* Input Pecahan Nilai Ratusan */}
                       <div className="flex flex-col items-center gap-1 w-full">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="text"
-                            data-field-key="quotH"
-                            value={secInputs["quotH"] || ""}
-                            onChange={(e) =>
-                              handleFieldInput("quotH", e.target.value, t1 > 0 ? "quotT" : "quotU", String(expQuotH).length)
-                            }
-                            onKeyDown={(e) => handleKeyDown(e, undefined, t1 > 0 ? "quotT" : "quotU")}
-                            placeholder="?"
-                            className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
-                          />
-                        </div>
+                        <span className="text-[11px] font-bold text-slate-600">Nilai Ratusan:</span>
+                        <input
+                          type="text"
+                          data-field-key="decH_val"
+                          value={secInputs["decH_val"] || ""}
+                          onChange={(e) =>
+                            handleFieldInput(
+                              "decH_val",
+                              e.target.value,
+                              hasDecT ? "decT_val" : "decU_val",
+                              0
+                            )
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, undefined, hasDecT ? "decT_val" : "decU_val")}
+                          placeholder=""
+                          className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
+                        />
                       </div>
                     </div>
                   )}
 
                   {/* Kartu 2: Puluhan (jika ada) */}
-                  {t1 > 0 && (
+                  {hasDecT && (
                     <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
                       <div className="px-3 py-1 bg-emerald-100/90 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                        {t1 * 10} ÷ {num2} = ?
+                        {valT} ÷ {multiplierNum}
                       </div>
                       {/* Visual Balok Puluhan */}
                       <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
                         <div className="flex flex-wrap items-end justify-center gap-2">
-                          {Array.from({ length: t1 }).map((_, i) => (
+                          {Array.from({ length: decT }).map((_, i) => (
                             <TenRod3D key={i} height={82} />
                           ))}
                         </div>
                         <span className="text-[10px] font-bold text-emerald-600 font-fredoka">
-                          {t1} batang puluhan ({t1 * 10})
+                          {decT} batang puluhan ({valT})
                         </span>
                       </div>
-                      {/* Input Box */}
+                      {/* Input Pecahan Nilai Puluhan */}
                       <div className="flex flex-col items-center gap-1 w-full">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="text"
-                            data-field-key="quotT"
-                            value={secInputs["quotT"] || ""}
-                            onChange={(e) =>
-                              handleFieldInput("quotT", e.target.value, "quotU", String(expQuotT).length)
-                            }
-                            onKeyDown={(e) => handleKeyDown(e, h1 > 0 ? "quotH" : undefined, "quotU")}
-                            placeholder="?"
-                            className="w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
-                          />
-                        </div>
+                        <span className="text-[11px] font-bold text-slate-600">Nilai Puluhan:</span>
+                        <input
+                          type="text"
+                          data-field-key="decT_val"
+                          value={secInputs["decT_val"] || ""}
+                          onChange={(e) =>
+                            handleFieldInput("decT_val", e.target.value, "decU_val", 0)
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, hasDecH ? "decH_val" : undefined, "decU_val")}
+                          placeholder=""
+                          className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
+                        />
                       </div>
                     </div>
                   )}
@@ -1227,37 +1302,60 @@ export default function PracticeCard({
                   {/* Kartu 3: Satuan */}
                   <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
                     <div className="px-3 py-1 bg-amber-100/90 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                      {u1} ÷ {num2} = ?
+                      {valU} ÷ {multiplierNum}
                     </div>
                     {/* Visual Balok Satuan */}
                     <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
                       <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
-                        {Array.from({ length: u1 }).map((_, i) => (
+                        {Array.from({ length: decU }).map((_, i) => (
                           <UnitCube3D key={i} size={18} />
                         ))}
                       </div>
                       <span className="text-[10px] font-bold text-amber-600 font-fredoka">
-                        {u1} kubus satuan
+                        {decU} kubus satuan ({valU})
                       </span>
                     </div>
-                    {/* Input Box */}
+                    {/* Input Pecahan Nilai Satuan */}
                     <div className="flex flex-col items-center gap-1 w-full">
-                      <div className="flex items-center justify-center gap-2">
-                        <input
-                          type="text"
-                          data-field-key="quotU"
-                          value={secInputs["quotU"] || ""}
-                          onChange={(e) =>
-                            handleFieldInput("quotU", e.target.value, undefined, String(expQuotU).length)
-                          }
-                          onKeyDown={(e) =>
-                            handleKeyDown(e, t1 > 0 ? "quotT" : h1 > 0 ? "quotH" : undefined)
-                          }
-                          placeholder="?"
-                          className="w-20 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
-                        />
-                      </div>
+                      <span className="text-[11px] font-bold text-slate-600">Nilai Satuan:</span>
+                      <input
+                        type="text"
+                        data-field-key="decU_val"
+                        value={secInputs["decU_val"] || ""}
+                        onChange={(e) =>
+                          handleFieldInput("decU_val", e.target.value, undefined, 0)
+                        }
+                        onKeyDown={(e) =>
+                          handleKeyDown(e, hasDecT ? "decT_val" : hasDecH ? "decH_val" : undefined)
+                        }
+                        placeholder=""
+                        className="w-20 sm:w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
+                      />
                     </div>
+                  </div>
+                </div>
+
+                {/* Ringkasan Bentuk Pemecahan Pembagian */}
+                <div className="bg-gradient-to-r from-purple-50/80 via-indigo-50/70 to-blue-50/80 border-2 border-purple-200/80 rounded-2xl p-3.5 text-center shadow-2xs">
+                  <span className="text-xs font-black text-purple-900 font-fredoka block mb-1">
+                    Bentuk Pemecahan Pembagian:
+                  </span>
+                  <div className="text-xs sm:text-sm font-black text-slate-800 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
+                    <span>{num1} ÷ {num2}</span>
+                    <span>=</span>
+                    {hasDecH && (
+                      <>
+                        <span>(<span className="text-blue-700 underline font-black">{valH}</span> ÷ {multiplierNum})</span>
+                        <span>+</span>
+                      </>
+                    )}
+                    {hasDecT && (
+                      <>
+                        <span>(<span className="text-emerald-700 underline font-black">{valT}</span> ÷ {multiplierNum})</span>
+                        <span>+</span>
+                      </>
+                    )}
+                    <span>(<span className="text-amber-700 underline font-black">{valU}</span> ÷ {multiplierNum})</span>
                   </div>
                 </div>
               </div>
@@ -1748,67 +1846,86 @@ export default function PracticeCard({
                 </div>
               </div>
             ) : (
-              /* C. PERKALIAN (×) & PEMBAGIAN (÷) : GABUNGKAN HASIL */
-              <div className="flex flex-col items-center gap-3">
-                <p className="text-xs sm:text-sm font-bold text-slate-600 text-center">
-                  Sekarang, gabungkan semua hasil bagian di atas:
-                </p>
-
-                {/* Top Row: Kartu-kartu pecahan hasil dari Tahap 2 */}
-                <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
-                  {h1 > 0 && (
-                    <>
-                      <div className="px-4 py-2 rounded-2xl bg-blue-100 border-2 border-blue-300 text-blue-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
-                        {currentOp === "×"
-                          ? secInputs["partH"] || expPartH
-                          : secInputs["quotH"] || expQuotH}
-                      </div>
-                      <span className="text-xl font-black text-slate-400">+</span>
-                    </>
-                  )}
-
-                  {t1 > 0 && (
-                    <>
-                      <div className="px-4 py-2 rounded-2xl bg-emerald-100 border-2 border-emerald-300 text-emerald-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
-                        {currentOp === "×"
-                          ? secInputs["partT"] || expPartT
-                          : secInputs["quotT"] || expQuotT}
-                      </div>
-                      <span className="text-xl font-black text-slate-400">+</span>
-                    </>
-                  )}
-
-                  <div className="px-4 py-2 rounded-2xl bg-amber-100 border-2 border-amber-300 text-amber-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[70px] text-center">
+              /* C. PERKALIAN (×) & PEMBAGIAN (÷) : GABUNGKAN HASIL PECAHAN */
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs sm:text-sm font-bold text-slate-700">
                     {currentOp === "×"
-                      ? secInputs["partU"] || expPartU
-                      : secInputs["quotU"] || expQuotU}
-                  </div>
+                      ? "Gabungkan (jumlahkan) semua hasil perkalian bagian di bawah ini:"
+                      : "Gabungkan (jumlahkan) semua hasil pembagian bagian di bawah ini:"}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    Jumlahkan hasil setiap pecahan untuk mendapatkan jawaban keseluruhan!
+                  </p>
                 </div>
 
-                {/* Curly Bracket SVG Menunjuk ke Bawah */}
-                <svg className="w-56 h-6 text-rose-300" viewBox="0 0 200 24" fill="none">
-                  <path
-                    d="M 10 2 Q 10 14 50 14 L 90 14 Q 100 14 100 22 Q 100 14 110 14 L 150 14 Q 190 14 190 2"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                {/* Bagian Gabungkan Hasil Perhitungan */}
+                <div className="flex flex-col items-center gap-4 bg-slate-50/80 border-2 border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-2xs">
+                  {/* Top Row: Nilai-nilai bagian */}
+                  <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
+                    {hasDecH && (
+                      <>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[11px] font-bold text-blue-700 font-fredoka">
+                            {currentOp === "×" ? `${multiplierNum} × ${valH}` : `${valH} ÷ ${multiplierNum}`}
+                          </span>
+                          <div className="px-4 py-2 rounded-2xl bg-blue-100 border-2 border-blue-300 text-blue-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[75px] text-center">
+                            {currentOp === "×" ? expPartH : expQuotH}
+                          </div>
+                        </div>
+                        <span className="text-xl font-black text-slate-400 mt-5">+</span>
+                      </>
+                    )}
 
-                {/* Big Pink Combined Input Box dengan Placeholder Hasil Perhitungan Sebelumnya */}
-                <div className="flex flex-col items-center gap-2">
-                  <input
-                    type="text"
-                    data-field-key="combined"
-                    value={secInputs["combined"] || ""}
-                    onChange={(e) => handleFieldInput("combined", e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e)}
-                    placeholder={combinedPlaceholder}
-                    className="w-48 sm:w-60 h-14 text-center font-black text-xl sm:text-2xl font-fredoka bg-rose-100/90 border-3 border-rose-300 text-rose-950 rounded-2xl focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-200 outline-none transition shadow-xs placeholder:text-rose-400/80"
-                  />
-                  <span className="text-xs sm:text-sm font-black text-slate-700 font-fredoka">
-                    Jadi, {num1} {opSymbol} {num2} = ?
-                  </span>
+                    {hasDecT && (
+                      <>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[11px] font-bold text-emerald-700 font-fredoka">
+                            {currentOp === "×" ? `${multiplierNum} × ${valT}` : `${valT} ÷ ${multiplierNum}`}
+                          </span>
+                          <div className="px-4 py-2 rounded-2xl bg-emerald-100 border-2 border-emerald-300 text-emerald-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[75px] text-center">
+                            {currentOp === "×" ? expPartT : expQuotT}
+                          </div>
+                        </div>
+                        <span className="text-xl font-black text-slate-400 mt-5">+</span>
+                      </>
+                    )}
+
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-bold text-amber-700 font-fredoka">
+                        {currentOp === "×" ? `${multiplierNum} × ${valU}` : `${valU} ÷ ${multiplierNum}`}
+                      </span>
+                      <div className="px-4 py-2 rounded-2xl bg-amber-100 border-2 border-amber-300 text-amber-900 font-fredoka font-black text-lg sm:text-xl shadow-2xs min-w-[75px] text-center">
+                        {currentOp === "×" ? expPartU : expQuotU}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Curly Bracket SVG Menunjuk ke Bawah */}
+                  <svg className="w-56 h-6 text-rose-300" viewBox="0 0 200 24" fill="none">
+                    <path
+                      d="M 10 2 Q 10 14 50 14 L 90 14 Q 100 14 100 22 Q 100 14 110 14 L 150 14 Q 190 14 190 2"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+
+                  {/* Big Pink Combined Input Box */}
+                  <div className="flex flex-col items-center gap-2">
+                    <input
+                      type="text"
+                      data-field-key="combined"
+                      value={secInputs["combined"] || ""}
+                      onChange={(e) => handleFieldInput("combined", e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e)}
+                      placeholder="?"
+                      className="w-48 sm:w-60 h-14 text-center font-black text-xl sm:text-2xl font-fredoka bg-rose-100/90 border-3 border-rose-300 text-rose-950 rounded-2xl focus:border-rose-500 focus:bg-white focus:ring-4 focus:ring-rose-200 outline-none transition shadow-xs placeholder:text-rose-400/80"
+                    />
+                    <span className="text-xs sm:text-sm font-black text-slate-700 font-fredoka">
+                      Jadi, {num1} {opSymbol} {num2} = ?
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

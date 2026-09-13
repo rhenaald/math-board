@@ -362,17 +362,17 @@ export function getSectionNamesForOp(
   // Multi-digit (Puluhan / Ratusan / Ribuan)
   if (op === "×") {
     return [
-      { id: 1, title: "Pahami & Pecah Nilai", subtitle: "Urai bilangan ke ratusan/puluhan/satuan" },
-      { id: 2, title: "Hitung Setiap Bagian (Visual Balok)", subtitle: "Perkalian tiap nilai tempat dengan balok" },
-      { id: 3, title: "Gabungkan Hasil Perkalian", subtitle: "Menjumlahkan hasil bagian" },
+      { id: 1, title: "Papan Susun Nilai Tempat", subtitle: "Susun bilangan ke kolom ratusan, puluhan, satuan" },
+      { id: 2, title: "Pecah Nilai & Visual Balok", subtitle: "Urai bentuk perkalian dengan visual balok" },
+      { id: 3, title: "Gabungkan Hasil Pecahan", subtitle: "Jumlahkan hasil dari setiap bagian nilai tempat" },
       { id: 4, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil akhir keseluruhan" },
     ];
   }
   if (op === "÷") {
     return [
-      { id: 1, title: "Urai Nilai Tempat", subtitle: "Pecah bilangan menjadi ratusan, puluhan, satuan" },
-      { id: 2, title: "Bagi per Nilai Tempat", subtitle: "Bagi setiap kelompok bagian sama rata" },
-      { id: 3, title: "Gabungkan Hasil Bagi", subtitle: "Jumlahkan hasil bagi per kelompok" },
+      { id: 1, title: "Papan Susun Nilai Tempat", subtitle: "Susun bilangan ke kolom ratusan, puluhan, satuan" },
+      { id: 2, title: "Pecah Nilai & Visual Balok", subtitle: "Urai bilangan yang dibagi dengan visual balok" },
+      { id: 3, title: "Gabungkan Hasil Bagi", subtitle: "Jumlahkan hasil bagi dari setiap bagian" },
       { id: 4, title: "Cek Perkalian Kebalikan", subtitle: "Buktikan dengan perkalian" },
     ];
   }
