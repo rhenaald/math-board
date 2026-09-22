@@ -10,12 +10,15 @@ import SettingsPanel from "@/components/SettingsPanel";
 import TopNavbar from "@/components/TopNavbar";
 import PracticeCard from "@/components/PracticeCard";
 import RightHelperPanel from "@/components/RightHelperPanel";
-import LeftSidebarNav from "@/components/LeftSidebarNav";
+import LeftSidebarNav, { NavTab } from "@/components/LeftSidebarNav";
 import { BoyMascotVector } from "@/components/ChildMascots";
 import ConceptLearningModal from "@/components/ConceptLearningModal";
 import GuidedLearningFlow from "@/components/GuidedLearningFlow";
 import StudentProfileView from "@/components/StudentProfileView";
 import MultiLevelHelpModal from "@/components/MultiLevelHelpModal";
+import ExampleProblemsPage from "@/components/ExampleProblemsPage";
+import DigitSelectionPage from "@/components/DigitSelectionPage";
+import NameInputScreen from "@/components/NameInputScreen";
 
 // Error Diagnostics Engine
 import {
@@ -60,10 +63,10 @@ const COMBO_LABELS: Record<string, { code: string; label: string }> = {
 export default function Home() {
   // USER & SETUP STATE (Mulai dengan wizard pengaturan nama, operasi, dan satuan)
   const [currentUser, setCurrentUser] = useState<string>("");
-  const [isSetupOpen, setIsSetupOpen] = useState<boolean>(true);
+  const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
-  const [activeNav, setActiveNav] = useState<"beranda" | "belajar" | "latihan" | "profil">("latihan");
+  const [activeNav, setActiveNav] = useState<NavTab>("belajar");
   const [isMultiLevelHelpOpen, setIsMultiLevelHelpOpen] = useState<boolean>(false);
 
   // PRACTICE CONFIGURATION
@@ -112,15 +115,17 @@ export default function Home() {
       if (savedName && savedName.trim()) {
         setTimeout(() => {
           setCurrentUser(savedName.trim());
-          setIsSetupOpen(false);
+          setIsNameModalOpen(false);
         }, 0);
+      } else {
+        setIsNameModalOpen(true);
       }
     }
   }, []);
 
   // Tick timer while student is active in practice
   useEffect(() => {
-    if (!isSetupOpen && !showSummaryModal) {
+    if (!isNameModalOpen && !showSummaryModal) {
       timerRef.current = setInterval(() => {
         setQuestionSecondsElapsed((prev) => prev + 1);
         setTotalSessionSeconds((prev) => prev + 1);
@@ -134,7 +139,7 @@ export default function Home() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isSetupOpen, showSummaryModal]);
+  }, [isNameModalOpen, showSummaryModal]);
 
   // Audio Synthesizer
   const playSound = (type: "success" | "error" | "fanfare") => {
@@ -334,7 +339,18 @@ export default function Home() {
     setCorrectAnswer(correct);
   };
 
-  // Completion from Setup Wizard
+  // Completion from Name Input Screen
+  const handleNameSubmitted = (name: string) => {
+    const finalName = name.trim() || "Dika";
+    setCurrentUser(finalName);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mathboard_student_name", finalName);
+    }
+    setIsNameModalOpen(false);
+    setActiveNav("belajar");
+  };
+
+  // Completion from Setup Wizard / Digit Selection
   const handleCompleteSetup = (name: string, op: OperationType, combo: string) => {
     const finalName = name.trim() || "Dika";
     setCurrentUser(finalName);
@@ -343,7 +359,7 @@ export default function Home() {
     }
     setSelectedOp(op);
     setPlaceValueCombo(combo);
-    setIsSetupOpen(false);
+    setIsNameModalOpen(false);
     setActiveNav("latihan");
     generateProblem(op, combo, focusOption);
   };
@@ -572,7 +588,7 @@ export default function Home() {
     setScore(0);
     setStreak(0);
     setTotalSessionSeconds(0);
-    setIsSetupOpen(true);
+    setIsNameModalOpen(true);
   };
 
   const formatTimer = (totalSeconds: number) => {
@@ -594,13 +610,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen text-slate-800 flex flex-col p-2.5 sm:p-4 md:p-6 gap-3.5 max-w-[1550px] mx-auto w-full">
-      {/* 3-STEP SETUP WIZARD (JIKA MEMBUKA PENGATURAN AWAL) */}
-      {isSetupOpen && (
-        <SetupWizard
+      {/* 1. INPUT NAMA SCREEN / MODAL (JIKA BELUM MEMASUKKAN NAMA) */}
+      {isNameModalOpen && (
+        <NameInputScreen
           initialName={currentUser}
-          initialOp={selectedOp}
-          initialCombo={placeValueCombo}
-          onComplete={handleCompleteSetup}
+          onSubmitted={handleNameSubmitted}
         />
       )}
 
@@ -614,7 +628,7 @@ export default function Home() {
         level={Math.floor(score / 30) + 1}
         onNavigateHome={() => setActiveNav("beranda")}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onLogout={() => setIsSetupOpen(true)}
+        onLogout={() => setIsNameModalOpen(true)}
       />
 
       {/* 2. KONTEN UTAMA */}
@@ -841,20 +855,29 @@ export default function Home() {
           </main>
         )}
 
-        {/* MODE BELAJAR (Guided Step-by-Step CPA Flow) */}
+        {/* MODE CONTOH SOAL (BAHAN BELAJAR MANDIRI ANAK - HALAMAN PENUH) */}
         {activeNav === "belajar" && (
-          <main className="flex-1 w-full min-w-0">
-            <GuidedLearningFlow
-              initialOp={currentOp}
-              onBackToHome={() => setActiveNav("beranda")}
-              onFinish={() => setActiveNav("latihan")}
-              onGoToPractice={(op) => {
-                setSelectedOp(op);
-                generateProblem(op, placeValueCombo, focusOption);
-                setActiveNav("latihan");
-              }}
-            />
-          </main>
+          <ExampleProblemsPage
+            studentName={currentUser || "Teman"}
+            initialOp={selectedOp === "mix" ? "+" : (selectedOp as "+" | "-" | "×" | "÷")}
+            onGoToDigitSelection={(op) => {
+              if (op) setSelectedOp(op);
+              setActiveNav("pilih-digit");
+            }}
+            onGoToHome={() => setActiveNav("beranda")}
+          />
+        )}
+
+        {/* MODE PILIH DIGIT & OPERASI (HALAMAN PENUH) */}
+        {activeNav === "pilih-digit" && (
+          <DigitSelectionPage
+            initialOp={selectedOp}
+            initialCombo={placeValueCombo}
+            onStartPractice={(op, combo) => {
+              handleCompleteSetup(currentUser, op, combo);
+            }}
+            onBackToExamples={() => setActiveNav("belajar")}
+          />
         )}
 
         {/* MODE PROFIL BELAJARKU (Gambar 1 Step 10) */}
@@ -977,7 +1000,7 @@ export default function Home() {
               onSaveAndFinishSession={handleSaveSession}
               onChangeSetup={() => {
                 setIsSettingsModalOpen(false);
-                setIsSetupOpen(true);
+                setIsNameModalOpen(true);
               }}
               onCloseSidebar={() => setIsSettingsModalOpen(false)}
               formatTimer={formatTimer}
