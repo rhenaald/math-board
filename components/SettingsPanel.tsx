@@ -161,14 +161,15 @@ export default function SettingsPanel({
           onChange={(e) => onComboChange(e.target.value)}
           className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-xs rounded-xl p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition cursor-pointer"
         >
+          <option value="ALL">🎲 Acak Semua Digit (Campuran)</option>
+          <option value="R-P">RP – Ratusan & Puluhan</option>
+          <option value="P-S">PS – Puluhan & Satuan</option>
+          <option value="P-P">PP – Puluhan & Puluhan</option>
+          <option value="R-S">RS – Ratusan & Satuan</option>
           <option value="S-S">SS – Satuan & Satuan</option>
           <option value="S-P">SP – Satuan & Puluhan</option>
           <option value="S-R">SR – Satuan & Ratusan</option>
-          <option value="P-S">PS – Puluhan & Satuan</option>
-          <option value="P-P">PP – Puluhan & Puluhan</option>
           <option value="P-R">PR – Puluhan & Ratusan</option>
-          <option value="R-S">RS – Ratusan & Satuan</option>
-          <option value="R-P">RP – Ratusan & Puluhan</option>
           <option value="R-R">RR – Ratusan & Ratusan</option>
         </select>
       </div>

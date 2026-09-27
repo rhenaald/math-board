@@ -288,10 +288,11 @@ export function generateSessionSummary(
     LUPA_SIMPAN_KALI: "Lupa Simpan Perkalian",
     MELIHAT_KELIPATAN_DEKAT: "Meleset Kelipatan",
     SALAH_HITUNG_UMUM: "Kekeliruan Hitung Umum",
-    SALAH_SECTION_1: "Kendala Tahap 1 (Susun Nilai Tempat)",
-    SALAH_SECTION_2: "Kendala Tahap 2 (Satuan / Simpanan)",
-    SALAH_SECTION_3: "Kendala Tahap 3 (Puluhan / Simpanan)",
-    SALAH_SECTION_4: "Kendala Tahap 4 (Hasil Akhir)"
+    SALAH_POROGAPIT: "Kendala Porogapit Pengurangan Berulang",
+    SALAH_SECTION_1: "Kendala Tahap 1 (Susun Nilai Tempat / Porogapit)",
+    SALAH_SECTION_2: "Kendala Tahap 2 (Satuan / Pengurangan Berulang)",
+    SALAH_SECTION_3: "Kendala Tahap 3 (Puluhan / Turunkan Digit)",
+    SALAH_SECTION_4: "Kendala Tahap 4 (Hasil Akhir / Pembuktian)"
   };
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -370,10 +371,10 @@ export function getSectionNamesForOp(
   }
   if (op === "÷") {
     return [
-      { id: 1, title: "Papan Susun Nilai Tempat", subtitle: "Susun bilangan ke kolom ratusan, puluhan, satuan" },
-      { id: 2, title: "Pecah Nilai & Visual Balok", subtitle: "Urai bilangan yang dibagi dengan visual balok" },
-      { id: 3, title: "Gabungkan Hasil Bagi", subtitle: "Jumlahkan hasil bagi dari setiap bagian" },
-      { id: 4, title: "Cek Perkalian Kebalikan", subtitle: "Buktikan dengan perkalian" },
+      { id: 1, title: "Susun Papan Porogapit", subtitle: "Tentukan pembagi, bilangan, dan kelompok angka awal" },
+      { id: 2, title: "Tangga Pengurangan Berulang", subtitle: "Kurangkan angka dengan pembagi berulang kali" },
+      { id: 3, title: "Turunkan Angka / Desimal", subtitle: "Turunkan digit berikutnya atau pasang koma jika bersisa" },
+      { id: 4, title: "Susun Hasil Akhir", subtitle: "Rangkum digit dari hasil pengurangan sebelumnya" },
     ];
   }
   if (op === "-") {

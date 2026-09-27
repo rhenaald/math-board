@@ -135,8 +135,7 @@ export default function MultiLevelHelpModal({
     // 2. PEMBAGIAN (÷)
     // -----------------------------------------------------------------------
     if (operation === "÷") {
-      const partNum = num1 >= 10 ? Math.floor(num1 / 10) * 10 : num1;
-      const expectedAns = Math.floor(num1 / num2);
+      const quotientStr = (num1 / num2).toString().replace(".", ",");
 
       return (
         <div className="flex flex-col items-center gap-4">
@@ -146,10 +145,12 @@ export default function MultiLevelHelpModal({
 
           {activeLevel === 1 && (
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl text-slate-700 text-xs sm:text-sm w-full space-y-2">
-              <p className="font-black text-blue-900">💡 Bantuan Level 1 – Petunjuk Awal:</p>
-              <p>Perhatikan nilai tempatnya! Bilangan {num1} diurai menjadi ratusan, puluhan, dan satuan.</p>
+              <p className="font-black text-blue-900">💡 Bantuan Level 1 – Konsep Pengurangan Berulang:</p>
+              <p>
+                Pembagian pada hakikatnya adalah <strong>pengurangan berulang</strong> sampai habis atau tidak bisa dikurangi lagi.
+              </p>
               <p className="font-semibold text-blue-800">
-                Bagi setiap bagian mulai dari nilai tempat terbesar dengan angka {num2}.
+                Susun ke kurung porogapit: tulis {num2} di luar dan {num1} di dalam kurung.
               </p>
             </div>
           )}
@@ -157,25 +158,16 @@ export default function MultiLevelHelpModal({
           {activeLevel === 2 && (
             <div className="flex flex-col items-center gap-3 w-full bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl">
               <p className="text-xs sm:text-sm font-black text-emerald-900">
-                📦 Bantuan Level 2 – Representasi Visual Membagi Balok:
+                📦 Bantuan Level 2 – Tangga Pengurangan Berulang Porogapit:
               </p>
-              <div className="flex items-center gap-3 sm:gap-4 p-3 bg-white rounded-2xl border border-emerald-100">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-16 bg-emerald-500 rounded border border-emerald-600" />
-                  <div className="w-5 h-16 bg-emerald-500 rounded border border-emerald-600" />
-                </div>
-                <span className="text-lg font-black text-emerald-600">➔</span>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-2 border-2 border-dashed border-emerald-400 rounded-xl bg-emerald-50 text-center text-xs font-black text-emerald-800">
-                    Grup 1<br/>{Math.floor(partNum / num2)}
-                  </div>
-                  <div className="p-2 border-2 border-dashed border-emerald-400 rounded-xl bg-emerald-50 text-center text-xs font-black text-emerald-800">
-                    Grup 2<br/>{Math.floor(partNum / num2)}
-                  </div>
-                </div>
+              <div className="p-3 bg-white rounded-2xl border border-emerald-200 text-center text-xs font-mono font-bold text-emerald-900 w-full max-w-sm">
+                <p className="text-slate-500 font-sans text-[11px] mb-1">Kurangkan bertingkat:</p>
+                <p>Ambil kelompok angka &ge; {num2}</p>
+                <p>Kurangkan dengan {num2} terus-menerus!</p>
+                <p className="text-purple-700 font-black mt-1">Hitung berapa kali pengurangan = Digit hasil bagi!</p>
               </div>
               <p className="text-xs font-bold text-emerald-800 text-center">
-                Membagi {partNum} ke dalam {num2} kelompok menghasilkan {Math.floor(partNum / num2)} per kelompok.
+                Jika sisa angka habis tetapi masih ada sisa, beri koma (,) di atas dan pinjam 0.
               </p>
             </div>
           )}
@@ -184,12 +176,10 @@ export default function MultiLevelHelpModal({
             <div className="flex flex-col gap-2.5 w-full bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs sm:text-sm text-slate-800">
               <p className="font-black text-amber-900">📝 Bantuan Level 3 – Penjelasan Langkah Terurai:</p>
               <ol className="list-decimal pl-5 space-y-1 font-medium">
-                {h1 > 0 && <li>Bagi ratusan: {h1 * 100} ÷ {num2} = {Math.floor((h1 * 100) / num2)}.</li>}
-                {t1 > 0 && <li>Bagi puluhan: {t1 * 10} ÷ {num2} = {Math.floor((t1 * 10) / num2)}.</li>}
-                {u1 > 0 && <li>Bagi satuan: {u1} ÷ {num2} = {Math.floor(u1 / num2)}.</li>}
-                <li className="font-bold text-amber-950">
-                  Gabungkan hasil: {h1 > 0 ? `${Math.floor((h1 * 100) / num2)} + ` : ""}{Math.floor((t1 * 10) / num2)} + {Math.floor(u1 / num2)} = {expectedAns}.
-                </li>
+                <li>Ambil digit awal dari bilangan {num1} yang cukup dikurangi dengan {num2}.</li>
+                <li>Lakukan pengurangan bertingkat dengan angka {num2} sampai sisanya &lt; {num2}.</li>
+                <li>Tuliskan jumlah kali pengurangan sebagai digit hasil di atas kurung porogapit.</li>
+                <li>Turunkan digit berikutnya dari {num1} atau beri tanda koma (,) dan tambahkan 0 jika desimal.</li>
               </ol>
             </div>
           )}
@@ -197,9 +187,9 @@ export default function MultiLevelHelpModal({
           {activeLevel === 4 && (
             <div className="flex flex-col gap-2 w-full bg-purple-50 border border-purple-200 p-4 rounded-2xl text-xs sm:text-sm">
               <p className="font-black text-purple-900">🎯 Bantuan Level 4 – Contoh Lengkap & Cek Balik:</p>
-              <p>Hasil pembagian dari {num1} ÷ {num2} adalah <strong>{expectedAns}</strong>.</p>
+              <p>Hasil pembagian dari {num1} ÷ {num2} adalah <strong>{quotientStr}</strong>.</p>
               <p className="font-mono font-black text-purple-800 text-center py-2.5 bg-white rounded-xl border border-purple-100 text-sm">
-                Cek Balik: {expectedAns} × {num2} = {num1} (Terbukti Benar!)
+                Cek Balik: {quotientStr} × {num2} = {num1} (Terbukti Benar!)
               </p>
             </div>
           )}

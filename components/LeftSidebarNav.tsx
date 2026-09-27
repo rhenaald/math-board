@@ -81,14 +81,15 @@ export default function LeftSidebarNav({
   ];
 
   const digitCombinations = [
+    { id: "ALL", code: "Semua", label: "🎲 Acak Semua Digit", desc: "Campuran otomatis" },
+    { id: "R-P", code: "RP", label: "Ratusan & Puluhan", desc: "Ratusan & Puluhan" },
+    { id: "P-S", code: "PS", label: "Puluhan & Satuan", desc: "Puluhan & Satuan" },
+    { id: "P-P", code: "PP", label: "Puluhan & Puluhan", desc: "Puluhan & Puluhan" },
+    { id: "R-S", code: "RS", label: "Ratusan & Satuan", desc: "Ratusan & Satuan" },
     { id: "S-S", code: "SS", label: "Satuan & Satuan", desc: "Satuan & Satuan" },
     { id: "S-P", code: "SP", label: "Satuan & Puluhan", desc: "Satuan & Puluhan" },
     { id: "S-R", code: "SR", label: "Satuan & Ratusan", desc: "Satuan & Ratusan" },
-    { id: "P-S", code: "PS", label: "Puluhan & Satuan", desc: "Puluhan & Satuan" },
-    { id: "P-P", code: "PP", label: "Puluhan & Puluhan", desc: "Puluhan & Puluhan" },
     { id: "P-R", code: "PR", label: "Puluhan & Ratusan", desc: "Puluhan & Ratusan" },
-    { id: "R-S", code: "RS", label: "Ratusan & Satuan", desc: "Ratusan & Satuan" },
-    { id: "R-P", code: "RP", label: "Ratusan & Puluhan", desc: "Ratusan & Puluhan" },
     { id: "R-R", code: "RR", label: "Ratusan & Ratusan", desc: "Ratusan & Ratusan" },
   ];
 

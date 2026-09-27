@@ -136,7 +136,7 @@ export default function RightHelperPanel({
               )}
               {currentOp === "÷" && (
                 <p>
-                  Pecah bilangan menjadi ratusan, puluhan, dan satuan dulu. Lalu bagi setiap nilai tempat dengan {num2}.
+                  Pembagian adalah pengurangan berulang. Kurangkan angka bertahap dengan {num2} sampai habis atau bersisa terkecil!
                 </p>
               )}
               {currentOp === "+" && (
@@ -156,12 +156,13 @@ export default function RightHelperPanel({
           {helpLevel === 2 && (
             <div className="flex flex-col gap-2.5 bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-2xl">
               <p className="text-[11px] font-black text-emerald-900">
-                📦 Level 2: Representasi Visual
+                📦 Level 2: Representasi Visual Porogapit
               </p>
               {currentOp === "×" && renderVisualDots()}
               {currentOp === "÷" && (
-                <div className="p-2 bg-white rounded-xl border border-emerald-200 text-center text-xs font-bold text-emerald-800">
-                  Membagi {num1} menjadi {num2} kelompok bagian sama rata.
+                <div className="p-2.5 bg-white rounded-xl border border-purple-200 text-xs font-bold text-purple-900 flex flex-col gap-1">
+                  <span className="text-[10px] text-purple-600 font-black uppercase">Metode Tangga:</span>
+                  <span>Ambil kelompok angka &ge; {num2}, lalu kurangkan dengan {num2} berulang kali sampai habis!</span>
                 </div>
               )}
               {currentOp === "+" && (
@@ -200,9 +201,11 @@ export default function RightHelperPanel({
                 </div>
               )}
               {currentOp === "÷" && (
-                <div className="font-mono font-bold text-slate-800">
-                  <p>{num1} ÷ {num2} = {Math.floor(num1 / num2)}</p>
-                  <p className="text-purple-600 font-black">Cek: {Math.floor(num1 / num2)} × {num2} = {num1}</p>
+                <div className="font-mono font-bold text-slate-800 space-y-1">
+                  <p className="text-purple-700 font-sans font-bold">1. Kurangkan berulang:</p>
+                  <p className="text-[11px] font-mono text-slate-600">Hitung berapa kali {num2} dikurangkan.</p>
+                  <p className="text-purple-700 font-sans font-bold mt-1">2. Turunkan angka / koma:</p>
+                  <p className="text-[11px] font-mono text-slate-600">Turunkan digit berikutnya atau beri koma &amp; pinjam 0.</p>
                 </div>
               )}
               {currentOp === "+" && (

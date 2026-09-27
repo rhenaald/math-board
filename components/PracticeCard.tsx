@@ -15,6 +15,7 @@ import {
 import { GirlMascotVector } from "./ChildMascots";
 import BaseTenBlocksVisualizer, { UnitCube3D, TenRod3D, HundredFlat3D } from "./BaseTenBlocksVisualizer";
 import { getSectionNamesForOp, type SectionDiagnostic } from "@/lib/errorDiagnostics";
+import PorogapitDivisionBoard from "./PorogapitDivisionBoard";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -32,6 +33,8 @@ interface PracticeCardProps {
   onFinishSession?: () => void;
   hasAnsweredAny?: boolean;
   isAutoSaving?: boolean;
+  currentCombo?: string;
+  onSelectCombo?: (combo: string) => void;
 }
 
 export default function PracticeCard({
@@ -48,6 +51,8 @@ export default function PracticeCard({
   onFinishSession,
   hasAnsweredAny = false,
   isAutoSaving = false,
+  currentCombo,
+  onSelectCombo,
 }: PracticeCardProps) {
   // Decompose numbers for Addition & Subtraction
   const u1 = num1 % 10;
@@ -691,6 +696,27 @@ export default function PracticeCard({
     }
   };
 
+  if (currentOp === "÷") {
+    return (
+      <PorogapitDivisionBoard
+        num1={num1}
+        num2={num2}
+        questionNumber={questionNumber}
+        totalQuestions={totalQuestions}
+        levelName={levelName}
+        onQuestionCompleted={onQuestionCompleted}
+        onNewProblem={onNewProblem}
+        onBack={onBack}
+        onFinishSession={onFinishSession}
+        onSectionChanged={onSectionChanged}
+        hasAnsweredAny={hasAnsweredAny}
+        isAutoSaving={isAutoSaving}
+        currentCombo={currentCombo}
+        onSelectCombo={onSelectCombo}
+      />
+    );
+  }
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col w-full select-none transition-all duration-300">
       {/* 1. HEADER KARTU: JUDUL OPERASI, LEVEL & NO SOAL */}
@@ -875,7 +901,7 @@ export default function PracticeCard({
                   {/* Baris 1: Bilangan Pertama (num1) */}
                   <div className="flex items-center justify-end gap-2 pr-2">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
-                      {currentOp === "÷" ? "Dibagi" : "Bil. 1"}
+                      {(currentOp as string) === "÷" ? "Dibagi" : "Bil. 1"}
                     </span>
                     <div className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-fredoka font-black text-base sm:text-lg shadow-2xs min-w-[54px]">
                       {num1}
@@ -937,7 +963,7 @@ export default function PracticeCard({
                       {opSymbol}
                     </span>
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
-                      {currentOp === "×" ? "Pengali" : currentOp === "÷" ? "Pembagi" : currentOp === "-" ? "Pengurang" : "Bil. 2"}
+                      {currentOp === "×" ? "Pengali" : (currentOp as string) === "÷" ? "Pembagi" : currentOp === "-" ? "Pengurang" : "Bil. 2"}
                     </span>
                     <div className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-800 font-fredoka font-black text-base sm:text-lg shadow-2xs min-w-[54px]">
                       {num2}
@@ -1211,7 +1237,7 @@ export default function PracticeCard({
                   </div>
                 </div>
               )
-            ) : currentOp === "÷" ? (
+            ) : (currentOp as string) === "÷" ? (
               /* Pembagian: Tahap 2 - Pecah Nilai Tempat & Visual Balok */
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
