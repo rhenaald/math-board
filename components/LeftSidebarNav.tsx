@@ -212,7 +212,7 @@ export default function LeftSidebarNav({
       </div>
 
       {/* 2. CARD MASKOT MOTIVASI ANAK */}
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50/50 to-white rounded-3xl p-4 border border-blue-100/80 shadow-xs flex flex-col items-center text-center gap-2">
+      <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col items-center text-center gap-2">
         <div className="w-20 h-20">
           <BoyMascotVector size={80} />
         </div>

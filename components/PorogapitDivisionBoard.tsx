@@ -450,7 +450,7 @@ export default function PorogapitDivisionBoard({
       </div>
 
       {/* BANNER SOAL UTAMA */}
-      <div className="flex flex-col sm:flex-row items-center justify-between bg-gradient-to-r from-purple-500 via-indigo-600 to-purple-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between bg-indigo-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm gap-3">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-black text-2xl border border-white/30 shrink-0">
             ÷
@@ -842,7 +842,7 @@ export default function PorogapitDivisionBoard({
             </div>
 
             {/* KARTU REKAP HASIL SEBELUMNYA (Melihat Kembali Digit yang Diperoleh) */}
-            <div className="w-full max-w-lg bg-gradient-to-br from-purple-50/90 via-indigo-50/80 to-blue-50/90 border-2 border-purple-200 rounded-3xl p-5 shadow-sm flex flex-col gap-3.5 select-none">
+            <div className="w-full max-w-lg bg-white border border-purple-200 rounded-2xl p-5 shadow-xs flex flex-col gap-3.5 select-none">
               <div className="flex items-center justify-between border-b border-purple-200/70 pb-2.5">
                 <span className="text-xs font-black text-purple-900 font-fredoka flex items-center gap-1.5">
                   <span>📋</span> Rekap Digit dari Seluruh Tahap:

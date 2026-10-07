@@ -13,8 +13,7 @@
 }
 
 body {
-  background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 40%, #fefce8 100%);
-  background-attachment: fixed;
+  background: #f8fafc;
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
   min-height: 100vh;

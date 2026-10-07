@@ -56,7 +56,7 @@ export default function SettingsPanel({
       {/* BRANDING & USER GREETING DIRECTLY IN SIDEBAR */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-md shadow-blue-500/20 font-fredoka shrink-0">
+          <div className="w-11 h-11 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-md shadow-blue-500/20 font-fredoka shrink-0">
             ÷×
           </div>
           <div>
@@ -207,7 +207,7 @@ export default function SettingsPanel({
           disabled={practiceStats.totalAnswered === 0}
           className={`w-full py-3 px-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2 text-xs uppercase tracking-wider font-fredoka ${
             practiceStats.totalAnswered > 0
-              ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/20 cursor-pointer"
+              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 cursor-pointer"
               : "bg-slate-100 text-slate-400 cursor-not-allowed"
           }`}
           title={

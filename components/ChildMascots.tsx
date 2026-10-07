@@ -257,7 +257,7 @@ export function BoySidebarCard({
         {/* Progress Bar Hijau Cerah */}
         <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-200/60">
           <div
-            className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full transition-all duration-500 shadow-xs"
+            className="bg-emerald-500 h-full rounded-full transition-all duration-500 shadow-xs"
             style={{ width: `${pct}%` }}
           ></div>
         </div>
@@ -278,7 +278,7 @@ export function BoySidebarCard({
  */
 export function GirlEncouragementCard() {
   return (
-    <div className="bg-gradient-to-br from-rose-50 via-pink-50/70 to-purple-50 rounded-2xl p-3.5 border border-pink-200/80 shadow-xs flex items-center gap-3 animate-in fade-in duration-300">
+    <div className="bg-rose-50/80 rounded-2xl p-3.5 border border-pink-200/80 shadow-xs flex items-center gap-3 animate-in fade-in duration-300">
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-1.5 text-xs font-black text-rose-700 font-fredoka">
           <Heart size={14} className="fill-rose-500 text-rose-500" />
@@ -320,7 +320,7 @@ export function DecorativeFloatingNumbers() {
  */
 export function MotivationalStickyNote() {
   return (
-    <div className="sticky-note-tilt bg-gradient-to-br from-amber-100 to-yellow-200 text-amber-950 px-4 py-2.5 rounded-xl border border-amber-300/80 cursor-default select-none">
+    <div className="sticky-note-tilt bg-amber-100 text-amber-950 px-4 py-2.5 rounded-xl border border-amber-300/80 cursor-default select-none">
       <div className="flex items-center gap-1 text-xs font-black font-fredoka tracking-wide">
         <span>Kamu Bisa!</span>
         <span className="text-sm">🎉</span>

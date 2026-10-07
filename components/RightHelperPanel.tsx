@@ -265,7 +265,7 @@ export default function RightHelperPanel({
           <button
             type="button"
             onClick={onOpenMultiLevelHelp}
-            className="w-full py-2 px-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border border-blue-200 rounded-2xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+            className="w-full py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-2xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Sparkles size={14} className="text-blue-600" />
             <span>Buka Bantuan Bertingkat Layar Penuh</span>

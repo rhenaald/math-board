@@ -41,7 +41,7 @@ export default function TopNavbar({
           onClick={onNavigateHome}
           className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-none"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 text-amber-950 flex items-center justify-center shadow-sm shadow-amber-300/40 group-hover:scale-105 transition">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400 text-amber-950 flex items-center justify-center shadow-sm shadow-amber-300/40 group-hover:scale-105 transition">
             <Lightbulb size={22} className="stroke-[2.5]" />
           </div>
           <div>
@@ -96,7 +96,7 @@ export default function TopNavbar({
           className="flex items-center gap-2.5 px-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition cursor-pointer"
           title="Klik untuk ganti siswa atau setup awal"
         >
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-2xs">
             👦
           </div>
           <div className="leading-tight hidden sm:block">

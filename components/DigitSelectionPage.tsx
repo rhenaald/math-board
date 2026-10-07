@@ -107,7 +107,7 @@ export default function DigitSelectionPage({
           <button
             type="button"
             onClick={() => onStartPractice(selectedOp, selectedCombo)}
-            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-500/30 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 font-fredoka cursor-pointer"
+            className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-md shadow-emerald-500/25 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 font-fredoka cursor-pointer"
           >
             <Play size={18} fill="currentColor" />
             <span>Mulai Kerjakan 🚀</span>
@@ -272,7 +272,7 @@ export default function DigitSelectionPage({
         <button
           type="button"
           onClick={() => onStartPractice(selectedOp, selectedCombo)}
-          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-500/30 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
+          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-md shadow-emerald-500/25 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
         >
           <Play size={18} fill="currentColor" />
           <span>Mulai Kerjakan di Papan Hitung 🚀</span>

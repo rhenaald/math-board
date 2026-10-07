@@ -45,8 +45,8 @@ interface PracticeCardProps {
 function MultiplicationProductBlocks3D({ val }: { val: number }) {
   if (val <= 0) {
     return (
-      <div className="w-full bg-white/95 border border-slate-200/90 rounded-2xl p-3 min-h-[90px] flex items-center justify-center shadow-inner">
-        <span className="text-xs font-bold text-slate-400 font-fredoka">0 (Tidak ada balok)</span>
+      <div className="w-full bg-slate-50/60 border border-slate-100 rounded-xl p-2.5 min-h-[80px] flex items-center justify-center">
+        <span className="text-xs font-semibold text-slate-400 font-fredoka">0 (Tidak ada balok)</span>
       </div>
     );
   }
@@ -56,15 +56,15 @@ function MultiplicationProductBlocks3D({ val }: { val: number }) {
   const rodHeight = rods > 20 ? 54 : rods > 12 ? 64 : 74;
 
   return (
-    <div className="w-full bg-white/95 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 min-h-[110px] flex flex-col items-center justify-center gap-2 shadow-inner">
-      <div className="flex flex-wrap items-end justify-center gap-1.5 sm:gap-2 max-w-[340px] max-h-[150px] overflow-y-auto p-1">
+    <div className="w-full bg-slate-50/70 border border-slate-200/60 rounded-xl p-2.5 sm:p-3 min-h-[96px] flex flex-col items-center justify-center gap-2">
+      <div className="flex flex-wrap items-end justify-center gap-1.5 sm:gap-2 max-w-[340px] max-h-[140px] overflow-y-auto p-1">
         {/* Batang puluhan (masing-masing 10 kubus) */}
         {Array.from({ length: rods }).map((_, i) => (
           <TenRod3D key={`rod-${i}`} height={rodHeight} variant="emerald" />
         ))}
         {/* Buntutan kubus satuan dengan warna berbeda (amber/emas) */}
         {units > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-1 p-1 bg-amber-50 rounded-lg border border-amber-300">
+          <div className="flex flex-wrap items-center justify-center gap-1 p-1 bg-amber-50/80 rounded-lg border border-amber-200/80">
             {Array.from({ length: units }).map((_, i) => (
               <UnitCube3D key={`unit-${i}`} size={16} />
             ))}
@@ -72,18 +72,18 @@ function MultiplicationProductBlocks3D({ val }: { val: number }) {
         )}
       </div>
 
-      <div className="text-[11px] font-bold text-center leading-tight">
+      <div className="text-[11px] font-semibold text-center leading-tight">
         {rods > 0 && units > 0 ? (
-          <span className="text-slate-700">
-            <span className="text-emerald-700 font-black">{rods} batang puluhan</span> +{" "}
-            <span className="text-amber-700 font-black">{units} kubus satuan</span>
+          <span className="text-slate-600">
+            <span className="text-emerald-700 font-bold">{rods} batang puluhan</span> +{" "}
+            <span className="text-amber-700 font-bold">{units} kubus satuan</span>
           </span>
         ) : rods > 0 ? (
-          <span className="text-emerald-700 font-black">
+          <span className="text-emerald-700 font-bold">
             {rods} batang puluhan
           </span>
         ) : (
-          <span className="text-amber-700 font-black">
+          <span className="text-amber-700 font-bold">
             {units} kubus satuan
           </span>
         )}
@@ -846,7 +846,7 @@ export default function PracticeCard({
       </div>
 
       {/* 2. STEPPER PROGRESS BAR (3 SECTIONS UNTUK SATUAN, 4 SECTIONS UNTUK PULUHAN/RATUSAN) */}
-      <div className="bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-emerald-50/60 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
+      <div className="bg-slate-50/80 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
         <div className={`grid ${totalSections === 2 ? "grid-cols-2" : totalSections === 3 ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
           {sectionMeta.map((sec) => {
             const isActive = currentSection === sec.id;
@@ -950,7 +950,7 @@ export default function PracticeCard({
             </p>
 
             {/* PAPAN SUSUN NILAI TEMPAT PRESISI DENGAN CSS GRID (UNTUK SEMUA OPERASI: +, -, ×, ÷) */}
-            <div className="bg-gradient-to-b from-slate-50 via-white to-blue-50/20 border-2 border-slate-200/90 rounded-3xl p-4 sm:p-6 flex flex-col items-center gap-4 shadow-sm">
+            <div className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 sm:p-6 flex flex-col items-center gap-4 shadow-xs">
               <div className="text-center">
                 <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka tracking-wide">
                   Papan Susun Nilai Tempat
@@ -1169,29 +1169,29 @@ export default function PracticeCard({
                 </div>
               ) : (
                 /* Perkalian: Tahap 2 - Visual Balok Hasil Perkalian & Penjumlahan Bersusun (2 Kolom) */
-                <div className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xs sm:text-sm font-bold text-slate-700">
-                      Hitung hasil perkalian tiap nilai tempat dengan bantuan visual balok, lalu jumlahkan secara bersusun di sebelah kanan:
-                    </p>
-                    <p className="text-[11px] text-slate-500 font-semibold">
-                      Tuliskan hasil tiap bagian dan jumlah akhirnya, lalu periksa!
+                <div className="flex flex-col gap-4 sm:gap-5">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-700">
+                      Hitung perkalian tiap nilai tempat, lalu susun dan jumlahkan hasilnya:
                     </p>
                   </div>
 
                   {/* Tata Letak 2 Kolom: Kiri (Kartu Perkalian + Balok) -> Panah -> Kanan (Penjumlahan Bersusun) */}
-                  <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-3 sm:gap-4 w-full">
+                  <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-3 sm:gap-5 w-full">
                     {/* Kolom Kiri: Kartu Balok Perkalian Per Nilai Tempat */}
                     <div className="flex-1 w-full flex flex-col gap-3">
                       {/* Kartu Ratusan (jika ada) */}
                       {hasDecH && (
-                        <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
-                          <div className="px-3.5 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                            {multiplierNum} × {valH}
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 shadow-xs hover:border-slate-300 transition-all">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200/70 rounded-lg text-xs sm:text-sm font-bold font-fredoka">
+                              {multiplierNum} × {valH}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-400">Ratusan</span>
                           </div>
                           <MultiplicationProductBlocks3D val={expPartH} />
-                          <div className="flex flex-col items-center gap-1 w-full">
-                            <span className="text-[11px] font-bold text-slate-600">Nilai Ratusan:</span>
+                          <div className="flex items-center justify-between w-full pt-1 border-t border-slate-100">
+                            <span className="text-xs font-semibold text-slate-500">Tulis Hasil:</span>
                             <input
                               type="text"
                               data-field-key="partH"
@@ -1206,7 +1206,7 @@ export default function PracticeCard({
                               }
                               onKeyDown={(e) => handleKeyDown(e, undefined, hasDecT ? "partT" : "partU")}
                               placeholder="?"
-                              className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs placeholder:text-blue-300"
+                              className="w-24 sm:w-28 h-10 sm:h-11 text-center font-black text-lg sm:text-xl font-fredoka bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition placeholder:text-slate-300"
                             />
                           </div>
                         </div>
@@ -1214,13 +1214,16 @@ export default function PracticeCard({
 
                       {/* Kartu Puluhan (jika ada) */}
                       {hasDecT && (
-                        <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
-                          <div className="px-3.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                            {multiplierNum} × {valT}
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 shadow-xs hover:border-slate-300 transition-all">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/70 rounded-lg text-xs sm:text-sm font-bold font-fredoka">
+                              {multiplierNum} × {valT}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-400">Puluhan</span>
                           </div>
                           <MultiplicationProductBlocks3D val={expPartT} />
-                          <div className="flex flex-col items-center gap-1 w-full">
-                            <span className="text-[11px] font-bold text-slate-600">Nilai Puluhan:</span>
+                          <div className="flex items-center justify-between w-full pt-1 border-t border-slate-100">
+                            <span className="text-xs font-semibold text-slate-500">Tulis Hasil:</span>
                             <input
                               type="text"
                               data-field-key="partT"
@@ -1230,20 +1233,23 @@ export default function PracticeCard({
                               }
                               onKeyDown={(e) => handleKeyDown(e, hasDecH ? "partH" : undefined, "partU")}
                               placeholder="?"
-                              className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs placeholder:text-emerald-300"
+                              className="w-24 sm:w-28 h-10 sm:h-11 text-center font-black text-lg sm:text-xl font-fredoka bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition placeholder:text-slate-300"
                             />
                           </div>
                         </div>
                       )}
 
                       {/* Kartu Satuan */}
-                      <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
-                        <div className="px-3.5 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                          {multiplierNum} × {valU}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col gap-2.5 shadow-xs hover:border-slate-300 transition-all">
+                        <div className="flex items-center justify-between w-full">
+                          <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200/70 rounded-lg text-xs sm:text-sm font-bold font-fredoka">
+                            {multiplierNum} × {valU}
+                          </span>
+                          <span className="text-[11px] font-semibold text-slate-400">Satuan</span>
                         </div>
                         <MultiplicationProductBlocks3D val={expPartU} />
-                        <div className="flex flex-col items-center gap-1 w-full">
-                          <span className="text-[11px] font-bold text-slate-600">Nilai Satuan:</span>
+                        <div className="flex items-center justify-between w-full pt-1 border-t border-slate-100">
+                          <span className="text-xs font-semibold text-slate-500">Tulis Hasil:</span>
                           <input
                             type="text"
                             data-field-key="partU"
@@ -1255,68 +1261,66 @@ export default function PracticeCard({
                               handleKeyDown(e, hasDecT ? "partT" : hasDecH ? "partH" : undefined, "combined")
                             }
                             placeholder="?"
-                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs placeholder:text-amber-300"
+                            className="w-24 sm:w-28 h-10 sm:h-11 text-center font-black text-lg sm:text-xl font-fredoka bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition placeholder:text-slate-300"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Panah Penghubung ke Penjumlahan Bersusun */}
-                    <div className="flex md:flex-col items-center justify-center text-rose-400 shrink-0 py-2 md:py-0 px-2 sm:px-4">
+                    <div className="flex md:flex-col items-center justify-center text-slate-300 shrink-0 py-1 md:py-0 px-2 sm:px-3">
                       <div className="hidden md:flex flex-col items-center gap-1.5">
-                        <svg className="w-12 h-12 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                        </svg>
-                        <span className="text-[10px] font-black font-fredoka text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                        <ArrowRight size={22} className="text-slate-300" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                           Susun
                         </span>
                       </div>
-                      <div className="md:hidden flex items-center gap-1.5">
-                        <svg className="w-8 h-8 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                        </svg>
-                        <span className="text-[10px] font-black font-fredoka text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                      <div className="md:hidden flex items-center gap-1.5 py-1">
+                        <div className="rotate-90">
+                          <ArrowRight size={18} className="text-slate-300" />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                           Susun
                         </span>
                       </div>
                     </div>
 
                     {/* Kolom Kanan: Papan Penjumlahan Bersusun */}
-                    <div className="flex-1 w-full md:max-w-[320px] bg-white border-2 border-slate-200/90 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center gap-4 shadow-sm">
-                      <div className="px-3.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-full text-xs font-black font-fredoka shadow-2xs">
+                    <div className="flex-1 w-full md:max-w-[320px] bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-between gap-4 shadow-xs">
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
                         Penjumlahan Bersusun
-                      </div>
+                      </span>
 
-                      <div className="flex flex-col items-end pr-6 sm:pr-8 relative my-2 min-h-[80px] justify-center">
+                      <div className="flex flex-col items-end pr-5 sm:pr-6 relative my-auto py-2 justify-center">
                         {hasDecH && (
-                          <span
-                            className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
-                              secInputs["partH"] ? "text-slate-900" : "text-slate-300 font-normal"
-                            }`}
-                          >
-                            {secInputs["partH"] || "..."}
-                          </span>
+                          <div className="text-2xl sm:text-3xl font-black font-fredoka tracking-widest text-right min-h-[32px] leading-tight">
+                            {secInputs["partH"] ? (
+                              <span className="text-slate-800">{secInputs["partH"]}</span>
+                            ) : (
+                              <span className="text-slate-300 font-normal">...</span>
+                            )}
+                          </div>
                         )}
                         {hasDecT && (
-                          <span
-                            className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
-                              secInputs["partT"] ? "text-slate-900" : "text-slate-300 font-normal"
-                            }`}
-                          >
-                            {secInputs["partT"] || "..."}
-                          </span>
+                          <div className="text-2xl sm:text-3xl font-black font-fredoka tracking-widest text-right min-h-[32px] leading-tight">
+                            {secInputs["partT"] ? (
+                              <span className="text-slate-800">{secInputs["partT"]}</span>
+                            ) : (
+                              <span className="text-slate-300 font-normal">...</span>
+                            )}
+                          </div>
                         )}
-                        <span
-                          className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
-                            secInputs["partU"] ? "text-slate-900" : "text-slate-300 font-normal"
-                          }`}
-                        >
-                          {secInputs["partU"] || "..."}
-                        </span>
+                        <div className="text-2xl sm:text-3xl font-black font-fredoka tracking-widest text-right min-h-[32px] leading-tight">
+                          {secInputs["partU"] ? (
+                            <span className="text-slate-800">{secInputs["partU"]}</span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">...</span>
+                          )}
+                        </div>
 
                         {/* Garis pemisah dengan tanda + */}
-                        <div className="w-full min-w-[130px] sm:min-w-[150px] border-b-4 border-slate-900 my-2 relative">
-                          <span className="absolute -right-6 sm:-right-7 -top-4 text-2xl sm:text-3xl font-black text-rose-600 font-fredoka">
+                        <div className="w-full min-w-[120px] sm:min-w-[140px] border-b-2 border-slate-700 my-2 relative">
+                          <span className="absolute -right-5 sm:-right-6 -top-3.5 text-xl font-bold text-slate-400 font-fredoka">
                             +
                           </span>
                         </div>
@@ -1330,38 +1334,38 @@ export default function PracticeCard({
                             onChange={(e) => handleFieldInput("combined", e.target.value)}
                             onKeyDown={(e) => handleKeyDown(e, "partU", undefined)}
                             placeholder="?"
-                            className="w-32 sm:w-36 h-12 sm:h-14 text-center font-black text-2xl sm:text-3xl font-fredoka bg-white border-3 border-rose-400 text-rose-950 rounded-2xl focus:border-rose-600 focus:ring-4 focus:ring-rose-200 outline-none transition shadow-xs placeholder:text-rose-300"
+                            className="w-32 sm:w-36 h-12 text-center font-black text-2xl font-fredoka bg-slate-50 border-2 border-slate-300 text-slate-900 rounded-xl focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none transition placeholder:text-slate-300"
                           />
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 font-semibold text-center">
-                        Jumlahkan hasil perkalian di atas untuk mendapatkan totalnya!
+                      <p className="text-[11px] text-slate-400 font-medium text-center">
+                        Jumlahkan hasil bagian di atas untuk mendapatkan total
                       </p>
                     </div>
                   </div>
 
                   {/* Ringkasan Bentuk Pemecahan */}
-                  <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/70 to-emerald-50/80 border-2 border-indigo-200/80 rounded-2xl p-3.5 text-center shadow-2xs">
-                    <span className="text-xs font-black text-indigo-900 font-fredoka block mb-1">
-                      Bentuk Pemecahan Perkalian (Sifat Distributif):
+                  <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl px-4 py-3 text-center">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Sifat Distributif Perkalian
                     </span>
-                    <div className="text-xs sm:text-sm font-black text-slate-800 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
+                    <div className="text-xs sm:text-sm font-bold text-slate-700 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
                       <span>{num1} × {num2}</span>
-                      <span>=</span>
+                      <span className="text-slate-400">=</span>
                       {hasDecH && (
                         <>
-                          <span>({multiplierNum} × <span className="text-blue-700 underline font-black">{valH}</span>)</span>
-                          <span>+</span>
+                          <span>({multiplierNum} × <span className="text-blue-600 font-bold">{valH}</span>)</span>
+                          <span className="text-slate-400">+</span>
                         </>
                       )}
                       {hasDecT && (
                         <>
-                          <span>({multiplierNum} × <span className="text-emerald-700 underline font-black">{valT}</span>)</span>
-                          <span>+</span>
+                          <span>({multiplierNum} × <span className="text-emerald-600 font-bold">{valT}</span>)</span>
+                          <span className="text-slate-400">+</span>
                         </>
                       )}
-                      <span>({multiplierNum} × <span className="text-amber-700 underline font-black">{valU}</span>)</span>
+                      <span>({multiplierNum} × <span className="text-amber-600 font-bold">{valU}</span>)</span>
                     </div>
                   </div>
                 </div>
@@ -1491,26 +1495,26 @@ export default function PracticeCard({
                 </div>
 
                 {/* Ringkasan Bentuk Pemecahan Pembagian */}
-                <div className="bg-gradient-to-r from-purple-50/80 via-indigo-50/70 to-blue-50/80 border-2 border-purple-200/80 rounded-2xl p-3.5 text-center shadow-2xs">
-                  <span className="text-xs font-black text-purple-900 font-fredoka block mb-1">
-                    Bentuk Pemecahan Pembagian:
+                <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl px-4 py-3 text-center">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Bentuk Pemecahan Pembagian
                   </span>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
+                  <div className="text-xs sm:text-sm font-bold text-slate-700 font-fredoka flex items-center justify-center gap-1.5 flex-wrap">
                     <span>{num1} ÷ {num2}</span>
-                    <span>=</span>
+                    <span className="text-slate-400">=</span>
                     {hasDecH && (
                       <>
-                        <span>(<span className="text-blue-700 underline font-black">{valH}</span> ÷ {multiplierNum})</span>
-                        <span>+</span>
+                        <span>(<span className="text-blue-600 font-bold">{valH}</span> ÷ {multiplierNum})</span>
+                        <span className="text-slate-400">+</span>
                       </>
                     )}
                     {hasDecT && (
                       <>
-                        <span>(<span className="text-emerald-700 underline font-black">{valT}</span> ÷ {multiplierNum})</span>
-                        <span>+</span>
+                        <span>(<span className="text-emerald-600 font-bold">{valT}</span> ÷ {multiplierNum})</span>
+                        <span className="text-slate-400">+</span>
                       </>
                     )}
-                    <span>(<span className="text-amber-700 underline font-black">{valU}</span> ÷ {multiplierNum})</span>
+                    <span>(<span className="text-amber-600 font-bold">{valU}</span> ÷ {multiplierNum})</span>
                   </div>
                 </div>
               </div>
@@ -1521,7 +1525,7 @@ export default function PracticeCard({
                   Hitung balok pada kolom satuan:
                 </p>
                 {/* Visual Balok Kubus Satuan yang Bersih & Proporsional */}
-                <div className="bg-gradient-to-b from-amber-50/70 via-white to-amber-50/40 border-2 border-amber-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
+                <div className="bg-amber-50/50 border border-amber-200/90 rounded-2xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
                   <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
                     {/* Kartu Satuan Bilangan 1 */}
                     <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-amber-200/90 shadow-2xs min-w-[115px]">
@@ -1594,7 +1598,7 @@ export default function PracticeCard({
                   : "Periksa angka satuan dan lakukan penukaran puluhan:"}
               </p>
               {/* Visual Balok Kubus Satuan Pengurangan Sesuai Gaya Penjumlahan */}
-              <div className="bg-gradient-to-b from-orange-50/70 via-white to-orange-50/40 border-2 border-orange-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
+              <div className="bg-orange-50/50 border border-orange-200/90 rounded-2xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
                 {u1 < u2 ? (
                   /* KASUS A: u1 < u2 (Perlu Meminjam/Menukar 1 Puluhan) */
                   <div className="flex flex-col items-center gap-4 w-full">
@@ -1616,7 +1620,7 @@ export default function PracticeCard({
                     {/* Baris Kartu Perhitungan Setelah Meminjam */}
                     <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
                       {/* Kartu Satuan Setelah Pinjam (effectiveU1) */}
-                      <div className="flex flex-col items-center gap-2 p-3 bg-gradient-to-b from-amber-50 to-orange-50/80 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[130px]">
+                      <div className="flex flex-col items-center gap-2 p-3 bg-amber-50/80 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[130px]">
                         <div className="flex flex-col items-center">
                           <span className="text-xs font-black text-orange-950 font-fredoka">
                             {effectiveU1} Satuan
@@ -1800,7 +1804,7 @@ export default function PracticeCard({
 
                 <div className={`w-full ${hasHundreds ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col"} gap-4`}>
                   {/* 1. BAGIAN PULUHAN */}
-                  <div className="bg-gradient-to-b from-emerald-50/70 via-white to-emerald-50/40 border-2 border-emerald-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
+                  <div className="bg-emerald-50/50 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
                     <div className="flex items-center justify-between w-full border-b border-emerald-100 pb-1.5">
                       <span className="text-xs font-black text-emerald-900 font-fredoka uppercase tracking-wider">
                         Kolom Puluhan
@@ -1853,7 +1857,7 @@ export default function PracticeCard({
                       {carryT > 0 && (
                         <>
                           <span className="text-xl font-black text-amber-600">+</span>
-                          <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-gradient-to-b from-amber-50 to-amber-100/70 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
+                          <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-amber-50 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
                             <span className="text-xs font-black text-amber-900 font-fredoka text-center">
                               1 Simpanan
                             </span>
@@ -1918,7 +1922,7 @@ export default function PracticeCard({
 
                   {/* 2. BAGIAN RATUSAN (JIKA BILANGAN RATUSAN) */}
                   {hasHundreds && (
-                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-blue-50/40 border-2 border-blue-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
+                    <div className="bg-blue-50/50 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
                       <div className="flex items-center justify-between w-full border-b border-blue-100 pb-1.5">
                         <span className="text-xs font-black text-blue-900 font-fredoka uppercase tracking-wider">
                           Kolom Ratusan
@@ -1970,7 +1974,7 @@ export default function PracticeCard({
                         {carryH > 0 && (
                           <>
                             <span className="text-xl font-black text-amber-600">+</span>
-                            <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-gradient-to-b from-amber-50 to-amber-100/70 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
+                            <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-amber-50 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
                               <span className="text-xs font-black text-amber-900 font-fredoka text-center">
                                 1 Simpanan
                               </span>

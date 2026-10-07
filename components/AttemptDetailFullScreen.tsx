@@ -204,7 +204,7 @@ export default function AttemptDetailFullScreen({
       </div>
 
       {/* 2. HERO PROFILE SISWA & METADATA SESI */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
+      <div className="bg-indigo-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
         <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -295,7 +295,7 @@ export default function AttemptDetailFullScreen({
       </div>
 
       {/* 4. CALLOUT RINGKASAN EVALUASI OTOMATIS & REKOMENDASI GURU */}
-      <div className="bg-gradient-to-br from-blue-50/90 via-indigo-50/50 to-purple-50/80 rounded-3xl p-6 border-2 border-blue-200/80 shadow-sm flex flex-col sm:flex-row items-start gap-4">
+      <div className="bg-blue-50/80 rounded-2xl p-6 border border-blue-200/80 shadow-xs flex flex-col sm:flex-row items-start gap-4">
         <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
           <Lightbulb size={24} />
         </div>

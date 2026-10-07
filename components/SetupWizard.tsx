@@ -170,7 +170,7 @@ export default function SetupWizard({
           </div>
           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
             <div
-              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 h-2.5 rounded-full transition-all duration-300"
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
               style={{ width: step === 1 ? "33%" : step === 2 ? "66%" : "100%" }}
             ></div>
           </div>
@@ -181,7 +181,7 @@ export default function SetupWizard({
         {/* ========================================================================= */}
         {step === 1 && (
           <div className="relative z-10 space-y-5 text-left">
-            <div className="w-16 h-16 bg-gradient-to-tr from-amber-400 to-yellow-400 rounded-2xl flex items-center justify-center mx-auto text-amber-950 shadow-lg shadow-amber-400/30 text-3xl animate-bounce">
+            <div className="w-16 h-16 bg-amber-400 rounded-2xl flex items-center justify-center mx-auto text-amber-950 shadow-lg shadow-amber-400/20 text-3xl animate-bounce">
               💡
             </div>
 
@@ -224,7 +224,7 @@ export default function SetupWizard({
 
             <button
               onClick={handleNextFromStep1}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/30 transition duration-200 transform active:scale-95 text-sm flex items-center justify-center gap-2 cursor-pointer font-fredoka"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/25 transition duration-200 transform active:scale-95 text-sm flex items-center justify-center gap-2 cursor-pointer font-fredoka"
             >
               Lanjut ke Contoh Soal (Bahan Belajar) <ArrowRight size={18} />
             </button>
@@ -543,7 +543,7 @@ export default function SetupWizard({
               <button
                 type="button"
                 onClick={handleGoToDigitStep}
-                className="w-2/3 bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black py-3.5 px-5 rounded-2xl shadow-lg shadow-emerald-600/30 transition duration-200 transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer font-fredoka"
+                className="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-5 rounded-2xl shadow-lg shadow-emerald-600/25 transition duration-200 transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer font-fredoka"
               >
                 <Play size={18} fill="currentColor" /> Tekan untuk Mulai Latihan 🚀
               </button>
@@ -697,7 +697,7 @@ export default function SetupWizard({
               <button
                 type="button"
                 onClick={handleFinish}
-                className="w-2/3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3.5 px-5 rounded-2xl shadow-lg shadow-emerald-600/30 transition duration-200 transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer font-fredoka"
+                className="w-2/3 bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 px-5 rounded-2xl shadow-lg shadow-emerald-600/25 transition duration-200 transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer font-fredoka"
               >
                 Mulai Kerjakan di Papan Hitung 🚀
               </button>

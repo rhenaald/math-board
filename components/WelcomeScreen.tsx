@@ -19,7 +19,7 @@ export default function WelcomeScreen({
         <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-indigo-100 rounded-full blur-2xl"></div>
 
         <div className="relative z-10 space-y-5">
-          <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto text-white text-3xl font-black shadow-lg shadow-blue-500/30">
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto text-white text-3xl font-black shadow-lg shadow-blue-500/20">
             <Calculator size={40} strokeWidth={2.5} />
           </div>
           <div>
@@ -54,7 +54,7 @@ export default function WelcomeScreen({
 
           <button
             onClick={handleStartApp}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/30 transition duration-200 transform active:scale-95 text-base flex items-center justify-center gap-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/25 transition duration-200 transform active:scale-95 text-base flex items-center justify-center gap-2"
           >
             Mulai Belajar 🚀
           </button>

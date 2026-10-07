@@ -35,7 +35,7 @@ export default function NameInputScreen({
         <div className="relative z-10 space-y-6">
           {/* Maskot / Logo */}
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 rounded-3xl flex items-center justify-center text-white text-3xl shadow-lg shadow-blue-500/30">
+            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-white text-3xl shadow-lg shadow-blue-500/20">
               <Calculator size={42} strokeWidth={2.5} />
             </div>
 
@@ -85,7 +85,7 @@ export default function NameInputScreen({
           <button
             type="button"
             onClick={handleSubmit}
-            className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/30 transition duration-200 transform active:scale-95 text-base flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg shadow-blue-600/25 transition duration-200 transform active:scale-95 text-base flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
           >
             <BookOpen size={20} />
             <span>Lanjut ke Contoh Soal (Bahan Belajar)</span>

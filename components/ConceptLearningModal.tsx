@@ -60,7 +60,7 @@ export default function ConceptLearningModal({
         {/* HEADER MODAL */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25">
+            <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
               <Layers size={24} />
             </div>
             <div>
@@ -119,7 +119,7 @@ export default function ConceptLearningModal({
           {/* TAB 1: SIMULASI MENYIMPAN (ATURAN REGROUPING) */}
           {activeTab === "simpan" && (
             <div className="flex flex-col gap-4">
-              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-4 border border-indigo-200/80">
+              <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-200/80">
                 <div className="flex items-center gap-2 mb-2">
                   <Lightbulb size={18} className="text-indigo-600" />
                   <h3 className="text-sm md:text-base font-black text-indigo-950 font-fredoka">
@@ -160,7 +160,7 @@ export default function ConceptLearningModal({
                         Array.from({ length: simTenCount }).map((_, idx) => (
                           <div
                             key={idx}
-                            className="w-3.5 h-14 bg-gradient-to-t from-blue-600 to-sky-400 rounded-sm shadow-xs border border-blue-700 animate-in zoom-in-75 duration-300"
+                            className="w-3.5 h-14 bg-blue-600 rounded-sm shadow-xs border border-blue-700 animate-in zoom-in-75 duration-300"
                             title="1 Batang Puluhan (10)"
                           ></div>
                         ))
@@ -186,7 +186,7 @@ export default function ConceptLearningModal({
                         Array.from({ length: simUnitCount }).map((_, idx) => (
                           <div
                             key={idx}
-                            className="w-4 h-4 bg-gradient-to-tr from-amber-500 to-yellow-300 rounded-xs shadow-2xs border border-amber-600 animate-in zoom-in-50 duration-150"
+                            className="w-4 h-4 bg-amber-500 rounded-xs shadow-2xs border border-amber-600 animate-in zoom-in-50 duration-150"
                             title="1 Kubus Satuan"
                           ></div>
                         ))
@@ -207,7 +207,7 @@ export default function ConceptLearningModal({
                 <button
                   type="button"
                   onClick={handleAddUnit}
-                  className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-900 font-black font-fredoka text-xs shadow-md shadow-amber-500/30 transform hover:scale-105 active:scale-95 transition cursor-pointer flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-500 text-slate-900 font-black font-fredoka text-xs shadow-md shadow-amber-500/25 transform hover:scale-105 active:scale-95 transition cursor-pointer flex items-center gap-2"
                 >
                   <span>🟡</span>
                   <span>+ Tambah 1 Kubus Satuan ({simUnitCount}/10)</span>

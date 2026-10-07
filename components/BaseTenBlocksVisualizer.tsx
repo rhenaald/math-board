@@ -309,7 +309,7 @@ export default function BaseTenBlocksVisualizer({
       {/* Tampilan Balok Bilangan 1 & Bilangan 2 BERDAMPINGAN KE SAMPING */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full items-stretch">
         {/* BOX BILANGAN 1 */}
-        <div className="bg-gradient-to-b from-blue-50/40 via-white to-slate-50/80 rounded-2xl p-3 border-2 border-blue-200/80 flex flex-col gap-2.5 shadow-xs">
+        <div className="bg-white rounded-2xl p-3 border border-blue-200 flex flex-col gap-2.5 shadow-xs">
           <div className="flex items-center justify-between border-b border-blue-100 pb-1.5">
             <div className="flex items-center gap-1.5">
               <span className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs font-black">
@@ -387,7 +387,7 @@ export default function BaseTenBlocksVisualizer({
         </div>
 
         {/* BOX BILANGAN 2 */}
-        <div className="bg-gradient-to-b from-purple-50/40 via-white to-slate-50/80 rounded-2xl p-3 border-2 border-purple-200/80 flex flex-col gap-2.5 shadow-xs">
+        <div className="bg-white rounded-2xl p-3 border border-purple-200 flex flex-col gap-2.5 shadow-xs">
           <div className="flex items-center justify-between border-b border-purple-100 pb-1.5">
             <div className="flex items-center gap-1.5">
               <span className="w-5 h-5 rounded-md bg-purple-600 text-white flex items-center justify-center text-xs font-black">
@@ -464,9 +464,9 @@ export default function BaseTenBlocksVisualizer({
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden transition-all duration-300">
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-amber-50/60 via-blue-50/40 to-emerald-50/60 border-b border-slate-200/60">
+      <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50 border-b border-slate-200/80">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
             <Layers size={16} />
           </div>
           <div>

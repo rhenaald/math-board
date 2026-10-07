@@ -57,7 +57,7 @@ export default function StudentProfileView({
   return (
     <div className="w-full flex flex-col gap-6 select-none animate-in fade-in duration-300">
       {/* Top Banner Profil */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
+      <div className="bg-blue-600 text-white rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
         <div className="flex items-center gap-4 z-10">
           <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl border border-white/30 shadow-inner">
             👦
@@ -163,7 +163,7 @@ export default function StudentProfileView({
           </div>
 
           {/* Maskot Semangat */}
-          <div className="bg-gradient-to-tr from-amber-100/80 via-yellow-50 to-orange-100/80 rounded-3xl p-5 border border-amber-200/70 shadow-xs flex items-center justify-between gap-4">
+          <div className="bg-amber-50 rounded-2xl p-5 border border-amber-200/70 shadow-xs flex items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <span className="text-xs font-black text-amber-900 font-fredoka">Pesan Semangat Hari Ini:</span>
               <p className="text-xs sm:text-sm font-bold text-amber-950">

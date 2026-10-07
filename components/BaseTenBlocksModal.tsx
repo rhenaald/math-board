@@ -29,9 +29,9 @@ export default function BaseTenBlocksModal({
         <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-blue-100/50 rounded-full blur-3xl pointer-events-none" />
 
         {/* HEADER MODAL */}
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between gap-4 bg-gradient-to-r from-amber-50/80 via-white to-blue-50/80 relative z-10">
+        <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between gap-4 bg-slate-50 relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
               <Box size={24} />
             </div>
             <div>

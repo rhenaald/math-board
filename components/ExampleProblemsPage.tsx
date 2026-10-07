@@ -448,7 +448,7 @@ export default function ExampleProblemsPage({
           <button
             type="button"
             onClick={() => onGoToDigitSelection(selectedOp)}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-500/30 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 font-fredoka cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-md shadow-emerald-500/25 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 font-fredoka cursor-pointer"
           >
             <Play size={18} fill="currentColor" />
             <span>Mulai Latihan Sekarang 🚀</span>
@@ -515,7 +515,7 @@ export default function ExampleProblemsPage({
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-yellow-400 flex items-center justify-center text-amber-950 font-black text-sm shadow-2xs">
+            <span className="w-8 h-8 rounded-xl bg-amber-400 flex items-center justify-center text-amber-950 font-black text-sm shadow-2xs">
               🧱
             </span>
             <div>
@@ -747,7 +747,7 @@ export default function ExampleProblemsPage({
           <button
             type="button"
             onClick={() => onGoToDigitSelection(selectedOp)}
-            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-500/30 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
+            className="w-full py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm sm:text-base shadow-md shadow-emerald-500/25 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2.5 font-fredoka cursor-pointer"
           >
             <span>Lanjut ke Pilih Digit & Latihan</span>
             <ArrowRight size={18} />
