@@ -46,6 +46,8 @@ export default function AttemptDetailModal({
       LUPA_SIMPAN_PULUHAN: { label: "Lupa Simpan Puluhan", color: "bg-rose-50 text-rose-700 border-rose-200" },
       LUPA_SIMPAN_RATUSAN: { label: "Lupa Simpan Ratusan", color: "bg-rose-50 text-rose-700 border-rose-200" },
       LUPA_TAMBAH_SIMPANAN: { label: "Lupa Tambah Simpanan (+)", color: "bg-rose-50 text-rose-700 border-rose-200" },
+      TERTUKAR_SIMPANAN_SATUAN: { label: "Simpanan Satuan Tertukar", color: "bg-amber-50 text-amber-700 border-amber-200" },
+      TERTUKAR_SIMPANAN_PULUHAN: { label: "Simpanan Puluhan Tertukar", color: "bg-amber-50 text-amber-700 border-amber-200" },
       PENGURANGAN_TERBALIK: { label: "Pengurangan Terbalik", color: "bg-red-50 text-red-700 border-red-200" },
       LUPA_KURANGI_PINJAMAN: { label: "Lupa Kurang Pinjam", color: "bg-orange-50 text-orange-700 border-orange-200" },
       SALAH_NILAI_TEMPAT: { label: "Geser Nilai Tempat", color: "bg-purple-50 text-purple-700 border-purple-200" },

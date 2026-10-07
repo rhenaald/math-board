@@ -37,6 +37,61 @@ interface PracticeCardProps {
   onSelectCombo?: (combo: string) => void;
 }
 
+/**
+ * Komponen balok 3D untuk hasil perkalian:
+ * Setiap 10 kubus diwakili oleh 1 batang puluhan (emerald).
+ * Sisa satuan ("buntutan", misal 142 -> 2 satuan) diwakili oleh kubus satuan (amber/emas).
+ */
+function MultiplicationProductBlocks3D({ val }: { val: number }) {
+  if (val <= 0) {
+    return (
+      <div className="w-full bg-white/95 border border-slate-200/90 rounded-2xl p-3 min-h-[90px] flex items-center justify-center shadow-inner">
+        <span className="text-xs font-bold text-slate-400 font-fredoka">0 (Tidak ada balok)</span>
+      </div>
+    );
+  }
+
+  const rods = Math.floor(val / 10);
+  const units = val % 10;
+  const rodHeight = rods > 20 ? 54 : rods > 12 ? 64 : 74;
+
+  return (
+    <div className="w-full bg-white/95 border border-slate-200/90 rounded-2xl p-3 sm:p-3.5 min-h-[110px] flex flex-col items-center justify-center gap-2 shadow-inner">
+      <div className="flex flex-wrap items-end justify-center gap-1.5 sm:gap-2 max-w-[340px] max-h-[150px] overflow-y-auto p-1">
+        {/* Batang puluhan (masing-masing 10 kubus) */}
+        {Array.from({ length: rods }).map((_, i) => (
+          <TenRod3D key={`rod-${i}`} height={rodHeight} variant="emerald" />
+        ))}
+        {/* Buntutan kubus satuan dengan warna berbeda (amber/emas) */}
+        {units > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-1 p-1 bg-amber-50 rounded-lg border border-amber-300">
+            {Array.from({ length: units }).map((_, i) => (
+              <UnitCube3D key={`unit-${i}`} size={16} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="text-[11px] font-bold text-center leading-tight">
+        {rods > 0 && units > 0 ? (
+          <span className="text-slate-700">
+            <span className="text-emerald-700 font-black">{rods} batang puluhan</span> +{" "}
+            <span className="text-amber-700 font-black">{units} kubus satuan</span>
+          </span>
+        ) : rods > 0 ? (
+          <span className="text-emerald-700 font-black">
+            {rods} batang puluhan
+          </span>
+        ) : (
+          <span className="text-amber-700 font-black">
+            {units} kubus satuan
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PracticeCard({
   num1,
   num2,
@@ -63,10 +118,16 @@ export default function PracticeCard({
   const t2 = Math.floor((num2 % 100) / 10);
   const h2 = Math.floor((num2 % 1000) / 100);
 
-  const hasHundreds = h1 > 0 || h2 > 0;
-  const hasTens = t1 > 0 || t2 > 0 || hasHundreds;
+  const hasHundreds1 = Math.abs(num1) >= 100;
+  const hasTens1 = Math.abs(num1) >= 10;
+  const hasHundreds2 = Math.abs(num2) >= 100;
+  const hasTens2 = Math.abs(num2) >= 10;
+
+  const hasHundreds = hasHundreds1 || hasHundreds2;
+  const hasTens = hasTens1 || hasTens2 || hasHundreds;
   const isSingleDigit = !hasTens && !hasHundreds;
-  const totalSections = isSingleDigit ? 2 : 4;
+  const sectionMeta = getSectionNamesForOp(currentOp, isSingleDigit);
+  const totalSections = sectionMeta.length;
 
   // Smart Decomposition untuk Perkalian (×) & Pembagian (÷):
   // Untuk perkalian: Bilangan yang dipecah (decompNum) adalah bilangan yang memiliki digit lebih banyak
@@ -78,7 +139,7 @@ export default function PracticeCard({
   let decompNum = num1;
   let multiplierNum = num2;
   if (isMult) {
-    if (String(num2).length > String(num1).length) {
+    if (num2 > num1) {
       decompNum = num2;
       multiplierNum = num1;
     } else {
@@ -108,8 +169,6 @@ export default function PracticeCard({
 
   // Section Interaction Inputs
   const [secInputs, setSecInputs] = useState<{ [key: string]: string }>({});
-
-  const sectionMeta = getSectionNamesForOp(currentOp, isSingleDigit);
 
   // Diagnostik status tiap section untuk soal aktif ini
   const [sectionDiagnostics, setSectionDiagnostics] = useState<SectionDiagnostic[]>(() =>
@@ -298,7 +357,7 @@ export default function PracticeCard({
       if (currentSection === 1) {
         if (isSingleDigit) {
           if (currentOp === "+") firstKey = "sumU";
-          else if (currentOp === "-") firstKey = "";
+          else if (currentOp === "-") firstKey = "diffU";
           else if (currentOp === "×") firstKey = "repSum";
           else if (currentOp === "÷") firstKey = "quotU";
         } else {
@@ -309,14 +368,18 @@ export default function PracticeCard({
           firstKey = "finalAnswer";
         } else {
           if (currentOp === "+") firstKey = "sumU";
-          else if (currentOp === "-") firstKey = u1 < u2 ? "newT1" : "";
-          else if (currentOp === "×" || currentOp === "÷")
+          else if (currentOp === "-") firstKey = "diffU";
+          else if (currentOp === "×")
+            firstKey = hasDecH ? "partH" : hasDecT ? "partT" : "partU";
+          else if (currentOp === "÷")
             firstKey = hasDecH ? "decH_val" : hasDecT ? "decT_val" : "decU_val";
         }
       } else if (currentSection === 3) {
         if (currentOp === "+") firstKey = "sumT";
-        else if (currentOp === "-") firstKey = "diffU";
-        else if (currentOp === "×" || currentOp === "÷")
+        else if (currentOp === "-") firstKey = secInputs["diffU"] ? "diffT" : "diffU";
+        else if (currentOp === "×")
+          firstKey = "finalAnswer";
+        else if (currentOp === "÷")
           firstKey = "combined";
       } else if (currentSection === 4) {
         firstKey = "finalAnswer";
@@ -332,7 +395,7 @@ export default function PracticeCard({
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [currentSection, currentOp, hasHundreds, hasTens, isSingleDigit, u1, u2, num1, h1, t1, hasDecH, hasDecT, decompNum, multiplierNum]);
+  }, [currentSection, currentOp, hasHundreds, hasTens, isSingleDigit, u1, u2, num1, h1, t1, rawSumU, rawSumT, hasDecH, hasDecT, decompNum, multiplierNum, hasHundreds1, hasTens1, hasHundreds2, hasTens2]);
 
   // -------------------------------------------------------------------------
   // VALIDASI SETIAP SECTION
@@ -348,30 +411,26 @@ export default function PracticeCard({
     if (isSingleDigit) {
       if (secId === 1) {
         if (currentOp === "+") {
-          // Hitung Satuan & Simpanan
-          const inSumU = parseInt(secInputs["sumU"] || "0", 10);
-          const inCarry = parseInt(secInputs["carryT"] || "0", 10);
+          // Hitung Total Satuan
+          const inSumU = parseInt(secInputs["sumU"] || "-1", 10);
           const rawSum = u1 + u2;
-          const expU = rawSum % 10;
-          const expCarry = rawSum >= 10 ? 1 : 0;
-          isCorrect = inSumU === expU && (rawSum >= 10 ? inCarry === expCarry : true);
+          isCorrect = inSumU === rawSum;
           if (!isCorrect) {
-            if (rawSum >= 10 && inCarry !== expCarry) {
-              detectedErrorType = "LUPA_SIMPAN_PULUHAN";
-              errorMessage = "Karena hasil penjumlahan satuan mencapai 10 atau lebih, jangan lupa simpan angka puluhannya di atas ya!";
-              detectedErrorDetail = `Siswa tidak menuliskan angka simpanan ${expCarry} ke kolom puluhan dari ${u1} + ${u2} = ${rawSum}.`;
-              detectedIntervention = "Gunakan balok satuan untuk menunjukkan bahwa 10 kubus satuan ditukar menjadi 1 batang puluhan yang disimpan di kolom atas.";
-            } else {
-              detectedErrorType = "SALAH_HITUNG_SATUAN";
-              errorMessage = rawSum >= 10
-                ? "Periksa kembali hitungan balok satuan dan angka simpanan di atasnya ya!"
-                : "Hitung kembali jumlah balok satuan dengan teliti.";
-              detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
-              detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
-            }
+            detectedErrorType = "SALAH_HITUNG_SATUAN";
+            errorMessage = "Hitung kembali jumlah total balok satuan dengan teliti ya!";
+            detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
+            detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
           }
         } else if (currentOp === "-") {
-          isCorrect = true;
+          const inDiffU = parseInt(secInputs["diffU"] || "-1", 10);
+          const expDiff = u1 - u2;
+          isCorrect = inDiffU === expDiff;
+          if (!isCorrect) {
+            detectedErrorType = "SALAH_HITUNG_SATUAN";
+            errorMessage = "Hitung kembali selisih balok satuan dengan teliti ya!";
+            detectedErrorDetail = `Kekeliruan pengurangan satuan (${u1} − ${u2} = ${expDiff}). Siswa menginput ${inDiffU}.`;
+            detectedIntervention = "Bimbing siswa menghitung selisih dengan mencoret atau mengambil balok satuan sesuai angka pengurang.";
+          }
         } else if (currentOp === "×") {
           const inRepeatedSum = parseInt(secInputs["repSum"] || "0", 10);
           isCorrect = inRepeatedSum === num1 * num2;
@@ -405,29 +464,60 @@ export default function PracticeCard({
       }
     } else if (secId === 1) {
       // Susun kolom nilai tempat untuk SEMUA operasi (+, -, ×, ÷)
-      const inU1 = parseInt(secInputs["u1"] || "0", 10);
-      const inT1 = parseInt(secInputs["t1"] || "0", 10);
-      const inH1 = parseInt(secInputs["h1"] || "0", 10);
+      const rawU1 = (secInputs["u1"] || "").trim();
+      const rawT1 = (secInputs["t1"] || "").trim();
+      const rawH1 = (secInputs["h1"] || "").trim();
 
-      const inU2 = parseInt(secInputs["u2"] || "0", 10);
-      const inT2 = parseInt(secInputs["t2"] || "0", 10);
-      const inH2 = parseInt(secInputs["h2"] || "0", 10);
+      const rawU2 = (secInputs["u2"] || "").trim();
+      const rawT2 = (secInputs["t2"] || "").trim();
+      const rawH2 = (secInputs["h2"] || "").trim();
 
-      const u1Ok = inU1 === u1;
-      const t1Ok = !hasTens || inT1 === t1 || (t1 > 0 && inT1 === t1 * 10);
-      const h1Ok = !hasHundreds || inH1 === h1 || (h1 > 0 && inH1 === h1 * 100);
+      const inU1 = parseInt(rawU1 || "0", 10);
+      const inT1 = parseInt(rawT1 || "0", 10);
+      const inH1 = parseInt(rawH1 || "0", 10);
 
-      const u2Ok = inU2 === u2;
-      const t2Ok = !hasTens || (t2 === 0 ? true : inT2 === t2 || (t2 > 0 && inT2 === t2 * 10));
-      const h2Ok = !hasHundreds || (h2 === 0 ? true : inH2 === h2 || (h2 > 0 && inH2 === h2 * 100));
+      const inU2 = parseInt(rawU2 || "0", 10);
+      const inT2 = parseInt(rawT2 || "0", 10);
+      const inH2 = parseInt(rawH2 || "0", 10);
+
+      const u1Ok = rawU1 !== "" && inU1 === u1;
+      const t1Ok = !hasTens || (
+        num1 >= 10
+          ? (rawT1 !== "" && (inT1 === t1 || (t1 > 0 && inT1 === t1 * 10)))
+          : (rawT1 === "" || inT1 === 0)
+      );
+      const h1Ok = !hasHundreds || (
+        num1 >= 100
+          ? (rawH1 !== "" && (inH1 === h1 || (h1 > 0 && inH1 === h1 * 100)))
+          : (rawH1 === "" || inH1 === 0)
+      );
+
+      const u2Ok = rawU2 !== "" && inU2 === u2;
+      const t2Ok = !hasTens || (
+        num2 >= 10
+          ? (rawT2 !== "" && (inT2 === t2 || (t2 > 0 && inT2 === t2 * 10)))
+          : (rawT2 === "" || inT2 === 0)
+      );
+      const h2Ok = !hasHundreds || (
+        num2 >= 100
+          ? (rawH2 !== "" && (inH2 === h2 || (h2 > 0 && inH2 === h2 * 100)))
+          : (rawH2 === "" || inH2 === 0)
+      );
 
       isCorrect = u1Ok && t1Ok && h1Ok && u2Ok && t2Ok && h2Ok;
       if (!isCorrect) {
         detectedErrorType = "SALAH_SECTION_1";
-        if (currentOp === "×") {
-          errorMessage = `Susun digit bilangan ${num1} dan pengali ${num2} pada kolom nilai tempat dengan tepat.`;
-        } else if (currentOp === "÷") {
-          errorMessage = `Susun digit bilangan ${num1} dan pembagi ${num2} pada kolom nilai tempat dengan tepat.`;
+        const opLabel2 = currentOp === "-" ? "Pengurang" : currentOp === "×" ? "Pengali" : currentOp === "÷" ? "Pembagi" : "Bil. 2";
+        const errors: string[] = [];
+        if (!h1Ok) errors.push(`Ratusan Bil. 1 (${h1})`);
+        if (!t1Ok) errors.push(`Puluhan Bil. 1 (${t1})`);
+        if (!u1Ok) errors.push(`Satuan Bil. 1 (${u1})`);
+        if (!h2Ok) errors.push(`Ratusan ${opLabel2} (${h2})`);
+        if (!t2Ok) errors.push(`Puluhan ${opLabel2} (${t2})`);
+        if (!u2Ok) errors.push(`Satuan ${opLabel2} (${u2})`);
+
+        if (errors.length > 0) {
+          errorMessage = `Periksa kembali: ${errors.join(", ")} belum sesuai dengan angka soal.`;
         } else if (currentOp === "-") {
           errorMessage = `Susun digit bilangan ${num1} dan pengurang ${num2} pada kolom nilai tempat dengan tepat.`;
         } else {
@@ -439,67 +529,58 @@ export default function PracticeCard({
     } else if (currentOp === "+") {
       if (secId === 2) {
         // Hitung Satuan & Simpanan
-        const inSumU = parseInt(secInputs["sumU"] || "0", 10);
-        const inCarry = parseInt(secInputs["carryT"] || "0", 10);
+        // Hitung Total Satuan
+        const inSumU = parseInt(secInputs["sumU"] || "-1", 10);
         const rawSum = u1 + u2;
-        const expU = rawSum % 10;
-        const expCarry = rawSum >= 10 ? 1 : 0;
-        isCorrect = inSumU === expU && (rawSum >= 10 ? inCarry === expCarry : true);
+        isCorrect = inSumU === rawSum;
         if (!isCorrect) {
-          if (rawSum >= 10 && inCarry !== expCarry) {
-            detectedErrorType = "LUPA_SIMPAN_PULUHAN";
-            errorMessage = "Karena hasil penjumlahan satuan mencapai 10 atau lebih, jangan lupa simpan angka puluhannya di atas ya!";
-            detectedErrorDetail = `Siswa tidak menuliskan angka simpanan ${expCarry} ke kolom puluhan dari ${u1} + ${u2} = ${rawSum}.`;
-            detectedIntervention = "Gunakan balok satuan untuk menunjukkan bahwa 10 kubus satuan ditukar menjadi 1 batang puluhan yang disimpan di kolom atas.";
-          } else {
-            detectedErrorType = "SALAH_HITUNG_SATUAN";
-            errorMessage = rawSum >= 10
-              ? "Periksa kembali hitungan balok satuan dan angka simpanan di atasnya ya!"
-              : "Hitung kembali jumlah balok satuan dengan teliti.";
-            detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
-            detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
-          }
+          detectedErrorType = "SALAH_HITUNG_SATUAN";
+          errorMessage = "Hitung kembali jumlah total balok satuan dengan teliti ya!";
+          detectedErrorDetail = `Kekeliruan penjumlahan satuan (${u1} + ${u2} = ${rawSum}). Siswa menginput ${inSumU}.`;
+          detectedIntervention = "Bimbing siswa menghitung penjumlahan satuan dengan bantuan visual balok satuan secara terfokus.";
         }
       } else if (secId === 3) {
-        // Hitung Puluhan & Ratusan
+        // Hitung Total Puluhan & Ratusan
         const inSumT = parseInt(secInputs["sumT"] || "-1", 10);
-        const inCarryH = parseInt(secInputs["carryH"] || "0", 10);
-        const inSumH = parseInt(secInputs["sumH"] || "-1", 10);
+        const expectedT = rawSumT;
 
         if (hasHundreds) {
-          const tOk = inSumT === expSumT;
-          const carryHOk = rawSumT >= 10 ? inCarryH === carryH : true;
-          const hOk = inSumH === expSumH;
-          isCorrect = tOk && carryHOk && hOk;
+          const inSumH = parseInt(secInputs["sumH"] || "-1", 10);
+          const expectedH = expSumH; // h1 + h2 + carryH
+          const tOk = inSumT === expectedT;
+          const hOk = inSumH === expectedH;
+          isCorrect = tOk && hOk;
           if (!isCorrect) {
-            if (carryT > 0 && inSumT === (t1 + t2) % 10) {
-              detectedErrorType = "LUPA_TAMBAH_SIMPANAN";
-              detectedErrorDetail = `Siswa menjumlahkan puluhan tanpa menambahkan simpanan 1 (${t1} + ${t2} = ${t1 + t2}, seharusnya ${expSumT}).`;
-              detectedIntervention = "Ingatkan siswa untuk selalu melingkari dan menambahkan angka simpanan kecil di atas kolom puluhan.";
+            if (!tOk && !hOk) {
+              errorMessage = "Coba hitung kembali total penjumlahan pada kolom puluhan dan ratusan.";
+            } else if (!tOk) {
+              if (carryT > 0 && inSumT === t1 + t2) {
+                errorMessage = "Jangan lupa tambahkan 1 simpanan dari kolom satuan ya!";
+              } else {
+                errorMessage = `Coba hitung kembali total penjumlahan batang puluhan (${t1} + ${t2}${carryT > 0 ? " + 1 simpanan" : ""}).`;
+              }
             } else {
-              detectedErrorType = "SALAH_HITUNG_PULUHAN";
-              detectedErrorDetail = `Kekeliruan penjumlahan puluhan/ratusan pada bilangan ratusan.`;
-              detectedIntervention = "Bimbing siswa menjumlahkan balok puluhan dan ratusan satu per satu.";
+              if (carryH > 0 && inSumH === h1 + h2) {
+                errorMessage = "Jangan lupa tambahkan 1 simpanan dari kolom puluhan ya!";
+              } else {
+                errorMessage = `Coba hitung kembali total lempeng ratusan (${h1} + ${h2}${carryH > 0 ? " + 1 simpanan" : ""}).`;
+              }
             }
-            errorMessage = carryT > 0 || carryH > 0
-              ? "Jangan lupa tambahkan angka simpanan saat menjumlahkan nilai tempat puluhan dan ratusan ya!"
-              : "Coba periksa kembali penjumlahan pada kolom puluhan dan ratusan.";
+            detectedErrorType = !tOk ? "SALAH_HITUNG_PULUHAN" : "SALAH_HITUNG_RATUSAN";
+            detectedErrorDetail = `Puluhan: ${inSumT} (kunci: ${expectedT}), Ratusan: ${inSumH} (kunci: ${expectedH})`;
+            detectedIntervention = "Pandu siswa menghitung total balok per kolom nilai tempat beserta simpanannya.";
           }
         } else {
-          isCorrect = inSumT === expSumT;
+          isCorrect = inSumT === expectedT;
           if (!isCorrect) {
             if (carryT > 0 && inSumT === t1 + t2) {
-              detectedErrorType = "LUPA_TAMBAH_SIMPANAN";
-              detectedErrorDetail = `Siswa menjumlahkan puluhan (${t1} + ${t2} = ${t1 + t2}) tanpa menambahkan angka simpanan ${carryT}.`;
-              detectedIntervention = "Ingatkan siswa untuk selalu menyertakan angka simpanan di atas kolom puluhan saat menjumlahkan.";
+              errorMessage = "Jangan lupa tambahkan 1 simpanan dari kolom satuan ya!";
             } else {
-              detectedErrorType = "SALAH_HITUNG_PULUHAN";
-              detectedErrorDetail = `Kekeliruan penjumlahan puluhan: ${t1} + ${t2}${carryT > 0 ? ` + ${carryT}` : ""} diisi ${inSumT}.`;
-              detectedIntervention = "Ajak siswa menjumlahkan batang balok puluhan secara bertahap.";
+              errorMessage = `Coba hitung kembali total penjumlahan batang puluhan (${t1} + ${t2}${carryT > 0 ? " + 1 simpanan" : ""}).`;
             }
-            errorMessage = carryT > 0
-              ? "Ingat untuk menambahkan angka simpanan kecil di atas kolom puluhan ya!"
-              : "Coba hitung kembali penjumlahan batang puluhan.";
+            detectedErrorType = "SALAH_HITUNG_PULUHAN";
+            detectedErrorDetail = `Kekeliruan penjumlahan puluhan: ${t1} + ${t2}${carryT > 0 ? ` + ${carryT}` : ""} diisi ${inSumT}.`;
+            detectedIntervention = "Ajak siswa menjumlahkan batang balok puluhan secara bertahap.";
           }
         }
       } else if (secId === 4) {
@@ -514,19 +595,16 @@ export default function PracticeCard({
       }
     } else if (currentOp === "-") {
       if (secId === 2) {
-        // Cek Satuan & Tukar Puluhan (Regrouping)
-        if (u1 < u2) {
-          const inNewU = parseInt(secInputs["newU1"] || "0", 10);
-          const inNewT = parseInt(secInputs["newT1"] || "0", 10);
-          isCorrect = inNewU === u1 + 10 && inNewT === t1 - 1;
-          if (!isCorrect) {
-            detectedErrorType = "PENGURANGAN_TERBALIK";
-            errorMessage = `Angka satuan di atas (${u1}) lebih kecil dari bawah (${u2}). Tukar 1 puluhan menjadi 10 satuan ya!`;
-            detectedErrorDetail = `Satuan ${u1} < ${u2}, tetapi siswa tidak melakukan penukaran puluhan (regrouping/pinjam).`;
-            detectedIntervention = "Demonstrasikan pembongkaran 1 batang puluhan menjadi 10 kubus satuan pada visual balok.";
-          }
-        } else {
-          isCorrect = true; // Satuan cukup dikurang langsung
+        // Cek Satuan & Tukar Puluhan: Siswa menghitung selisih satuan (baik langsung maupun setelah meminjam 1 puluhan)
+        const inDiffU = parseInt(secInputs["diffU"] || "-1", 10);
+        isCorrect = inDiffU === expDiffU;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_HITUNG_SATUAN";
+          errorMessage = u1 >= u2
+            ? "Hitung kembali selisih balok satuan dengan teliti ya!"
+            : `Hitung kembali selisih satuan setelah meminjam 1 puluhan ya (${effectiveU1} − ${u2})!`;
+          detectedErrorDetail = `Kekeliruan pengurangan satuan (${effectiveU1} − ${u2} = ${expDiffU}). Siswa menginput ${inDiffU}.`;
+          detectedIntervention = "Bimbing siswa menghitung selisih dengan mencoret atau mengambil balok satuan sesuai angka pengurang.";
         }
       } else if (secId === 3) {
         const inDiffU = parseInt(secInputs["diffU"] || "-1", 10);
@@ -571,20 +649,33 @@ export default function PracticeCard({
     } else if (currentOp === "×") {
       if (secId === 2) {
         if (!isSingleDigit) {
-          const inDecH = hasDecH ? parseInt(secInputs["decH_val"] || "-1", 10) : 0;
-          const inDecT = hasDecT ? parseInt(secInputs["decT_val"] || "-1", 10) : 0;
-          const inDecU = parseInt(secInputs["decU_val"] || "-1", 10);
+          const inPartH = hasDecH ? parseInt(secInputs["partH"] || secInputs["decH_val"] || "-1", 10) : 0;
+          const inPartT = hasDecT ? parseInt(secInputs["partT"] || secInputs["decT_val"] || "-1", 10) : 0;
+          const inPartU = parseInt(secInputs["partU"] || secInputs["decU_val"] || "-1", 10);
+          const inCombined = parseInt(secInputs["combined"] || "-1", 10);
 
-          const hOk = !hasDecH || inDecH === valH || inDecH === decH || inDecH === expPartH;
-          const tOk = !hasDecT || inDecT === valT || inDecT === decT || inDecT === expPartT;
-          const uOk = inDecU === valU || inDecU === expPartU;
+          const hOk = !hasDecH || inPartH === expPartH;
+          const tOk = !hasDecT || inPartT === expPartT;
+          const uOk = inPartU === expPartU;
+          const combOk = inCombined === expectedFinalAnswer;
 
-          isCorrect = hOk && tOk && uOk;
+          isCorrect = hOk && tOk && uOk && combOk;
           if (!isCorrect) {
-            detectedErrorType = "SALAH_PECAH_NILAI";
-            errorMessage = `Urai bilangan ${decompNum} ke dalam ratusan (${valH}), puluhan (${valT}), dan satuan (${valU}) atau hasil kali tiap bagiannya dengan tepat ya!`;
-            detectedErrorDetail = `Kekeliruan dalam mengisi nilai pecahan tempat atau hasil bagian bilangan ${decompNum}.`;
-            detectedIntervention = "Ajak siswa mengamati visual balok untuk mengenali ratusan, puluhan, dan satuan.";
+            detectedErrorType = "SALAH_PERKALIAN_BERSUSUN";
+            if (!hOk) {
+              errorMessage = `Hitung kembali hasil perkalian ratusan (${multiplierNum} × ${valH} = ${expPartH}) ya!`;
+              detectedErrorDetail = `Perkalian ratusan diisi ${inPartH}, seharusnya ${expPartH}.`;
+            } else if (!tOk) {
+              errorMessage = `Hitung kembali hasil perkalian puluhan (${multiplierNum} × ${valT} = ${expPartT}) ya!`;
+              detectedErrorDetail = `Perkalian puluhan diisi ${inPartT}, seharusnya ${expPartT}.`;
+            } else if (!uOk) {
+              errorMessage = `Hitung kembali hasil perkalian satuan (${multiplierNum} × ${valU} = ${expPartU}) ya!`;
+              detectedErrorDetail = `Perkalian satuan diisi ${inPartU}, seharusnya ${expPartU}.`;
+            } else if (!combOk) {
+              errorMessage = "Jumlahkan semua hasil perkalian bersusun di sebelah kanan dengan teliti ya!";
+              detectedErrorDetail = `Penjumlahan bersusun diisi ${inCombined}, seharusnya ${expectedFinalAnswer}.`;
+            }
+            detectedIntervention = "Ajak siswa mengamati visual balok untuk menghitung hasil per nilai tempat lalu menjumlahkannya secara bersusun.";
           }
         } else {
           const inRepeatedSum = parseInt(secInputs["repSum"] || "0", 10);
@@ -597,13 +688,13 @@ export default function PracticeCard({
           }
         }
       } else if (secId === 3) {
-        const inCombined = parseInt(secInputs["combined"] || "-1", 10);
-        isCorrect = inCombined === expectedFinalAnswer;
+        const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
+        isCorrect = inFinal === expectedFinalAnswer;
         if (!isCorrect) {
-          detectedErrorType = "SALAH_GABUNG_HASIL";
-          errorMessage = "Jumlahkan semua hasil bagian di atas untuk mendapatkan totalnya ya!";
-          detectedErrorDetail = `Kekeliruan saat menggabungkan hasil parsial perkalian. Ditulis ${inCombined}, seharusnya ${expectedFinalAnswer}.`;
-          detectedIntervention = "Bimbing siswa menjumlahkan hasil bagian secara berurutan.";
+          detectedErrorType = "SALAH_HASIL_AKHIR";
+          errorMessage = "Periksa kembali hasil akhir perkalian untuk jawaban akhirnya ya!";
+          detectedErrorDetail = `Hasil akhir perkalian ditulis ${inFinal}, seharusnya ${expectedFinalAnswer}.`;
+          detectedIntervention = "Periksa kembali hasil penjumlahan bersusun dari tahap sebelumnya.";
         }
       } else if (secId === 4) {
         const inFinal = parseInt(secInputs["finalAnswer"] || "0", 10);
@@ -756,7 +847,7 @@ export default function PracticeCard({
 
       {/* 2. STEPPER PROGRESS BAR (3 SECTIONS UNTUK SATUAN, 4 SECTIONS UNTUK PULUHAN/RATUSAN) */}
       <div className="bg-gradient-to-r from-blue-50/60 via-indigo-50/40 to-emerald-50/60 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
-        <div className={`grid ${isSingleDigit ? "grid-cols-2" : "grid-cols-4"} gap-2`}>
+        <div className={`grid ${totalSections === 2 ? "grid-cols-2" : totalSections === 3 ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
           {sectionMeta.map((sec) => {
             const isActive = currentSection === sec.id;
             const diag = sectionDiagnostics.find((d) => d.sectionId === sec.id);
@@ -940,7 +1031,7 @@ export default function PracticeCard({
                       handleFieldInput(
                         "u1",
                         e.target.value,
-                        hasHundreds && h2 > 0 ? "h2" : hasTens && t2 > 0 ? "t2" : "u2",
+                        hasHundreds ? "h2" : hasTens ? "t2" : "u2",
                         1
                       )
                     }
@@ -948,7 +1039,7 @@ export default function PracticeCard({
                       handleKeyDown(
                         e,
                         hasTens ? "t1" : hasHundreds ? "h1" : undefined,
-                        hasHundreds && h2 > 0 ? "h2" : hasTens && t2 > 0 ? "t2" : "u2"
+                        hasHundreds ? "h2" : hasTens ? "t2" : "u2"
                       )
                     }
                     placeholder="?"
@@ -970,40 +1061,28 @@ export default function PracticeCard({
                     </div>
                   </div>
                   {hasHundreds && (
-                    h2 > 0 ? (
-                      <input
-                        type="text"
-                        data-field-key="h2"
-                        maxLength={1}
-                        value={secInputs["h2"] || ""}
-                        onChange={(e) => handleFieldInput("h2", e.target.value, t2 > 0 ? "t2" : "u2", 1)}
-                        onKeyDown={(e) => handleKeyDown(e, "u1", t2 > 0 ? "t2" : "u2")}
-                        placeholder="?"
-                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
-                      />
-                    ) : (
-                      <div className="w-full h-12 sm:h-14 flex items-center justify-center bg-slate-100/60 border border-slate-200 rounded-2xl text-slate-400 font-bold text-xl">
-                        —
-                      </div>
-                    )
+                    <input
+                      type="text"
+                      data-field-key="h2"
+                      maxLength={1}
+                      value={secInputs["h2"] || ""}
+                      onChange={(e) => handleFieldInput("h2", e.target.value, hasTens ? "t2" : "u2", 1)}
+                      onKeyDown={(e) => handleKeyDown(e, "u1", hasTens ? "t2" : "u2")}
+                      placeholder="?"
+                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
+                    />
                   )}
                   {hasTens && (
-                    t2 > 0 ? (
-                      <input
-                        type="text"
-                        data-field-key="t2"
-                        maxLength={1}
-                        value={secInputs["t2"] || ""}
-                        onChange={(e) => handleFieldInput("t2", e.target.value, "u2", 1)}
-                        onKeyDown={(e) => handleKeyDown(e, hasHundreds && h2 > 0 ? "h2" : "u1", "u2")}
-                        placeholder="?"
-                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
-                      />
-                    ) : (
-                      <div className="w-full h-12 sm:h-14 flex items-center justify-center bg-slate-100/60 border border-slate-200 rounded-2xl text-slate-400 font-bold text-xl">
-                        —
-                      </div>
-                    )
+                    <input
+                      type="text"
+                      data-field-key="t2"
+                      maxLength={1}
+                      value={secInputs["t2"] || ""}
+                      onChange={(e) => handleFieldInput("t2", e.target.value, "u2", 1)}
+                      onKeyDown={(e) => handleKeyDown(e, hasHundreds ? "h2" : "u1", "u2")}
+                      placeholder="?"
+                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
+                    />
                   )}
                   <input
                     type="text"
@@ -1014,7 +1093,7 @@ export default function PracticeCard({
                     onKeyDown={(e) =>
                       handleKeyDown(
                         e,
-                        hasTens && t2 > 0 ? "t2" : hasHundreds && h2 > 0 ? "h2" : "u1",
+                        hasTens ? "t2" : hasHundreds ? "h2" : "u1",
                         undefined
                       )
                     }
@@ -1055,7 +1134,7 @@ export default function PracticeCard({
 
             {/* A. OPERASI PERKALIAN (×) */}
             {currentOp === "×" ? (
-              num1 < 10 ? (
+              isSingleDigit ? (
                 <div className="p-4 bg-rose-50/70 border-2 border-rose-200/90 rounded-2xl flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-xs font-black text-rose-900 font-fredoka">
                     <Box size={16} className="text-rose-600" />
@@ -1089,126 +1168,176 @@ export default function PracticeCard({
                   </div>
                 </div>
               ) : (
-                /* Perkalian: Tahap 2 - Pecah Nilai Tempat & Visual Balok */
-                <div className="flex flex-col gap-4">
+                /* Perkalian: Tahap 2 - Visual Balok Hasil Perkalian & Penjumlahan Bersusun (2 Kolom) */
+                <div className="flex flex-col gap-5">
                   <div className="flex flex-col gap-1">
                     <p className="text-xs sm:text-sm font-bold text-slate-700">
-                      Pecah bilangan <span className="text-blue-700 font-black">{decompNum}</span> ke dalam ratusan, puluhan, dan satuan untuk dikalikan dengan <span className="text-rose-600 font-black">{multiplierNum}</span>:
+                      Hitung hasil perkalian tiap nilai tempat dengan bantuan visual balok, lalu jumlahkan secara bersusun di sebelah kanan:
                     </p>
                     <p className="text-[11px] text-slate-500 font-semibold">
-                      Tuliskan pecahan nilai tempat pada kotak di bawah sesuai balok bantuan, lalu periksa!
+                      Tuliskan hasil tiap bagian dan jumlah akhirnya, lalu periksa!
                     </p>
                   </div>
 
-                  <div className={`grid grid-cols-1 ${hasDecH ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 sm:gap-4`}>
-                    {/* Kartu 1: Ratusan (jika ada) */}
-                    {hasDecH && (
-                      <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
-                        <div className="px-3.5 py-1.5 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                          {multiplierNum} × {valH}
-                        </div>
-                        {/* Visual Balok Ratusan */}
-                        <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                          <div className={`flex flex-col items-center justify-center ${decH > 3 ? "grid grid-cols-2 gap-1.5" : "-space-y-2 sm:-space-y-2.5"}`}>
-                            {Array.from({ length: decH }).map((_, i) => (
-                              <HundredFlat3D key={i} width={74} />
-                            ))}
+                  {/* Tata Letak 2 Kolom: Kiri (Kartu Perkalian + Balok) -> Panah -> Kanan (Penjumlahan Bersusun) */}
+                  <div className="flex flex-col md:flex-row items-center md:items-stretch justify-center gap-3 sm:gap-4 w-full">
+                    {/* Kolom Kiri: Kartu Balok Perkalian Per Nilai Tempat */}
+                    <div className="flex-1 w-full flex flex-col gap-3">
+                      {/* Kartu Ratusan (jika ada) */}
+                      {hasDecH && (
+                        <div className="bg-blue-50/70 border-2 border-blue-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-blue-300 transition-all">
+                          <div className="px-3.5 py-1 bg-blue-100 text-blue-900 border border-blue-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                            {multiplierNum} × {valH}
                           </div>
-                          <span className="text-[10px] font-bold text-blue-600 font-fredoka mt-1">
-                            {decH} lempeng ratusan ({valH})
-                          </span>
+                          <MultiplicationProductBlocks3D val={expPartH} />
+                          <div className="flex flex-col items-center gap-1 w-full">
+                            <span className="text-[11px] font-bold text-slate-600">Nilai Ratusan:</span>
+                            <input
+                              type="text"
+                              data-field-key="partH"
+                              value={secInputs["partH"] || ""}
+                              onChange={(e) =>
+                                handleFieldInput(
+                                  "partH",
+                                  e.target.value,
+                                  hasDecT ? "partT" : "partU",
+                                  0
+                                )
+                              }
+                              onKeyDown={(e) => handleKeyDown(e, undefined, hasDecT ? "partT" : "partU")}
+                              placeholder="?"
+                              className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs placeholder:text-blue-300"
+                            />
+                          </div>
                         </div>
-                        {/* Input Pecahan Nilai Ratusan */}
+                      )}
+
+                      {/* Kartu Puluhan (jika ada) */}
+                      {hasDecT && (
+                        <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
+                          <div className="px-3.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                            {multiplierNum} × {valT}
+                          </div>
+                          <MultiplicationProductBlocks3D val={expPartT} />
+                          <div className="flex flex-col items-center gap-1 w-full">
+                            <span className="text-[11px] font-bold text-slate-600">Nilai Puluhan:</span>
+                            <input
+                              type="text"
+                              data-field-key="partT"
+                              value={secInputs["partT"] || ""}
+                              onChange={(e) =>
+                                handleFieldInput("partT", e.target.value, "partU", 0)
+                              }
+                              onKeyDown={(e) => handleKeyDown(e, hasDecH ? "partH" : undefined, "partU")}
+                              placeholder="?"
+                              className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs placeholder:text-emerald-300"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Kartu Satuan */}
+                      <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-3xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
+                        <div className="px-3.5 py-1 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
+                          {multiplierNum} × {valU}
+                        </div>
+                        <MultiplicationProductBlocks3D val={expPartU} />
                         <div className="flex flex-col items-center gap-1 w-full">
-                          <span className="text-[11px] font-bold text-slate-600">Nilai Ratusan:</span>
+                          <span className="text-[11px] font-bold text-slate-600">Nilai Satuan:</span>
                           <input
                             type="text"
-                            data-field-key="decH_val"
-                            value={secInputs["decH_val"] || ""}
+                            data-field-key="partU"
+                            value={secInputs["partU"] || ""}
                             onChange={(e) =>
-                              handleFieldInput(
-                                "decH_val",
-                                e.target.value,
-                                hasDecT ? "decT_val" : "decU_val",
-                                0
-                              )
+                              handleFieldInput("partU", e.target.value, "combined", 0)
                             }
-                            onKeyDown={(e) => handleKeyDown(e, undefined, hasDecT ? "decT_val" : "decU_val")}
-                            placeholder=""
-                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-none transition shadow-2xs"
+                            onKeyDown={(e) =>
+                              handleKeyDown(e, hasDecT ? "partT" : hasDecH ? "partH" : undefined, "combined")
+                            }
+                            placeholder="?"
+                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs placeholder:text-amber-300"
                           />
                         </div>
                       </div>
-                    )}
+                    </div>
 
-                    {/* Kartu 2: Puluhan (jika ada) */}
-                    {hasDecT && (
-                      <div className="bg-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-all">
-                        <div className="px-3.5 py-1.5 bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                          {multiplierNum} × {valT}
-                        </div>
-                        {/* Visual Balok Puluhan */}
-                        <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                          <div className="flex flex-wrap items-end justify-center gap-2">
-                            {Array.from({ length: decT }).map((_, i) => (
-                              <TenRod3D key={i} height={82} />
-                            ))}
-                          </div>
-                          <span className="text-[10px] font-bold text-emerald-600 font-fredoka">
-                            {decT} batang puluhan ({valT})
-                          </span>
-                        </div>
-                        {/* Input Pecahan Nilai Puluhan */}
-                        <div className="flex flex-col items-center gap-1 w-full">
-                          <span className="text-[11px] font-bold text-slate-600">Nilai Puluhan:</span>
-                          <input
-                            type="text"
-                            data-field-key="decT_val"
-                            value={secInputs["decT_val"] || ""}
-                            onChange={(e) =>
-                              handleFieldInput("decT_val", e.target.value, "decU_val", 0)
-                            }
-                            onKeyDown={(e) => handleKeyDown(e, hasDecH ? "decH_val" : undefined, "decU_val")}
-                            placeholder=""
-                            className="w-24 sm:w-28 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 outline-none transition shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Kartu 3: Satuan */}
-                    <div className="bg-amber-50/70 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 flex flex-col items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all">
-                      <div className="px-3.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-200 rounded-full text-xs sm:text-sm font-black font-fredoka shadow-2xs">
-                        {multiplierNum} × {valU}
-                      </div>
-                      {/* Visual Balok Satuan */}
-                      <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[105px] flex flex-col items-center justify-center gap-1 shadow-inner">
-                        <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
-                          {Array.from({ length: decU }).map((_, i) => (
-                            <UnitCube3D key={i} size={18} />
-                          ))}
-                        </div>
-                        <span className="text-[10px] font-bold text-amber-600 font-fredoka">
-                          {decU} kubus satuan ({valU})
+                    {/* Panah Penghubung ke Penjumlahan Bersusun */}
+                    <div className="flex md:flex-col items-center justify-center text-rose-400 shrink-0 py-2 md:py-0 px-2 sm:px-4">
+                      <div className="hidden md:flex flex-col items-center gap-1.5">
+                        <svg className="w-12 h-12 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                        <span className="text-[10px] font-black font-fredoka text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          Susun
                         </span>
                       </div>
-                      {/* Input Pecahan Nilai Satuan */}
-                      <div className="flex flex-col items-center gap-1 w-full">
-                        <span className="text-[11px] font-bold text-slate-600">Nilai Satuan:</span>
-                        <input
-                          type="text"
-                          data-field-key="decU_val"
-                          value={secInputs["decU_val"] || ""}
-                          onChange={(e) =>
-                            handleFieldInput("decU_val", e.target.value, undefined, 0)
-                          }
-                          onKeyDown={(e) =>
-                            handleKeyDown(e, hasDecT ? "decT_val" : hasDecH ? "decH_val" : undefined)
-                          }
-                          placeholder=""
-                          className="w-20 sm:w-24 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-300 text-amber-900 rounded-2xl focus:border-amber-600 focus:ring-4 focus:ring-amber-100 outline-none transition shadow-2xs"
-                        />
+                      <div className="md:hidden flex items-center gap-1.5">
+                        <svg className="w-8 h-8 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <span className="text-[10px] font-black font-fredoka text-rose-500 uppercase tracking-wider bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          Susun
+                        </span>
                       </div>
+                    </div>
+
+                    {/* Kolom Kanan: Papan Penjumlahan Bersusun */}
+                    <div className="flex-1 w-full md:max-w-[320px] bg-white border-2 border-slate-200/90 rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center gap-4 shadow-sm">
+                      <div className="px-3.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-full text-xs font-black font-fredoka shadow-2xs">
+                        Penjumlahan Bersusun
+                      </div>
+
+                      <div className="flex flex-col items-end pr-6 sm:pr-8 relative my-2 min-h-[80px] justify-center">
+                        {hasDecH && (
+                          <span
+                            className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
+                              secInputs["partH"] ? "text-slate-900" : "text-slate-300 font-normal"
+                            }`}
+                          >
+                            {secInputs["partH"] || "..."}
+                          </span>
+                        )}
+                        {hasDecT && (
+                          <span
+                            className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
+                              secInputs["partT"] ? "text-slate-900" : "text-slate-300 font-normal"
+                            }`}
+                          >
+                            {secInputs["partT"] || "..."}
+                          </span>
+                        )}
+                        <span
+                          className={`text-3xl sm:text-4xl font-black font-fredoka tracking-wider transition-colors ${
+                            secInputs["partU"] ? "text-slate-900" : "text-slate-300 font-normal"
+                          }`}
+                        >
+                          {secInputs["partU"] || "..."}
+                        </span>
+
+                        {/* Garis pemisah dengan tanda + */}
+                        <div className="w-full min-w-[130px] sm:min-w-[150px] border-b-4 border-slate-900 my-2 relative">
+                          <span className="absolute -right-6 sm:-right-7 -top-4 text-2xl sm:text-3xl font-black text-rose-600 font-fredoka">
+                            +
+                          </span>
+                        </div>
+
+                        {/* Input hasil penjumlahan bersusun */}
+                        <div className="flex flex-col items-center w-full mt-1">
+                          <input
+                            type="text"
+                            data-field-key="combined"
+                            value={secInputs["combined"] || ""}
+                            onChange={(e) => handleFieldInput("combined", e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, "partU", undefined)}
+                            placeholder="?"
+                            className="w-32 sm:w-36 h-12 sm:h-14 text-center font-black text-2xl sm:text-3xl font-fredoka bg-white border-3 border-rose-400 text-rose-950 rounded-2xl focus:border-rose-600 focus:ring-4 focus:ring-rose-200 outline-none transition shadow-xs placeholder:text-rose-300"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 font-semibold text-center">
+                        Jumlahkan hasil perkalian di atas untuk mendapatkan totalnya!
+                      </p>
                     </div>
                   </div>
 
@@ -1426,92 +1555,195 @@ export default function PracticeCard({
                       =
                     </span>
 
-                  {/* Kotak Pertanyaan / Hasil */}
-                  <div className="flex flex-col items-center justify-center gap-0.5 px-4 py-3 bg-amber-50 rounded-2xl border-2 border-dashed border-amber-300 min-w-[100px] min-h-[64px]">
-                    <span className="text-[11px] font-bold text-amber-800">Total Satuan</span>
-                    <span className="text-lg font-black text-amber-950 font-fredoka">
-                      ?
-                    </span>
+                    {/* Kotak Input Langsung Total Satuan di samping '=' */}
+                    <div className="flex flex-col items-center justify-center gap-1 px-4 py-3 bg-amber-50 rounded-2xl border-2 border-dashed border-amber-300 min-w-[100px] min-h-[64px] shadow-2xs">
+                      <span className="text-[11px] font-bold text-amber-800">Total Satuan</span>
+                      <input
+                        type="text"
+                        data-field-key="sumU"
+                        maxLength={2}
+                        value={secInputs["sumU"] || ""}
+                        onChange={(e) => handleFieldInput("sumU", e.target.value, undefined, String(rawSumU).length)}
+                        onKeyDown={(e) => handleKeyDown(e, undefined, undefined)}
+                        placeholder="?"
+                        className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-400 text-amber-950 rounded-xl outline-none focus:ring-4 focus:ring-amber-200 shadow-2xs"
+                      />
+                    </div>
                   </div>
+
+                  {/* Keterangan konsep jika total satuan >= 10, HANYA setelah siswa mengetik jawaban */}
+                  {parseInt(secInputs["sumU"] || "-1", 10) === rawSumU ? (
+                    rawSumU >= 10 && (
+                      <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center justify-center gap-2 text-center mt-2 animate-in fade-in zoom-in-95">
+                        <span>💡 Keren! Totalnya <span className="font-black">{rawSumU}</span> (≥ 10). Karena mencapai 10 atau lebih, maka <span className="font-black">10 satuan ditukar menjadi 1 batang puluhan</span> dan disimpan ke kolom puluhan pada tahap berikutnya!</span>
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-[11px] text-slate-500 font-semibold text-center mt-1">
+                      Hitung semua balok satuan di atas, lalu tuliskan totalnya di kotak kuning.
+                    </p>
+                  )}
                 </div>
               </div>
-
-              {/* Input Satuan & Simpanan */}
-              <div className="p-4 bg-slate-50/90 border border-slate-200 rounded-2xl flex flex-wrap items-center justify-center gap-4 sm:gap-6 shadow-2xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs sm:text-sm font-black text-amber-950 font-fredoka">
-                    Tulis Angka Satuan:
-                  </span>
-                  <input
-                    type="text"
-                    data-field-key="sumU"
-                    maxLength={1}
-                    value={secInputs["sumU"] || ""}
-                    onChange={(e) =>
-                      handleFieldInput("sumU", e.target.value, rawSumU >= 10 ? "carryT" : undefined, 1)
-                    }
-                    onKeyDown={(e) => handleKeyDown(e, undefined, rawSumU >= 10 ? "carryT" : undefined)}
-                    placeholder="?"
-                    className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-amber-400 text-amber-950 rounded-2xl outline-none focus:ring-4 focus:ring-amber-200 shadow-2xs"
-                  />
-                </div>
-
-                {/* Input Simpanan ke Puluhan (hanya muncul jika satuan >= 10) */}
-                {rawSumU >= 10 && (
-                  <div className="flex items-center gap-2.5 animate-in fade-in">
-                    <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
-                      Simpan ke Puluhan:
-                    </span>
-                    <input
-                      type="text"
-                      data-field-key="carryT"
-                      maxLength={1}
-                      value={secInputs["carryT"] || ""}
-                      onChange={(e) => handleFieldInput("carryT", e.target.value, undefined, 1)}
-                      onKeyDown={(e) => handleKeyDown(e, "sumU")}
-                      placeholder="?"
-                      className="w-14 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-500 text-emerald-950 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200 shadow-2xs"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
           ) : (
-            /* D. OPERASI PENGURANGAN (-) (Fokus Cek Satuan) */
-            <div className="flex flex-col gap-3">
+            /* D. OPERASI PENGURANGAN (-) (Fokus Cek & Hitung Satuan) */
+            <div className="flex flex-col gap-3.5">
               <p className="text-xs sm:text-sm font-bold text-slate-600">
-                Periksa angka satuan apakah cukup untuk dikurangkan:
+                {u1 >= u2
+                  ? "Kurangkan balok pada kolom satuan:"
+                  : "Periksa angka satuan dan lakukan penukaran puluhan:"}
               </p>
-              <div className="bg-gradient-to-r from-orange-50/80 via-white to-orange-50/80 border-2 border-orange-200/90 rounded-2xl p-4 flex flex-col items-center gap-3">
-                <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
-                  <div className="flex flex-col items-center gap-1 p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                    <span className="text-xs font-black text-amber-800 font-fredoka">{u1} satuan</span>
-                    <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center p-1.5 bg-white rounded-lg border border-amber-200">
-                      {Array.from({ length: u1 }).map((_, i) => (
-                        <UnitCube3D key={i} size={18} />
-                      ))}
-                    </div>
-                  </div>
-
-                  <span className="text-2xl font-black text-orange-600">−</span>
-
-                  <div className="flex flex-col items-center gap-1 p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                    <span className="text-xs font-black text-amber-800 font-fredoka">{u2} satuan</span>
-                    <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center p-1.5 bg-white rounded-lg border border-amber-200">
-                      {Array.from({ length: u2 }).map((_, i) => (
-                        <UnitCube3D key={i} size={18} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
+              {/* Visual Balok Kubus Satuan Pengurangan Sesuai Gaya Penjumlahan */}
+              <div className="bg-gradient-to-b from-orange-50/70 via-white to-orange-50/40 border-2 border-orange-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
                 {u1 < u2 ? (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm font-bold animate-in zoom-in-95">
-                    <span>⚠️ Satuan {u1} &lt; {u2}, perlu menukar dari nilai tempat puluhan di Tahap 3.</span>
+                  /* KASUS A: u1 < u2 (Perlu Meminjam/Menukar 1 Puluhan) */
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    {/* Penjelasan Edukatif Konsep Meminjam */}
+                    <div className="w-full p-3.5 bg-amber-50/95 border-2 border-amber-300 rounded-2xl flex items-start gap-3 text-amber-950 text-xs shadow-2xs">
+                      <span className="text-xl shrink-0 mt-0.5">💡</span>
+                      <div className="flex flex-col gap-1 text-left">
+                        <span className="font-black text-amber-950 font-fredoka text-xs sm:text-sm">
+                          Karena Satuan {u1} &lt; {u2}, Kita Pinjam 1 Puluhan dari Kolom Sampingnya!
+                        </span>
+                        <p className="text-[11.5px] sm:text-xs text-amber-900 leading-relaxed font-medium">
+                          Angka satuan di atas (<span className="font-bold">{u1}</span>) tidak cukup dikurangi <span className="font-bold">{u2}</span>. 
+                          Oleh karena itu, kita <span className="font-bold underline">meminjam 1 puluhan (= 10 satuan)</span> dari angka puluhan di sampingnya. 
+                          Sehingga satuan sekarang menjadi: <span className="font-black text-amber-950">{u1} + 10 = {effectiveU1}</span>!
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Baris Kartu Perhitungan Setelah Meminjam */}
+                    <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
+                      {/* Kartu Satuan Setelah Pinjam (effectiveU1) */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-gradient-to-b from-amber-50 to-orange-50/80 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[130px]">
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs font-black text-orange-950 font-fredoka">
+                            {effectiveU1} Satuan
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-800 bg-white/90 px-2 py-0.5 rounded-full border border-amber-200 mt-0.5">
+                            ({u1} awal + 10 pinjaman)
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-w-[150px] items-center justify-center min-h-[44px] p-1.5 bg-white rounded-xl border border-amber-200">
+                          {Array.from({ length: effectiveU1 }).map((_, i) => (
+                            <UnitCube3D key={i} size={16} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-orange-100/80 border border-orange-200 text-orange-800 flex items-center justify-center font-black text-base shadow-2xs">
+                        −
+                      </span>
+
+                      {/* Kartu Satuan Bilangan 2 (u2) */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-orange-200/90 shadow-2xs min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          {u2} Satuan
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px] p-1.5 bg-white rounded-xl border border-orange-100">
+                          {Array.from({ length: u2 }).map((_, i) => (
+                            <UnitCube3D key={i} size={16} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                        =
+                      </span>
+
+                      {/* Kotak Input Selisih Satuan */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-orange-50/60 rounded-2xl border-2 border-dashed border-orange-300 min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          Selisih Satuan
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="diffU"
+                          maxLength={2}
+                          value={secInputs["diffU"] || ""}
+                          onChange={(e) => handleFieldInput("diffU", e.target.value, undefined, String(expDiffU).length)}
+                          onKeyDown={(e) => handleKeyDown(e, undefined, undefined)}
+                          placeholder="?"
+                          className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-orange-400 text-orange-950 rounded-xl outline-none focus:ring-4 focus:ring-orange-200 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Feedback / Petunjuk Bawah */}
+                    {parseInt(secInputs["diffU"] || "-1", 10) === expDiffU ? (
+                      <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center justify-center gap-2 text-center animate-in fade-in zoom-in-95 w-full">
+                        <span>✅ Hebat! <span className="font-black">{effectiveU1} − {u2} = {expDiffU}</span>. Satuan sudah selesai dihitung! Klik lanjut ke Tahap 3 untuk menghitung sisa puluhan.</span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 font-semibold text-center mt-0.5">
+                        Hitung selisih satuan setelah meminjam ({effectiveU1} − {u2}), lalu tuliskan hasilnya di kotak oranye.
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-bold">
-                    <span>✅ Satuan {u1} &ge; {u2}, cukup untuk dikurangkan langsung.</span>
+                  /* KASUS B: u1 >= u2 (Cukup Tanpa Meminjam) */
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
+                      {/* Kartu Satuan Bilangan 1 */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-orange-200/90 shadow-2xs min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          {u1} Satuan
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px]">
+                          {Array.from({ length: u1 }).map((_, i) => (
+                            <UnitCube3D key={i} size={18} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-orange-100/80 border border-orange-200 text-orange-800 flex items-center justify-center font-black text-base shadow-2xs">
+                        −
+                      </span>
+
+                      {/* Kartu Satuan Bilangan 2 */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-orange-200/90 shadow-2xs min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          {u2} Satuan
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px]">
+                          {Array.from({ length: u2 }).map((_, i) => (
+                            <UnitCube3D key={i} size={18} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                        =
+                      </span>
+
+                      {/* Kotak Input Selisih Satuan */}
+                      <div className="flex flex-col items-center gap-2 p-3 bg-orange-50/60 rounded-2xl border-2 border-dashed border-orange-300 min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          Selisih Satuan
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="diffU"
+                          maxLength={2}
+                          value={secInputs["diffU"] || ""}
+                          onChange={(e) => handleFieldInput("diffU", e.target.value, undefined, String(u1 - u2).length)}
+                          onKeyDown={(e) => handleKeyDown(e, undefined, undefined)}
+                          placeholder="?"
+                          className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-orange-400 text-orange-950 rounded-xl outline-none focus:ring-4 focus:ring-orange-200 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {parseInt(secInputs["diffU"] || "-1", 10) === (u1 - u2) ? (
+                      <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center justify-center gap-2 text-center animate-in fade-in zoom-in-95 w-full">
+                        <span>✅ Hebat! Selisih satuannya adalah <span className="font-black">{u1 - u2}</span>. Balok satuan cukup sehingga langsung dikurangkan!</span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 font-semibold text-center mt-0.5">
+                        Kurangkan balok satuan di atas ({u1} − {u2}), lalu tuliskan selisihnya di kotak oranye.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1546,7 +1778,7 @@ export default function PracticeCard({
         {/* ================================================================= */}
         {/* SECTION 3: OPERASI PULUHAN / PENGGABUNGAN HASIL & BALOK 3D (Hanya untuk Multi-Digit) */}
         {/* ================================================================= */}
-        {!isSingleDigit && currentSection === 3 && (
+        {!isSingleDigit && currentSection === 3 && currentSection < totalSections && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-black">
@@ -1566,20 +1798,35 @@ export default function PracticeCard({
                     : "Hitung nilai tempat puluhan:"}
                 </p>
 
-                <div className={`grid grid-cols-1 ${hasHundreds ? "sm:grid-cols-2" : "max-w-md mx-auto"} gap-3.5`}>
+                <div className={`w-full ${hasHundreds ? "grid grid-cols-1 lg:grid-cols-2" : "flex flex-col"} gap-4`}>
                   {/* 1. BAGIAN PULUHAN */}
-                  <div className="bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/70 border-2 border-emerald-200/90 rounded-2xl p-4 flex flex-col items-center justify-between gap-3 shadow-2xs">
+                  <div className="bg-gradient-to-b from-emerald-50/70 via-white to-emerald-50/40 border-2 border-emerald-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
                     <div className="flex items-center justify-between w-full border-b border-emerald-100 pb-1.5">
                       <span className="text-xs font-black text-emerald-900 font-fredoka uppercase tracking-wider">
                         Kolom Puluhan
                       </span>
-                      <span className="text-[11px] font-bold text-emerald-700">
+                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-emerald-200">
                         {t1} + {t2} {carryT > 0 ? "+ 1 simpanan" : ""}
                       </span>
                     </div>
 
-                    {/* Visual Balok Puluhan */}
-                    <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                    {/* Penjelasan Asal Simpanan di Puluhan */}
+                    {carryT > 0 && (
+                      <div className="w-full p-2.5 sm:p-3 bg-amber-50/95 border border-amber-300 rounded-2xl flex items-start gap-2.5 text-amber-950 text-xs shadow-2xs animate-in fade-in">
+                        <span className="text-base sm:text-lg shrink-0 mt-0.5">💡</span>
+                        <div className="flex flex-col gap-0.5 text-left">
+                          <span className="font-black text-amber-950 font-fredoka text-xs sm:text-sm">
+                            Dari mana asal 1 simpanan di puluhan ini?
+                          </span>
+                          <p className="text-[11px] sm:text-xs text-amber-900 leading-relaxed font-medium">
+                            Di tahap perhitungan satuan sebelumnya ({u1} + {u2} = {rawSumU}), hasilnya <span className="font-bold">mencapai 10 atau lebih</span>. Karena itu, <span className="font-bold underline">10 kubus satuan dikelompokkan dan ditukar menjadi 1 batang puluhan</span>, lalu disimpan ke kolom puluhan ini.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Visual Balok Puluhan & Input Langsung di samping '=' */}
+                    <div className="flex items-center justify-center gap-2.5 sm:gap-4 flex-wrap">
                       {/* Batang t1 */}
                       <div className="flex flex-col items-center gap-1 p-2 bg-emerald-50/60 rounded-xl border border-emerald-200/70">
                         <span className="text-xs font-black text-emerald-800 font-fredoka">{t1} puluhan</span>
@@ -1606,78 +1853,97 @@ export default function PracticeCard({
                       {carryT > 0 && (
                         <>
                           <span className="text-xl font-black text-amber-600">+</span>
-                          <div className="flex flex-col items-center gap-1 p-2 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                            <span className="text-xs font-black text-amber-800 font-fredoka">1 simpanan</span>
-                            <div className="flex flex-wrap gap-1.5 items-end justify-center min-h-[85px] p-1 bg-white rounded-lg border border-amber-200">
+                          <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-gradient-to-b from-amber-50 to-amber-100/70 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
+                            <span className="text-xs font-black text-amber-900 font-fredoka text-center">
+                              1 Simpanan
+                            </span>
+                            <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-white/95 px-2 py-0.5 rounded-full border border-amber-300 text-center leading-tight">
+                              Dari Satuan Sebelumnya
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 items-end justify-center min-h-[85px] p-1 bg-white rounded-xl border border-amber-200 shadow-inner">
                               <TenRod3D variant="amber" height={76} />
                             </div>
+                            <span className="text-[9.5px] font-semibold text-amber-900/90 text-center leading-tight max-w-[120px]">
+                              (10 satuan ditukar jadi 1 puluhan)
+                            </span>
                           </div>
                         </>
                       )}
-                    </div>
 
-                    {/* Input Puluhan */}
-                    <div className="flex items-center justify-center gap-3 pt-1 flex-wrap">
-                      <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
-                        {hasHundreds ? "Tulis Digit Puluhan:" : `${t1} + ${t2} ${carryT > 0 ? "+ 1" : ""} =`}
+                      <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                        =
                       </span>
-                      <input
-                        type="text"
-                        data-field-key="sumT"
-                        maxLength={hasHundreds ? 1 : 2}
-                        value={secInputs["sumT"] || ""}
-                        onChange={(e) =>
-                          handleFieldInput(
-                            "sumT",
-                            e.target.value,
-                            hasHundreds ? (rawSumT >= 10 ? "carryH" : "sumH") : undefined,
-                            hasHundreds ? 1 : String(expSumT).length
-                          )
-                        }
-                        onKeyDown={(e) =>
-                          handleKeyDown(
-                            e,
-                            undefined,
-                            hasHundreds ? (rawSumT >= 10 ? "carryH" : "sumH") : undefined
-                          )
-                        }
-                        placeholder="?"
-                        className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-400 text-emerald-950 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-200 shadow-2xs"
-                      />
 
-                      {hasHundreds && rawSumT >= 10 && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-black text-blue-950 font-fredoka">
-                            Simpanan Ratusan:
-                          </span>
-                          <input
-                            type="text"
-                            data-field-key="carryH"
-                            maxLength={1}
-                            value={secInputs["carryH"] || ""}
-                            onChange={(e) => handleFieldInput("carryH", e.target.value, "sumH", 1)}
-                            onKeyDown={(e) => handleKeyDown(e, "sumT", "sumH")}
-                            placeholder="?"
-                            className="w-14 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-2xl outline-none focus:ring-4 focus:ring-blue-200 shadow-2xs"
-                          />
-                        </div>
-                      )}
+                      {/* Kotak Input Langsung Total Puluhan di samping '=' */}
+                      <div className="flex flex-col items-center justify-center gap-1 px-4 py-3 bg-emerald-50 rounded-2xl border-2 border-dashed border-emerald-300 min-w-[100px] min-h-[64px] shadow-2xs">
+                        <span className="text-[11px] font-bold text-emerald-800">Total Puluhan</span>
+                        <input
+                          type="text"
+                          data-field-key="sumT"
+                          maxLength={2}
+                          value={secInputs["sumT"] || ""}
+                          onChange={(e) =>
+                            handleFieldInput(
+                              "sumT",
+                              e.target.value,
+                              hasHundreds ? "sumH" : undefined,
+                              String(rawSumT).length
+                            )
+                          }
+                          onKeyDown={(e) =>
+                            handleKeyDown(
+                              e,
+                              undefined,
+                              hasHundreds ? "sumH" : undefined
+                            )
+                          }
+                          placeholder="?"
+                          className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-emerald-400 text-emerald-950 rounded-xl outline-none focus:ring-4 focus:ring-emerald-200 shadow-2xs"
+                        />
+                      </div>
                     </div>
+
+                    {hasHundreds && rawSumT >= 10 && (
+                      parseInt(secInputs["sumT"] || "-1", 10) === rawSumT ? (
+                        <div className="px-3.5 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-[11px] font-semibold text-center w-full animate-in fade-in zoom-in-95 mt-1">
+                          💡 Hebat! Total puluhan adalah <span className="font-black">{rawSumT}</span> (≥ 10). Maka <span className="font-black">10 puluhan ditukar menjadi 1 lempeng ratusan</span> dan disimpan ke kolom ratusan!
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-500 font-semibold text-center w-full mt-0.5">
+                          Hitung semua batang puluhan (termasuk simpanan jika ada), lalu tuliskan totalnya.
+                        </p>
+                      )
+                    )}
                   </div>
 
                   {/* 2. BAGIAN RATUSAN (JIKA BILANGAN RATUSAN) */}
                   {hasHundreds && (
-                    <div className="bg-gradient-to-r from-blue-50/70 via-white to-blue-50/70 border-2 border-blue-200/90 rounded-2xl p-4 flex flex-col items-center justify-between gap-3 shadow-2xs">
+                    <div className="bg-gradient-to-b from-blue-50/70 via-white to-blue-50/40 border-2 border-blue-200/90 rounded-3xl p-4 sm:p-5 flex flex-col items-center justify-between gap-4 shadow-xs w-full">
                       <div className="flex items-center justify-between w-full border-b border-blue-100 pb-1.5">
                         <span className="text-xs font-black text-blue-900 font-fredoka uppercase tracking-wider">
                           Kolom Ratusan
                         </span>
                         <span className="text-[11px] font-bold text-blue-700">
-                          {h1} + {h2} {carryH > 0 ? "+ 1 simpanan" : ""}
+                          {h1} + {h2} {carryH > 0 ? "+ 1 simpanan (dari puluhan)" : ""}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                      {/* Penjelasan Asal Simpanan di Ratusan */}
+                      {carryH > 0 && (
+                        <div className="w-full p-2.5 sm:p-3 bg-amber-50/95 border border-amber-300 rounded-2xl flex items-start gap-2.5 text-amber-950 text-xs shadow-2xs animate-in fade-in">
+                          <span className="text-base sm:text-lg shrink-0 mt-0.5">💡</span>
+                          <div className="flex flex-col gap-0.5 text-left">
+                            <span className="font-black text-amber-950 font-fredoka text-xs sm:text-sm">
+                              Dari mana asal 1 simpanan di ratusan?
+                            </span>
+                            <p className="text-[11px] sm:text-xs text-amber-900 leading-relaxed font-medium">
+                              Di kolom puluhan, hasil penjumlahannya <span className="font-bold">mencapai 10 atau lebih</span>. Karena itu, <span className="font-bold underline">10 puluhan ditukar menjadi 1 lempeng ratusan</span> dan disimpan ke kolom ratusan ini.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-center gap-2.5 sm:gap-4 flex-wrap">
                         {/* Balok h1 */}
                         <div className="flex flex-col items-center gap-1 p-2 bg-blue-50/60 rounded-xl border border-blue-200/70">
                           <span className="text-xs font-black text-blue-800 font-fredoka">{h1} ratusan</span>
@@ -1704,31 +1970,41 @@ export default function PracticeCard({
                         {carryH > 0 && (
                           <>
                             <span className="text-xl font-black text-amber-600">+</span>
-                            <div className="flex flex-col items-center gap-1 p-2 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                              <span className="text-xs font-black text-amber-800 font-fredoka">1 simpanan</span>
-                              <div className="flex flex-col items-center justify-center min-h-[75px] p-1 bg-white rounded-lg border border-amber-200">
+                            <div className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-gradient-to-b from-amber-50 to-amber-100/70 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[125px]">
+                              <span className="text-xs font-black text-amber-900 font-fredoka text-center">
+                                1 Simpanan
+                              </span>
+                              <span className="text-[9px] sm:text-[10px] font-bold text-amber-800 bg-white/95 px-2 py-0.5 rounded-full border border-amber-300 text-center leading-tight">
+                                Dari Puluhan Sebelumnya
+                              </span>
+                              <div className="flex flex-col items-center justify-center min-h-[75px] p-1.5 bg-white rounded-xl border border-amber-200 shadow-inner">
                                 <HundredFlat3D width={68} />
                               </div>
+                              <span className="text-[9.5px] font-semibold text-amber-900/90 text-center leading-tight max-w-[120px]">
+                                (10 puluhan ditukar jadi 1 ratusan)
+                              </span>
                             </div>
                           </>
                         )}
-                      </div>
 
-                      {/* Input Ratusan */}
-                      <div className="flex items-center justify-center gap-3 pt-1 flex-wrap">
-                        <span className="text-xs sm:text-sm font-black text-slate-800 font-fredoka">
-                          Tulis Digit Ratusan:
+                        <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                          =
                         </span>
-                        <input
-                          type="text"
-                          data-field-key="sumH"
-                          maxLength={2}
-                          value={secInputs["sumH"] || ""}
-                          onChange={(e) => handleFieldInput("sumH", e.target.value, undefined, String(expSumH).length)}
-                          onKeyDown={(e) => handleKeyDown(e, rawSumT >= 10 ? "carryH" : "sumT")}
-                          placeholder="?"
-                          className="w-16 h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-2xl outline-none focus:ring-4 focus:ring-blue-200 shadow-2xs"
-                        />
+
+                        {/* Kotak Input Langsung Ratusan di samping '=' */}
+                        <div className="flex flex-col items-center justify-center gap-1 px-4 py-3 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-300 min-w-[100px] min-h-[64px] shadow-2xs">
+                          <span className="text-[11px] font-bold text-blue-800">Total Ratusan</span>
+                          <input
+                            type="text"
+                            data-field-key="sumH"
+                            maxLength={2}
+                            value={secInputs["sumH"] || ""}
+                            onChange={(e) => handleFieldInput("sumH", e.target.value, undefined, String(expSumH).length)}
+                            onKeyDown={(e) => handleKeyDown(e, "sumT")}
+                            placeholder="?"
+                            className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-blue-400 text-blue-950 rounded-xl outline-none focus:ring-4 focus:ring-blue-200 shadow-2xs"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1978,16 +2254,16 @@ export default function PracticeCard({
         )}
 
         {/* ================================================================= */}
-        {/* SECTION HASIL AKHIR & VALIDASI KESELURUHAN (Tahap 2 jika satuan, Tahap 4 jika multi-digit) */}
+        {/* SECTION HASIL AKHIR & VALIDASI KESELURUHAN (Tahap 2 jika satuan, Tahap 4 jika multi-digit +, -, Tahap 3 jika ×) */}
         {/* ================================================================= */}
-        {((isSingleDigit && currentSection === 2) || (!isSingleDigit && currentSection === 4)) && (
+        {currentSection === totalSections && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">
-                {isSingleDigit ? 2 : 4}
+                {totalSections}
               </span>
               <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
-                {sectionMeta[isSingleDigit ? 1 : 3]?.title || "Hasil Akhir & Validasi"}
+                {sectionMeta[totalSections - 1]?.title || "Hasil Akhir & Validasi"}
               </h4>
             </div>
 
@@ -2123,14 +2399,14 @@ export default function PracticeCard({
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
                           type="button"
-                          onClick={() => setCurrentSection(isSingleDigit ? 1 : 3)}
+                          onClick={() => setCurrentSection(totalSections - 1)}
                           className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                         >
-                          &larr; {isSingleDigit ? "Kembali ke Tahap 1" : "Kembali ke Tahap 3"}
+                          &larr; Kembali ke Tahap {totalSections - 1}
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleValidateSection(isSingleDigit ? 2 : 4)}
+                          onClick={() => handleValidateSection(totalSections)}
                           className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-sm shadow-sm transition cursor-pointer"
                         >
                           Selesaikan Soal

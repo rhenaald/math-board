@@ -364,9 +364,8 @@ export function getSectionNamesForOp(
   if (op === "×") {
     return [
       { id: 1, title: "Papan Susun Nilai Tempat", subtitle: "Susun bilangan ke kolom ratusan, puluhan, satuan" },
-      { id: 2, title: "Pecah Nilai & Visual Balok", subtitle: "Urai bentuk perkalian dengan visual balok" },
-      { id: 3, title: "Gabungkan Hasil Pecahan", subtitle: "Jumlahkan hasil dari setiap bagian nilai tempat" },
-      { id: 4, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil akhir keseluruhan" },
+      { id: 2, title: "Perkalian Nilai & Penjumlahan Bersusun", subtitle: "Hitung hasil per nilai tempat lalu jumlahkan secara bersusun" },
+      { id: 3, title: "Hasil Akhir & Validasi", subtitle: "Tuliskan hasil akhir keseluruhan" },
     ];
   }
   if (op === "÷") {

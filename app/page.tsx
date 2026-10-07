@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
-import { Award, X } from "lucide-react";
+import { Award, X, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 // Modular components
 import SetupWizard, { OperationType } from "@/components/SetupWizard";
@@ -69,12 +69,17 @@ export default function Home() {
   const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
   const [activeNav, setActiveNav] = useState<NavTab>("belajar");
   const [isMultiLevelHelpOpen, setIsMultiLevelHelpOpen] = useState<boolean>(false);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
 
   // PRACTICE CONFIGURATION
   const [selectedOp, setSelectedOp] = useState<OperationType>("+");
   const [currentOp, setCurrentOp] = useState<SimpleOperation>("+");
   const [placeValueCombo, setPlaceValueCombo] = useState<string>("P-P");
   const [focusOption, setFocusOption] = useState<string>("random");
+  const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1);
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProblemRef = useRef<{ n1: number; n2: number; op: string } | null>(null);
   const lastDivisionProblemRef = useRef<{ n1: number; n2: number } | null>(null);
   const wasLastDivisionDecimalRef = useRef<boolean>(false);
 
@@ -222,6 +227,11 @@ export default function Home() {
     forcedCombo?: string,
     forcedFocus?: string
   ) => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+
     setCarryValues({ th: "", h: "", t: "", u: "" });
     setAnsValues({ th: "", h: "", t: "", u: "" });
     setUserAnswerInput("");
@@ -257,63 +267,226 @@ export default function Home() {
     let correct = 72;
 
     if (op === "+") {
-      if (activeFocus === "no-carry") {
-        const u1 = getRandomNumberInRange(1, 4);
-        const u2 = getRandomNumberInRange(1, 9 - u1);
-        const t1 = p1 !== "S" ? getRandomNumberInRange(1, 4) : 0;
-        const t2 = p2 !== "S" ? getRandomNumberInRange(1, 9 - t1) : 0;
-        const h1 = p1 === "R" ? getRandomNumberInRange(1, 4) : 0;
-        const h2 = p2 === "R" ? getRandomNumberInRange(1, 9 - h1) : 0;
-        n1 = h1 * 100 + t1 * 10 + u1;
-        n2 = h2 * 100 + t2 * 10 + u2;
-      } else if (activeFocus === "with-carry") {
-        const u1 = getRandomNumberInRange(5, 9);
-        const u2 = getRandomNumberInRange(10 - u1, 9);
-        const t1 = p1 !== "S" ? getRandomNumberInRange(1, 8) : 0;
-        const t2 = p2 !== "S" ? getRandomNumberInRange(1, 8) : 0;
-        const h1 = p1 === "R" ? getRandomNumberInRange(1, 8) : 0;
-        const h2 = p2 === "R" ? getRandomNumberInRange(1, 8) : 0;
-        n1 = h1 * 100 + t1 * 10 + u1;
-        n2 = h2 * 100 + t2 * 10 + u2;
-      } else {
-        n1 = getRandomNumberInRange(r1.min, r1.max);
-        n2 = getRandomNumberInRange(r2.min, r2.max);
+      let attempts = 0;
+      while (attempts < 25) {
+        attempts++;
+        if (activeFocus === "no-carry") {
+          const u1 = getRandomNumberInRange(1, 4);
+          const u2 = getRandomNumberInRange(1, 9 - u1);
+          const t1 = p1 !== "S" ? getRandomNumberInRange(1, 4) : 0;
+          const t2 = p2 !== "S" ? getRandomNumberInRange(1, 9 - t1) : 0;
+          const h1 = p1 === "R" ? getRandomNumberInRange(1, 4) : 0;
+          const h2 = p2 === "R" ? getRandomNumberInRange(1, 9 - h1) : 0;
+          n1 = (p1 === "R" ? h1 * 100 : 0) + (p1 !== "S" ? t1 * 10 : 0) + u1;
+          n2 = (p2 === "R" ? h2 * 100 : 0) + (p2 !== "S" ? t2 * 10 : 0) + u2;
+        } else if (activeFocus === "with-carry") {
+          const u1 = getRandomNumberInRange(5, 9);
+          const u2 = getRandomNumberInRange(10 - u1, 9);
+          const t1 = p1 !== "S" ? getRandomNumberInRange(1, 8) : 0;
+          const t2 = p2 !== "S" ? getRandomNumberInRange(1, 8) : 0;
+          const h1 = p1 === "R" ? getRandomNumberInRange(1, 8) : 0;
+          const h2 = p2 === "R" ? getRandomNumberInRange(1, 8) : 0;
+          n1 = (p1 === "R" ? h1 * 100 : 0) + (p1 !== "S" ? t1 * 10 : 0) + u1;
+          n2 = (p2 === "R" ? h2 * 100 : 0) + (p2 !== "S" ? t2 * 10 : 0) + u2;
+        } else {
+          n1 = getRandomNumberInRange(r1.min, r1.max);
+          n2 = getRandomNumberInRange(r2.min, r2.max);
+        }
+        const prev = lastProblemRef.current;
+        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
+          break;
+        }
       }
       correct = n1 + n2;
+      lastProblemRef.current = { n1, n2, op };
     } else if (op === "-") {
-      if (r1.min < r2.min) {
-        [p1, p2] = [p2, p1];
-        r1 = getDigitRange(p1);
-        r2 = getDigitRange(p2);
-      }
+      let attempts = 0;
+      while (attempts < 25) {
+        attempts++;
+        if (r1.min < r2.min) {
+          [p1, p2] = [p2, p1];
+          r1 = getDigitRange(p1);
+          r2 = getDigitRange(p2);
+        }
 
-      if (activeFocus === "no-carry") {
-        const u2 = getRandomNumberInRange(1, 8);
-        const u1 = getRandomNumberInRange(u2, 9);
-        const t2 = p2 !== "S" ? getRandomNumberInRange(1, 8) : 0;
-        const t1 = p1 !== "S" ? getRandomNumberInRange(t2, 9) : 0;
-        const h2 = p2 === "R" ? getRandomNumberInRange(1, 8) : 0;
-        const h1 = p1 === "R" ? getRandomNumberInRange(h2, 9) : 0;
-        n1 = h1 * 100 + t1 * 10 + u1;
-        n2 = h2 * 100 + t2 * 10 + u2;
-      } else if (activeFocus === "with-carry") {
-        const u1 = getRandomNumberInRange(0, 4);
-        const u2 = getRandomNumberInRange(u1 + 1, 9);
-        const t1 = p1 !== "S" ? getRandomNumberInRange(2, 9) : 1;
-        const t2 = p2 !== "S" ? getRandomNumberInRange(1, t1 - 1) : 0;
-        const h1 = p1 === "R" ? getRandomNumberInRange(1, 9) : 0;
-        const h2 = p2 === "R" ? getRandomNumberInRange(0, h1) : 0;
-        n1 = h1 * 100 + t1 * 10 + u1;
-        n2 = h2 * 100 + t2 * 10 + u2;
-      } else {
-        n1 = getRandomNumberInRange(r1.min, r1.max);
-        n2 = getRandomNumberInRange(r2.min, Math.min(r2.max, n1));
+        const isSS = p1 === "S" && p2 === "S";
+        const isPP = p1 === "P" && p2 === "P";
+        const isPS = p1 === "P" && p2 === "S";
+        const isRP = p1 === "R" && p2 === "P";
+        const isRS = p1 === "R" && p2 === "S";
+        const isRR = p1 === "R" && p2 === "R";
+
+        // Variasi tipe soal: with-carry (meminjam) vs no-carry (tanpa meminjam)
+        const wantBorrow =
+          activeFocus === "with-carry"
+            ? true
+            : activeFocus === "no-carry"
+            ? false
+            : Math.random() < 0.5;
+
+        if (isSS) {
+          // Satuan - Satuan: selalu n1 > n2 (hasil positif, tidak pernah kembar)
+          const u2 = getRandomNumberInRange(1, 7);
+          const u1 = getRandomNumberInRange(u2 + 1, 9);
+          n1 = u1;
+          n2 = u2;
+        } else if (isPP) {
+          // Puluhan - Puluhan: variasi kaya (contoh: 25 - 17, 84 - 36, 48 - 23, 76 - 32)
+          if (wantBorrow) {
+            // Meminjam: u1 < u2, t1 > t2
+            const u1 = getRandomNumberInRange(0, 6);
+            const u2 = getRandomNumberInRange(u1 + 1, 9);
+            const t1 = getRandomNumberInRange(2, 9);
+            const t2 = getRandomNumberInRange(1, t1 - 1);
+            n1 = t1 * 10 + u1;
+            n2 = t2 * 10 + u2;
+          } else {
+            // Tanpa meminjam: u1 >= u2, t1 > t2
+            const u1 = getRandomNumberInRange(2, 9);
+            const u2 = getRandomNumberInRange(0, u1 - 1);
+            const t1 = getRandomNumberInRange(2, 9);
+            const t2 = getRandomNumberInRange(1, t1 - 1);
+            n1 = t1 * 10 + u1;
+            n2 = t2 * 10 + u2;
+          }
+        } else if (isPS) {
+          // Puluhan - Satuan (contoh: 84 - 8, 35 - 7, 48 - 3)
+          if (wantBorrow) {
+            const u1 = getRandomNumberInRange(0, 6);
+            const u2 = getRandomNumberInRange(u1 + 1, 9);
+            const t1 = getRandomNumberInRange(2, 9);
+            n1 = t1 * 10 + u1;
+            n2 = u2;
+          } else {
+            const u1 = getRandomNumberInRange(3, 9);
+            const u2 = getRandomNumberInRange(1, u1 - 1);
+            const t1 = getRandomNumberInRange(2, 9);
+            n1 = t1 * 10 + u1;
+            n2 = u2;
+          }
+        } else if (isRP) {
+          // Ratusan - Puluhan (contoh: 245 - 68, 574 - 32)
+          if (wantBorrow) {
+            const u1 = getRandomNumberInRange(0, 6);
+            const u2 = getRandomNumberInRange(u1 + 1, 9);
+            const t1 = getRandomNumberInRange(1, 8);
+            const t2 = getRandomNumberInRange(1, 8);
+            const h1 = getRandomNumberInRange(1, 9);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = t2 * 10 + u2;
+          } else {
+            const u1 = getRandomNumberInRange(2, 9);
+            const u2 = getRandomNumberInRange(0, u1 - 1);
+            const t1 = getRandomNumberInRange(2, 9);
+            const t2 = getRandomNumberInRange(1, t1 - 1);
+            const h1 = getRandomNumberInRange(1, 9);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = t2 * 10 + u2;
+          }
+        } else if (isRS) {
+          // Ratusan - Satuan
+          if (wantBorrow) {
+            const u1 = getRandomNumberInRange(0, 6);
+            const u2 = getRandomNumberInRange(u1 + 1, 9);
+            const t1 = getRandomNumberInRange(1, 9);
+            const h1 = getRandomNumberInRange(1, 9);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = u2;
+          } else {
+            const u1 = getRandomNumberInRange(2, 9);
+            const u2 = getRandomNumberInRange(1, u1 - 1);
+            const t1 = getRandomNumberInRange(1, 9);
+            const h1 = getRandomNumberInRange(1, 9);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = u2;
+          }
+        } else if (isRR) {
+          // Ratusan - Ratusan
+          if (wantBorrow) {
+            const u1 = getRandomNumberInRange(0, 6);
+            const u2 = getRandomNumberInRange(u1 + 1, 9);
+            const t1 = getRandomNumberInRange(1, 8);
+            const t2 = getRandomNumberInRange(1, 8);
+            const h1 = getRandomNumberInRange(2, 9);
+            const h2 = getRandomNumberInRange(1, h1 - 1);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = h2 * 100 + t2 * 10 + u2;
+          } else {
+            const u1 = getRandomNumberInRange(2, 9);
+            const u2 = getRandomNumberInRange(0, u1 - 1);
+            const t1 = getRandomNumberInRange(2, 9);
+            const t2 = getRandomNumberInRange(1, t1 - 1);
+            const h1 = getRandomNumberInRange(2, 9);
+            const h2 = getRandomNumberInRange(1, h1 - 1);
+            n1 = h1 * 100 + t1 * 10 + u1;
+            n2 = h2 * 100 + t2 * 10 + u2;
+          }
+        } else {
+          // Fallback umum
+          n1 = getRandomNumberInRange(Math.max(r1.min, 15), r1.max);
+          n2 = getRandomNumberInRange(r2.min, Math.min(r2.max, n1 - 2));
+        }
+
+        // Perlindungan mutlak: n1 harus selalu lebih besar dari n2 (selisih minimal 2, tidak pernah kembar)
+        if (n1 <= n2) {
+          n1 = n2 + getRandomNumberInRange(2, 9);
+        }
+
+        const prev = lastProblemRef.current;
+        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
+          break;
+        }
       }
       correct = n1 - n2;
+      lastProblemRef.current = { n1, n2, op };
     } else if (op === "×") {
-      n1 = getRandomNumberInRange(r1.min, r1.max);
-      n2 = getRandomNumberInRange(r2.min, r2.max);
+      let attempts = 0;
+      while (attempts < 25) {
+        attempts++;
+        const isSS = p1 === "S" && p2 === "S";
+        const isPS = (p1 === "P" && p2 === "S") || (p1 === "S" && p2 === "P");
+        const isRS = (p1 === "R" && p2 === "S") || (p1 === "S" && p2 === "R");
+        const isPP = p1 === "P" && p2 === "P";
+        const isRP = (p1 === "R" && p2 === "P") || (p1 === "P" && p2 === "R");
+        const isRR = p1 === "R" && p2 === "R";
+
+        if (isSS) {
+          n1 = getRandomNumberInRange(2, 9);
+          n2 = getRandomNumberInRange(2, 9);
+        } else if (isPS) {
+          // Puluhan × Satuan atau sebaliknya (angka ramah visual balok: puluhan 12-79, pengali 2-5)
+          const big = getRandomNumberInRange(12, 79);
+          const small = getRandomNumberInRange(2, 5);
+          n1 = p1 === "P" ? big : small;
+          n2 = p1 === "P" ? small : big;
+        } else if (isRS) {
+          // Ratusan × Satuan (angka ramah balok: ratusan 102-240, pengali 2-4)
+          const big = getRandomNumberInRange(102, 240);
+          const small = getRandomNumberInRange(2, 4);
+          n1 = p1 === "R" ? big : small;
+          n2 = p1 === "R" ? small : big;
+        } else if (isPP) {
+          // Puluhan × Puluhan (angka bersahabat: 11-25 × 11-15)
+          n1 = getRandomNumberInRange(11, 25);
+          n2 = getRandomNumberInRange(11, 15);
+        } else if (isRP || isRR) {
+          // Ratusan × Puluhan/Ratusan (dibatasi agar tidak meledak ribuan besar)
+          const big = getRandomNumberInRange(102, 220);
+          const small = getRandomNumberInRange(10, 14);
+          n1 = p1 === "R" ? big : small;
+          n2 = p1 === "R" ? small : big;
+        } else {
+          n1 = getRandomNumberInRange(r1.min, Math.min(r1.max, 85));
+          n2 = getRandomNumberInRange(r2.min, Math.min(r2.max, 5));
+        }
+
+        const prev = lastProblemRef.current;
+        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
+          break;
+        }
+      }
       correct = n1 * n2;
+      lastProblemRef.current = { n1, n2, op };
     } else if (op === "÷") {
       // Pembagian dibuat campur-campur: mayoritas bilangan bulat bersih (~75-80%), dan sesekali desimal bersih (~20-25%).
       // Jika soal sebelumnya sudah desimal, soal berikutnya PASTI bilangan bulat habis dibagi!
@@ -498,11 +671,13 @@ export default function Home() {
       }
 
       lastDivisionProblemRef.current = { n1: generatedN1, n2: generatedN2 };
+      lastProblemRef.current = { n1: generatedN1, n2: generatedN2, op };
       n1 = generatedN1;
       n2 = generatedN2;
       correct = generatedCorrect;
     }
 
+    setCurrentQuestionNumber(sessionLogs.length + 1);
     setNum1(n1);
     setNum2(n2);
     setCorrectAnswer(correct);
@@ -528,6 +703,8 @@ export default function Home() {
     }
     setSelectedOp(op);
     setPlaceValueCombo(combo);
+    setSessionLogs([]);
+    setCurrentQuestionNumber(1);
     setIsNameModalOpen(false);
     setActiveNav("latihan");
     generateProblem(op, combo, focusOption);
@@ -708,6 +885,7 @@ export default function Home() {
 
     const updatedLogs = [...sessionLogs, currentLog];
     setSessionLogs(updatedLogs);
+    setCurrentQuestionNumber(updatedLogs.length + 1);
     setQuestionSecondsElapsed(0);
 
     // Auto-save this question to database in background
@@ -720,11 +898,13 @@ export default function Home() {
         setShowSummaryModal(true);
         showToast("Target 10 latihan tuntas & tersimpan di Dashboard Guru! 🏆", "🎉", "bg-emerald-600");
       }, 1600);
+      return;
     }
 
-    setTimeout(() => {
-      setIsSuccess(false);
-    }, 1500);
+    // Auto-advance ke soal berikutnya setelah 2.5 detik
+    autoAdvanceTimerRef.current = setTimeout(() => {
+      generateProblem();
+    }, 2500);
   };
 
   // Submit practice session records to database
@@ -802,8 +982,63 @@ export default function Home() {
 
       {/* 2. KONTEN UTAMA */}
       <div className="flex flex-col xl:flex-row flex-1 gap-4 md:gap-5 items-start w-full">
-        {/* SIDEBAR KIRI: NAVIGASI OPERASI, PEMILIH DIGIT, & MASKOT ANAK LAKI-LAKI */}
-        <div className="w-full xl:w-64 2xl:w-72 shrink-0">
+        {/* SIDEBAR KIRI dengan toggle */}
+        <div className="shrink-0 hidden xl:block">
+          {leftSidebarOpen ? (
+            <div className="w-64 2xl:w-72 relative">
+              {/* Tombol tutup — pojok kanan atas sidebar */}
+              <button
+                type="button"
+                onClick={() => setLeftSidebarOpen(false)}
+                title="Tutup sidebar"
+                className="absolute -right-3 top-3 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-400 transition cursor-pointer"
+              >
+                <ChevronLeft size={13} />
+              </button>
+              <LeftSidebarNav
+                activeNav={activeNav}
+                onNavigate={(nav) => setActiveNav(nav)}
+                selectedOp={selectedOp}
+                onSelectOp={(op) => {
+                  setSelectedOp(op);
+                  generateProblem(op, placeValueCombo, focusOption);
+                  setActiveNav("latihan");
+                }}
+                placeValueCombo={placeValueCombo}
+                onSelectCombo={(combo) => {
+                  setPlaceValueCombo(combo);
+                  generateProblem(selectedOp, combo, focusOption);
+                  const info = COMBO_LABELS[combo];
+                  showToast(
+                    `Mode digit diubah ke ${info ? `${info.code} (${info.label})` : combo}!`,
+                    "🔢",
+                    "bg-blue-600"
+                  );
+                }}
+                onOpenHistory={async () => {
+                  if (sessionLogs.length > 0) {
+                    await syncSessionToDB(sessionLogs);
+                  }
+                  setShowSummaryModal(true);
+                }}
+              />
+            </div>
+          ) : (
+            /* Collapsed pill kiri */
+            <button
+              type="button"
+              onClick={() => setLeftSidebarOpen(true)}
+              title="Buka sidebar navigasi"
+              className="flex flex-col items-center justify-start gap-2 w-10 pt-4 pb-6 rounded-2xl bg-white border border-slate-200 shadow-xs text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md transition cursor-pointer h-full min-h-[120px]"
+            >
+              <ChevronRight size={16} />
+              <span className="[writing-mode:vertical-rl] text-[10px] font-black tracking-widest text-slate-400 rotate-180">MENU</span>
+            </button>
+          )}
+        </div>
+
+        {/* Mobile: sidebar kiri tampil penuh di atas */}
+        <div className="w-full xl:hidden">
           <LeftSidebarNav
             activeNav={activeNav}
             onNavigate={(nav) => setActiveNav(nav)}
@@ -1069,56 +1304,100 @@ export default function Home() {
         {activeNav === "latihan" && (
           <>
             <main className="flex-1 w-full flex flex-col gap-4 min-w-0">
-              <PracticeCard
-                key={`${num1}-${currentOp}-${num2}-${sessionLogs.length}`}
-                num1={num1}
-                num2={num2}
-                currentOp={currentOp}
-                levelName={`Level ${Math.floor(score / 30) + 1} – ${
-                  COMBO_LABELS[placeValueCombo]?.code || placeValueCombo
-                }`}
-                questionNumber={sessionLogs.length + 1}
-                totalQuestions={10}
-                onQuestionCompleted={handlePracticeQuestionCompleted}
-                onNewProblem={() => generateProblem()}
-                onBack={() => setActiveNav("beranda")}
-                onSectionChanged={(secId) => setActivePracticeSection(secId)}
-                onFinishSession={async () => {
-                  if (sessionLogs.length > 0) {
-                    await syncSessionToDB(sessionLogs);
-                  }
-                  setShowSummaryModal(true);
-                }}
-                hasAnsweredAny={sessionLogs.length > 0}
-                isAutoSaving={isAutoSaving}
-                currentCombo={placeValueCombo}
-                onSelectCombo={(combo) => {
-                  setPlaceValueCombo(combo);
-                  generateProblem(currentOp, combo, focusOption);
-                }}
-              />
-            </main>
+            <PracticeCard
+              key={`practice-card-${num1}-${currentOp}-${num2}`}
+              num1={num1}
+              num2={num2}
+              currentOp={currentOp}
+              levelName={`Level ${Math.floor(score / 30) + 1} – ${
+                COMBO_LABELS[placeValueCombo]?.code || placeValueCombo
+              }`}
+              questionNumber={currentQuestionNumber}
+              totalQuestions={10}
+              onQuestionCompleted={handlePracticeQuestionCompleted}
+              onNewProblem={() => generateProblem()}
+              onBack={() => setActiveNav("beranda")}
+              onSectionChanged={(secId) => setActivePracticeSection(secId)}
+              onFinishSession={async () => {
+                if (sessionLogs.length > 0) {
+                  await syncSessionToDB(sessionLogs);
+                }
+                setShowSummaryModal(true);
+              }}
+              hasAnsweredAny={sessionLogs.length > 0}
+              isAutoSaving={isAutoSaving}
+              currentCombo={placeValueCombo}
+              onSelectCombo={(combo) => {
+                setPlaceValueCombo(combo);
+                generateProblem(currentOp, combo, focusOption);
+              }}
+            />
+          </main>
 
-            {/* SIDEBAR KANAN: LANGKAHKU & BUTUH BANTUAN */}
-            <div className="w-full xl:w-72 2xl:w-80 shrink-0">
-              <RightHelperPanel
-                currentOp={currentOp}
-                num1={num1}
-                num2={num2}
-                activeStep={activePracticeSection}
-                isHighlighted={isHelpActive}
-                onOpenMultiLevelHelp={() => setIsMultiLevelHelpOpen(true)}
-                onSelectStrategy={(strat) => {
-                  if (strat === "blocks") {
-                    setIsMultiLevelHelpOpen(true);
-                    showToast("Bantuan Visual Balok & Konsep dibuka!", "🧱", "bg-amber-600");
-                  } else if (strat === "place-value") {
-                    showToast("Strategi Pecah Nilai aktif!", "✨", "bg-emerald-600");
-                  }
-                }}
-              />
-            </div>
-          </>
+          {/* SIDEBAR KANAN BANTUAN dengan toggle — hanya di xl ke atas */}
+          <div className="shrink-0 hidden xl:block">
+            {rightSidebarOpen ? (
+              <div className="w-72 2xl:w-80 relative">
+                {/* Tombol tutup — pojok kiri atas sidebar */}
+                <button
+                  type="button"
+                  onClick={() => setRightSidebarOpen(false)}
+                  title="Tutup sidebar bantuan"
+                  className="absolute -left-3 top-3 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-400 transition cursor-pointer"
+                >
+                  <ChevronRight size={13} />
+                </button>
+                <RightHelperPanel
+                  currentOp={currentOp}
+                  num1={num1}
+                  num2={num2}
+                  activeStep={activePracticeSection}
+                  isHighlighted={isHelpActive}
+                  onOpenMultiLevelHelp={() => setIsMultiLevelHelpOpen(true)}
+                  onSelectStrategy={(strat) => {
+                    if (strat === "blocks") {
+                      setIsMultiLevelHelpOpen(true);
+                      showToast("Bantuan Visual Balok & Konsep dibuka!", "🧱", "bg-amber-600");
+                    } else if (strat === "place-value") {
+                      showToast("Strategi Pecah Nilai aktif!", "✨", "bg-emerald-600");
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              /* Collapsed pill kanan */
+              <button
+                type="button"
+                onClick={() => setRightSidebarOpen(true)}
+                title="Buka sidebar bantuan"
+                className="flex flex-col items-center justify-start gap-2 w-10 pt-4 pb-6 rounded-2xl bg-white border border-slate-200 shadow-xs text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md transition cursor-pointer h-full min-h-[120px]"
+              >
+                <ChevronLeft size={16} />
+                <span className="[writing-mode:vertical-rl] text-[10px] font-black tracking-widest text-slate-400">BANTUAN</span>
+              </button>
+            )}
+          </div>
+
+          {/* Mobile: sidebar kanan tampil di bawah konten */}
+          <div className="w-full xl:hidden">
+            <RightHelperPanel
+              currentOp={currentOp}
+              num1={num1}
+              num2={num2}
+              activeStep={activePracticeSection}
+              isHighlighted={isHelpActive}
+              onOpenMultiLevelHelp={() => setIsMultiLevelHelpOpen(true)}
+              onSelectStrategy={(strat) => {
+                if (strat === "blocks") {
+                  setIsMultiLevelHelpOpen(true);
+                  showToast("Bantuan Visual Balok & Konsep dibuka!", "🧱", "bg-amber-600");
+                } else if (strat === "place-value") {
+                  showToast("Strategi Pecah Nilai aktif!", "✨", "bg-emerald-600");
+                }
+              }}
+            />
+          </div>
+        </>
         )}
       </div>
 

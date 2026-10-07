@@ -264,7 +264,7 @@ export default function PorogapitDivisionBoard({
         } else {
           errorMessage =
             num1 < num2
-              ? `Karena ${num1} < ${num2}, kita mulai dengan "0," dan pinjam 0 menjadi ${expChunk}.`
+              ? `Karena ${num1} lebih kecil dari ${num2} dan tidak bisa dikurangi, maka tambahkan bilangan 0 pada ${num1} menjadi ${expChunk} (dan tulis "0," di atas).`
               : `Kelompok digit awal yang diambil adalah ${expChunk} (karena harus ≥ ${num2}).`;
         }
         detectedErrorDetail = `Kekeliruan setup papan porogapit untuk ${num1} ÷ ${num2}.`;
@@ -608,10 +608,10 @@ export default function PorogapitDivisionBoard({
             </div>
 
             {/* Pertanyaan Pemahaman Kelompok Awal */}
-            <div className="w-full max-w-md bg-purple-50/80 border border-purple-200 rounded-2xl p-4 flex flex-col gap-2">
-              <span className="text-xs font-black text-purple-900 font-fredoka">
+            <div className="w-full max-w-md bg-purple-50/80 border border-purple-200 rounded-2xl p-4 flex flex-col gap-2.5">
+              <span className="text-xs sm:text-sm font-black text-purple-900 font-fredoka leading-relaxed">
                 {num1 < num2
-                  ? `Karena ${num1} < ${num2} (lebih kecil), berapa angka yang kita siapkan setelah pinjam 0?`
+                  ? `Karena ${num1} lebih kecil dari ${num2} dan tidak bisa dikurangi, maka tambahkan bilangan 0 pada ${num1}:`
                   : `Berapa kelompok angka paling depan yang diambil agar bisa dikurangi ${num2}?`}
               </span>
               <div className="flex items-center gap-3">
@@ -620,11 +620,11 @@ export default function PorogapitDivisionBoard({
                   value={secInputs["s1_chunk"] || ""}
                   onChange={(e) => handleInputChange("s1_chunk", e.target.value)}
                   placeholder="?"
-                  className="w-28 h-12 text-center font-black text-lg font-fredoka bg-white border-2 border-purple-300 rounded-xl focus:border-purple-600 outline-none"
+                  className="w-28 h-12 text-center font-black text-lg font-fredoka bg-white border-2 border-purple-300 rounded-xl focus:border-purple-600 outline-none shadow-2xs"
                 />
-                <span className="text-xs text-slate-600 font-semibold">
+                <span className="text-xs text-purple-950 font-bold">
                   {num1 < num2
-                    ? `(Langsung tulis "0," di atas, lalu tambah 0)`
+                    ? `(Menjadi ${num1 * 10}, tulis "0," pada hasil di atas)`
                     : `(Ambil digit depan sampai ≥ ${num2})`}
                 </span>
               </div>
@@ -674,7 +674,7 @@ export default function PorogapitDivisionBoard({
                         Awalan Desimal: Hasil Diawali &quot;0,&quot;
                       </span>
                       <span className="text-[11px] text-amber-800 font-medium">
-                        Karena {num1} &lt; {num2}, di atas kurung sudah ditulis <strong>0,</strong>. Angka hasil pengurangan berikut akan ditulis setelah tanda koma!
+                        Karena {num1} lebih kecil dari {num2} dan tidak bisa dikurangi, di atas kurung sudah ditulis <strong>0,</strong>. Angka hasil pengurangan berikut akan ditulis setelah tanda koma!
                       </span>
                     </div>
                   </div>

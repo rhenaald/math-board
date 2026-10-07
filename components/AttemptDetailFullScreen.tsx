@@ -76,6 +76,16 @@ export default function AttemptDetailFullScreen({
         color: "bg-rose-50 text-rose-700 border-rose-200",
         desc: "Siswa menjumlahkan puluhan tanpa mengikutsertakan angka simpanan kecil di atasnya.",
       },
+      TERTUKAR_SIMPANAN_SATUAN: {
+        label: "Simpanan Satuan Tertukar",
+        color: "bg-amber-50 text-amber-700 border-amber-200",
+        desc: "Siswa menukar posisi digit simpanan puluhan dan hasil satuan.",
+      },
+      TERTUKAR_SIMPANAN_PULUHAN: {
+        label: "Simpanan Puluhan Tertukar",
+        color: "bg-amber-50 text-amber-700 border-amber-200",
+        desc: "Siswa menukar posisi digit simpanan ratusan dan hasil digit puluhan.",
+      },
       PENGURANGAN_TERBALIK: {
         label: "Pengurangan Terbalik (Tanpa Pinjam)",
         color: "bg-red-50 text-red-700 border-red-200",
