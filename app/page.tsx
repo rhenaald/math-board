@@ -303,11 +303,6 @@ export default function Home() {
       let attempts = 0;
       while (attempts < 25) {
         attempts++;
-        if (r1.min < r2.min) {
-          [p1, p2] = [p2, p1];
-          r1 = getDigitRange(p1);
-          r2 = getDigitRange(p2);
-        }
 
         const isSS = p1 === "S" && p2 === "S";
         const isPP = p1 === "P" && p2 === "P";
@@ -315,6 +310,9 @@ export default function Home() {
         const isRP = p1 === "R" && p2 === "P";
         const isRS = p1 === "R" && p2 === "S";
         const isRR = p1 === "R" && p2 === "R";
+        const isSP = p1 === "S" && p2 === "P";
+        const isSR = p1 === "S" && p2 === "R";
+        const isPR = p1 === "P" && p2 === "R";
 
         // Variasi tipe soal: with-carry (meminjam) vs no-carry (tanpa meminjam)
         const wantBorrow =
@@ -421,14 +419,27 @@ export default function Home() {
             n1 = h1 * 100 + t1 * 10 + u1;
             n2 = h2 * 100 + t2 * 10 + u2;
           }
+        } else if (isSP) {
+          // Satuan - Puluhan (n1 = Satuan, n2 = Puluhan -> hasil negatif)
+          n1 = getRandomNumberInRange(1, 9);
+          n2 = getRandomNumberInRange(15, 85);
+        } else if (isSR) {
+          // Satuan - Ratusan (n1 = Satuan, n2 = Ratusan -> hasil negatif)
+          n1 = getRandomNumberInRange(1, 9);
+          n2 = getRandomNumberInRange(105, 450);
+        } else if (isPR) {
+          // Puluhan - Ratusan (n1 = Puluhan, n2 = Ratusan -> hasil negatif)
+          n1 = getRandomNumberInRange(15, 85);
+          n2 = getRandomNumberInRange(105, 450);
         } else {
           // Fallback umum
-          n1 = getRandomNumberInRange(Math.max(r1.min, 15), r1.max);
-          n2 = getRandomNumberInRange(r2.min, Math.min(r2.max, n1 - 2));
+          n1 = getRandomNumberInRange(r1.min, r1.max);
+          n2 = getRandomNumberInRange(r2.min, r2.max);
         }
 
-        // Perlindungan mutlak: n1 harus selalu lebih besar dari n2 (selisih minimal 2, tidak pernah kembar)
-        if (n1 <= n2) {
+        // Perlindungan n1 > n2 hanya berlaku jika digit n1 >= n2 (seperti SS, PP, RR, PS, RS, RP)
+        // Jika p1 < p2 (seperti SP, SR, PR), n1 memang harus lebih kecil dari n2 sesuai pilihan pengguna
+        if (r1.min >= r2.min && n1 <= n2) {
           n1 = n2 + getRandomNumberInRange(2, 9);
         }
 
@@ -646,14 +657,57 @@ export default function Home() {
             const k = getRandomNumberInRange(2, Math.max(2, maxK));
             generatedN1 = k * generatedN2;
             generatedCorrect = k;
+          } else if (effectiveCombo === "S-R") {
+            // Satuan ÷ Ratusan (contoh: 5 ÷ 200 = 0.025, 4 ÷ 100 = 0.04, 6 ÷ 150 = 0.04, dll)
+            const srPool = [
+              { n1: 1, n2: 100 }, { n1: 2, n2: 100 }, { n1: 3, n2: 100 }, { n1: 4, n2: 100 }, { n1: 5, n2: 100 },
+              { n1: 1, n2: 200 }, { n1: 2, n2: 200 }, { n1: 3, n2: 200 }, { n1: 4, n2: 200 }, { n1: 5, n2: 200 }, { n1: 6, n2: 200 }, { n1: 8, n2: 200 },
+              { n1: 1, n2: 250 }, { n1: 2, n2: 250 }, { n1: 5, n2: 250 }, { n1: 1, n2: 500 }, { n1: 2, n2: 500 }, { n1: 4, n2: 500 },
+              { n1: 3, n2: 150 }, { n1: 6, n2: 150 }, { n1: 9, n2: 150 }, { n1: 3, n2: 120 }, { n1: 6, n2: 240 }, { n1: 4, n2: 160 },
+              { n1: 8, n2: 160 }, { n1: 6, n2: 300 }, { n1: 9, n2: 300 }, { n1: 8, n2: 400 }, { n1: 7, n2: 140 }, { n1: 7, n2: 350 },
+            ];
+            const chosen = srPool[Math.floor(Math.random() * srPool.length)];
+            generatedN1 = chosen.n1;
+            generatedN2 = chosen.n2;
+            generatedCorrect = generatedN1 / generatedN2;
+          } else if (effectiveCombo === "S-P") {
+            // Satuan ÷ Puluhan (contoh: 6 ÷ 20 = 0.3, 4 ÷ 25 = 0.16, 8 ÷ 16 = 0.5, dll)
+            const spPool = [
+              { n1: 1, n2: 20 }, { n1: 2, n2: 20 }, { n1: 3, n2: 20 }, { n1: 4, n2: 20 }, { n1: 5, n2: 20 },
+              { n1: 6, n2: 20 }, { n1: 7, n2: 20 }, { n1: 8, n2: 20 }, { n1: 9, n2: 20 }, { n1: 1, n2: 25 },
+              { n1: 2, n2: 25 }, { n1: 3, n2: 25 }, { n1: 4, n2: 25 }, { n1: 1, n2: 50 }, { n1: 2, n2: 50 },
+              { n1: 3, n2: 50 }, { n1: 4, n2: 50 }, { n1: 6, n2: 15 }, { n1: 9, n2: 15 }, { n1: 3, n2: 12 },
+              { n1: 6, n2: 24 }, { n1: 4, n2: 16 }, { n1: 8, n2: 16 }, { n1: 5, n2: 40 }, { n1: 6, n2: 40 },
+            ];
+            const chosen = spPool[Math.floor(Math.random() * spPool.length)];
+            generatedN1 = chosen.n1;
+            generatedN2 = chosen.n2;
+            generatedCorrect = generatedN1 / generatedN2;
+          } else if (effectiveCombo === "P-R") {
+            // Puluhan ÷ Ratusan (contoh: 30 ÷ 120 = 0.25, 45 ÷ 150 = 0.3, 75 ÷ 300 = 0.25, dll)
+            const prPool = [
+              { n1: 12, n2: 240 }, { n1: 15, n2: 300 }, { n1: 20, n2: 400 }, { n1: 25, n2: 500 }, { n1: 30, n2: 120 },
+              { n1: 45, n2: 150 }, { n1: 50, n2: 200 }, { n1: 75, n2: 150 }, { n1: 75, n2: 300 }, { n1: 24, n2: 120 },
+              { n1: 36, n2: 180 }, { n1: 50, n2: 250 }, { n1: 40, n2: 160 }, { n1: 60, n2: 240 }, { n1: 15, n2: 120 },
+              { n1: 25, n2: 200 }, { n1: 14, n2: 280 }, { n1: 18, n2: 360 },
+            ];
+            const chosen = prPool[Math.floor(Math.random() * prPool.length)];
+            generatedN1 = chosen.n1;
+            generatedN2 = chosen.n2;
+            generatedCorrect = generatedN1 / generatedN2;
+          } else if (effectiveCombo === "R-R") {
+            // Ratusan ÷ Ratusan (misal: 450 ÷ 225 = 2, 750 ÷ 250 = 3, 600 ÷ 150 = 4, dll)
+            const rrDivisors = [125, 150, 200, 250, 300];
+            generatedN2 = rrDivisors[Math.floor(Math.random() * rrDivisors.length)];
+            const maxK = Math.floor(999 / generatedN2);
+            const k = getRandomNumberInRange(2, Math.max(2, maxK));
+            generatedN1 = k * generatedN2;
+            generatedCorrect = k;
           } else {
-            // Fallback jika kombinasi lain (R-R, S-P, dll.)
+            // Fallback jika kombinasi lain
             let [c1, c2] = effectiveCombo.split("-");
             let d1 = getDigitRange(c1 || "P");
             let d2 = getDigitRange(c2 || "S");
-            if (d1.min < d2.min) {
-              [d1, d2] = [d2, d1];
-            }
             generatedN2 = getRandomNumberInRange(Math.max(2, d2.min), Math.min(35, d2.max));
             const minK = Math.max(2, Math.ceil(d1.min / generatedN2));
             const maxK = Math.floor(d1.max / generatedN2);

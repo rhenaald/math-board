@@ -14,7 +14,7 @@ import {
   X,
   Divide,
 } from "lucide-react";
-import { OperationType } from "./SetupWizard";
+import { OperationType, SimpleOperation } from "./SetupWizard";
 
 interface DigitSelectionPageProps {
   initialOp?: OperationType;
@@ -61,17 +61,68 @@ const operations: Array<{ id: OperationType; symbol: string; title: string; desc
   },
 ];
 
-const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
-  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "7 + 5" },
-  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "8 + 34" },
-  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "6 + 142" },
-  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "45 + 8" },
-  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "45 + 27" },
-  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "54 + 236" },
-  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "324 + 7" },
-  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "342 + 58" },
-  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "456 + 278" },
+const combos: Array<{ id: string; code: string; label: string; desc: string }> = [
+  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit" },
+  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit" },
+  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit" },
+  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit" },
+  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit" },
+  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit" },
+  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit" },
+  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit" },
+  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit" },
 ];
+
+const getComboExample = (comboId: string, op: OperationType) => {
+  const actualOp = op === "mix" ? "+" : op;
+  const examplesByOp: Record<SimpleOperation, Record<string, string>> = {
+    "+": {
+      "S-S": "7 + 5",
+      "S-P": "8 + 34",
+      "S-R": "6 + 142",
+      "P-S": "45 + 8",
+      "P-P": "45 + 27",
+      "P-R": "54 + 236",
+      "R-S": "324 + 7",
+      "R-P": "342 + 58",
+      "R-R": "456 + 278",
+    },
+    "-": {
+      "S-S": "9 − 4",
+      "S-P": "6 − 34",
+      "S-R": "6 − 142",
+      "P-S": "45 − 8",
+      "P-P": "45 − 27",
+      "P-R": "54 − 236",
+      "R-S": "324 − 7",
+      "R-P": "342 − 58",
+      "R-R": "456 − 278",
+    },
+    "×": {
+      "S-S": "7 × 5",
+      "S-P": "4 × 23",
+      "S-R": "3 × 124",
+      "P-S": "23 × 4",
+      "P-P": "18 × 12",
+      "P-R": "12 × 115",
+      "R-S": "124 × 3",
+      "R-P": "115 × 12",
+      "R-R": "125 × 112",
+    },
+    "÷": {
+      "S-S": "8 ÷ 2",
+      "S-P": "6 ÷ 20",
+      "S-R": "5 ÷ 200",
+      "P-S": "72 ÷ 3",
+      "P-P": "75 ÷ 15",
+      "P-R": "30 ÷ 120",
+      "R-S": "144 ÷ 4",
+      "R-P": "615 ÷ 15",
+      "R-R": "450 ÷ 225",
+    },
+  };
+  return examplesByOp[actualOp]?.[comboId] || "45 + 27";
+};
 
 export default function DigitSelectionPage({
   initialOp = "+",
@@ -188,7 +239,7 @@ export default function DigitSelectionPage({
           >
             <span className="text-2xl">🟢</span>
             <span className="font-black text-sm font-fredoka">1 Digit (SS)</span>
-            <span className="text-xs text-slate-500 font-bold">Satuan ke Satuan (Contoh: 7 + 5)</span>
+            <span className="text-xs text-slate-500 font-bold">Satuan ke Satuan (Contoh: {getComboExample("S-S", selectedOp)})</span>
           </button>
 
           <button
@@ -202,7 +253,7 @@ export default function DigitSelectionPage({
           >
             <span className="text-2xl">🔵</span>
             <span className="font-black text-sm font-fredoka">2 Digit (PP)</span>
-            <span className="text-xs text-slate-500 font-bold">Puluhan ke Puluhan (Contoh: 45 + 27)</span>
+            <span className="text-xs text-slate-500 font-bold">Puluhan ke Puluhan (Contoh: {getComboExample("P-P", selectedOp)})</span>
           </button>
 
           <button
@@ -216,7 +267,7 @@ export default function DigitSelectionPage({
           >
             <span className="text-2xl">🟣</span>
             <span className="font-black text-sm font-fredoka">3 Digit (RR)</span>
-            <span className="text-xs text-slate-500 font-bold">Ratusan ke Ratusan (Contoh: 456 + 278)</span>
+            <span className="text-xs text-slate-500 font-bold">Ratusan ke Ratusan (Contoh: {getComboExample("R-R", selectedOp)})</span>
           </button>
         </div>
 
@@ -248,7 +299,7 @@ export default function DigitSelectionPage({
                       </span>
                       <span className="text-xs font-black text-slate-900">{c.label}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 font-semibold mt-1">{c.desc} • Contoh: {c.example}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-1">{c.desc} • Contoh: {getComboExample(c.id, selectedOp)}</p>
                   </div>
                   {isSelected && <Check size={16} className="text-blue-600 shrink-0 stroke-[3]" />}
                 </button>

@@ -243,6 +243,8 @@ export default function PracticeCard({
   const expSumT = hasHundreds ? rawSumT % 10 : rawSumT;
   const expSumH = hasHundreds ? h1 + h2 + carryH : 0;
 
+  const isNegativeSub = currentOp === "-" && num1 < num2;
+
   const borrowFromT = u1 < u2 ? 1 : 0;
   const effectiveU1 = borrowFromT ? u1 + 10 : u1;
   const remT1 = t1 - borrowFromT;
@@ -250,9 +252,15 @@ export default function PracticeCard({
   const effectiveT1 = borrowFromH ? remT1 + 10 : remT1;
   const effectiveH1 = hasHundreds ? h1 - borrowFromH : 0;
 
-  const expDiffU = effectiveU1 - u2;
-  const expDiffT = effectiveT1 - t2;
-  const expDiffH = hasHundreds ? effectiveH1 - h2 : 0;
+  // Nilai selisih mutlak |num1 - num2| jika num1 < num2 (pengurangan hasil negatif)
+  const diffMagnitude = Math.abs(num1 - num2);
+  const negDiffU = diffMagnitude % 10;
+  const negDiffT = Math.floor((diffMagnitude % 100) / 10);
+  const negDiffH = Math.floor((diffMagnitude % 1000) / 100);
+
+  const expDiffU = isNegativeSub ? negDiffU : (effectiveU1 - u2);
+  const expDiffT = isNegativeSub ? negDiffT : (effectiveT1 - t2);
+  const expDiffH = isNegativeSub ? negDiffH : (hasHundreds ? effectiveH1 - h2 : 0);
 
   const expPartH = valH * multiplierNum;
   const expPartT = valT * multiplierNum;
@@ -1599,7 +1607,81 @@ export default function PracticeCard({
               </p>
               {/* Visual Balok Kubus Satuan Pengurangan Sesuai Gaya Penjumlahan */}
               <div className="bg-orange-50/50 border border-orange-200/90 rounded-2xl p-4 sm:p-5 flex flex-col items-center gap-4 shadow-xs">
-                {u1 < u2 ? (
+                {isNegativeSub ? (
+                  /* KASUS C: BILANGAN PERTAMA < PENGURANG (HASIL NEGATIF) */
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <div className="w-full p-3.5 bg-indigo-50/95 border-2 border-indigo-300 rounded-2xl flex items-start gap-3 text-indigo-950 text-xs shadow-2xs">
+                      <span className="text-xl shrink-0 mt-0.5">💡</span>
+                      <div className="flex flex-col gap-1 text-left">
+                        <span className="font-black text-indigo-950 font-fredoka text-xs sm:text-sm">
+                          Pengurangan Bilangan Kecil Dikurang Bilangan Besar ({num1} &lt; {num2})
+                        </span>
+                        <p className="text-[11.5px] sm:text-xs text-indigo-900 leading-relaxed font-medium">
+                          Karena bilangan pertama (<span className="font-bold">{num1}</span>) lebih kecil dari pengurang (<span className="font-bold">{num2}</span>), hasilnya adalah <strong>bilangan negatif (−)</strong>. 
+                          Kita hitung selisih bilangannya: <span className="font-black">{num2} − {num1} = {diffMagnitude}</span>, lalu beri tanda minus (−) di depan hasil akhirnya!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 sm:gap-5 flex-wrap">
+                      <div className="flex flex-col items-center gap-2 p-3 bg-amber-50/80 rounded-2xl border-2 border-amber-300 shadow-2xs min-w-[130px]">
+                        <span className="text-xs font-black text-orange-950 font-fredoka">
+                          Satuan Bil. Pengurang ({num2})
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-w-[150px] items-center justify-center min-h-[44px] p-1.5 bg-white rounded-xl border border-amber-200">
+                          {Array.from({ length: Math.min(u2, 10) }).map((_, i) => (
+                            <UnitCube3D key={i} size={16} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-orange-100/80 border border-orange-200 text-orange-800 flex items-center justify-center font-black text-base shadow-2xs">
+                        ↔
+                      </span>
+
+                      <div className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-orange-200/90 shadow-2xs min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          Satuan Bil. 1 ({num1})
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 max-w-[130px] items-center justify-center min-h-[44px] p-1.5 bg-white rounded-xl border border-orange-100">
+                          {Array.from({ length: u1 }).map((_, i) => (
+                            <UnitCube3D key={i} size={16} />
+                          ))}
+                        </div>
+                      </div>
+
+                      <span className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center font-black text-base shadow-2xs">
+                        =
+                      </span>
+
+                      <div className="flex flex-col items-center gap-2 p-3 bg-orange-50/60 rounded-2xl border-2 border-dashed border-orange-300 min-w-[115px]">
+                        <span className="text-xs font-black text-orange-900 font-fredoka">
+                          Digit Satuan Selisih
+                        </span>
+                        <input
+                          type="text"
+                          data-field-key="diffU"
+                          maxLength={2}
+                          value={secInputs["diffU"] || ""}
+                          onChange={(e) => handleFieldInput("diffU", e.target.value, undefined, String(expDiffU).length)}
+                          onKeyDown={(e) => handleKeyDown(e, undefined, undefined)}
+                          placeholder="?"
+                          className="w-14 h-12 sm:w-16 sm:h-12 text-center font-black text-xl font-fredoka bg-white border-2 border-orange-400 text-orange-950 rounded-xl outline-none focus:ring-4 focus:ring-orange-200 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+
+                    {parseInt(secInputs["diffU"] || "-1", 10) === expDiffU ? (
+                      <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs font-semibold flex items-center justify-center gap-2 text-center animate-in fade-in zoom-in-95 w-full">
+                        <span>✅ Hebat! Digit satuan selisihnya adalah <span className="font-black">{expDiffU}</span>. Lanjut ke Tahap 3 untuk menghitung puluhan dan ratusan!</span>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-500 font-semibold text-center mt-0.5">
+                        Tuliskan digit satuan dari selisih ({num2} − {num1} = {diffMagnitude}), yaitu {expDiffU}.
+                      </p>
+                    )}
+                  </div>
+                ) : u1 < u2 ? (
                   /* KASUS A: u1 < u2 (Perlu Meminjam/Menukar 1 Puluhan) */
                   <div className="flex flex-col items-center gap-4 w-full">
                     {/* Penjelasan Edukatif Konsep Meminjam */}
@@ -2043,12 +2125,12 @@ export default function PracticeCard({
                     {/* Visual Balok Satuan */}
                     <div className="w-full bg-white/90 border border-amber-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
                       <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[140px]">
-                        {Array.from({ length: effectiveU1 }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, isNegativeSub ? expDiffU : effectiveU1) }).map((_, i) => (
                           <UnitCube3D key={i} size={18} />
                         ))}
                       </div>
                       <span className="text-[10px] font-bold text-amber-700 font-fredoka">
-                        {effectiveU1} kubus satuan
+                        {isNegativeSub ? expDiffU : effectiveU1} kubus satuan
                       </span>
                     </div>
 
@@ -2056,7 +2138,7 @@ export default function PracticeCard({
                     <div className="flex flex-col items-center gap-1 w-full pt-1">
                       <div className="flex items-center justify-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-amber-950 font-fredoka">
-                          {effectiveU1} − {u2} =
+                          {isNegativeSub ? "Digit Satuan =" : `${effectiveU1} − ${u2} =`}
                         </span>
                         <input
                           type="text"
@@ -2081,12 +2163,12 @@ export default function PracticeCard({
                     {/* Visual Balok Puluhan */}
                     <div className="w-full bg-white/90 border border-emerald-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
                       <div className="flex flex-wrap items-end justify-center gap-1.5 max-w-[150px]">
-                        {Array.from({ length: effectiveT1 }).map((_, i) => (
+                        {Array.from({ length: Math.max(0, isNegativeSub ? expDiffT : effectiveT1) }).map((_, i) => (
                           <TenRod3D key={i} height={72} />
                         ))}
                       </div>
                       <span className="text-[10px] font-bold text-emerald-700 font-fredoka">
-                        {effectiveT1} batang puluhan ({effectiveT1 * 10})
+                        {isNegativeSub ? expDiffT : effectiveT1} batang puluhan ({(isNegativeSub ? expDiffT : effectiveT1) * 10})
                       </span>
                     </div>
 
@@ -2094,7 +2176,7 @@ export default function PracticeCard({
                     <div className="flex flex-col items-center gap-1 w-full pt-1">
                       <div className="flex items-center justify-center gap-2">
                         <span className="text-xs sm:text-sm font-black text-emerald-950 font-fredoka">
-                          {effectiveT1} − {t2} =
+                          {isNegativeSub ? "Digit Puluhan =" : `${effectiveT1} − ${t2} =`}
                         </span>
                         <input
                           type="text"
@@ -2119,13 +2201,13 @@ export default function PracticeCard({
 
                       {/* Visual Balok Ratusan */}
                       <div className="w-full bg-white/90 border border-blue-200/80 rounded-xl p-3 min-h-[110px] flex flex-col items-center justify-center gap-1.5 shadow-inner">
-                        <div className={`flex items-center justify-center ${effectiveH1 > 3 ? "grid grid-cols-2 gap-1.5" : "flex-col -space-y-2"}`}>
-                          {Array.from({ length: effectiveH1 }).map((_, i) => (
-                            <HundredFlat3D key={i} width={effectiveH1 > 3 ? 56 : 68} />
+                        <div className={`flex items-center justify-center ${(isNegativeSub ? expDiffH : effectiveH1) > 3 ? "grid grid-cols-2 gap-1.5" : "flex-col -space-y-2"}`}>
+                          {Array.from({ length: Math.max(0, isNegativeSub ? expDiffH : effectiveH1) }).map((_, i) => (
+                            <HundredFlat3D key={i} width={(isNegativeSub ? expDiffH : effectiveH1) > 3 ? 56 : 68} />
                           ))}
                         </div>
                         <span className="text-[10px] font-bold text-blue-700 font-fredoka">
-                          {effectiveH1} lempeng ratusan ({effectiveH1 * 100})
+                          {isNegativeSub ? expDiffH : effectiveH1} lempeng ratusan ({(isNegativeSub ? expDiffH : effectiveH1) * 100})
                         </span>
                       </div>
 
@@ -2133,7 +2215,7 @@ export default function PracticeCard({
                       <div className="flex flex-col items-center gap-1 w-full pt-1">
                         <div className="flex items-center justify-center gap-2">
                           <span className="text-xs sm:text-sm font-black text-blue-950 font-fredoka">
-                            {effectiveH1} − {h2} =
+                            {isNegativeSub ? "Digit Ratusan =" : `${effectiveH1} − ${h2} =`}
                           </span>
                           <input
                             type="text"
@@ -2296,20 +2378,17 @@ export default function PracticeCard({
                   <div className="w-full max-w-sm sm:max-w-xl rounded-2xl border-2 border-slate-200 overflow-hidden bg-white shadow-2xs">
                     <div
                       className={`grid ${
-                        showRTh
-                          ? "grid-cols-6"
-                          : showPTh
-                          ? "grid-cols-5"
-                          : showTh
-                          ? "grid-cols-4"
-                          : showH
-                          ? "grid-cols-3"
-                          : showT
-                          ? "grid-cols-2"
-                          : "grid-cols-1"
+                        expectedFinalAnswer < 0
+                          ? showRTh ? "grid-cols-7" : showPTh ? "grid-cols-6" : showTh ? "grid-cols-5" : showH ? "grid-cols-4" : showT ? "grid-cols-3" : "grid-cols-2"
+                          : showRTh ? "grid-cols-6" : showPTh ? "grid-cols-5" : showTh ? "grid-cols-4" : showH ? "grid-cols-3" : showT ? "grid-cols-2" : "grid-cols-1"
                       } text-center`}
                     >
                       {/* Header Row */}
+                      {expectedFinalAnswer < 0 && (
+                        <div className="py-2.5 bg-rose-200 text-rose-950 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
+                          Tanda
+                        </div>
+                      )}
                       {showRTh && (
                         <div className="py-2.5 bg-teal-100 text-teal-900 border-b-2 border-r-2 border-slate-200 text-xs sm:text-sm font-black font-fredoka">
                           Ratus Rb
@@ -2340,6 +2419,13 @@ export default function PracticeCard({
                       </div>
 
                       {/* Values Row - Setiap kolom menampilkan 1 digit (0-9) */}
+                      {expectedFinalAnswer < 0 && (
+                        <div className="p-3.5 flex items-center justify-center bg-rose-50/50 border-r-2 border-slate-200">
+                          <div className="w-14 h-12 flex items-center justify-center bg-rose-100 rounded-xl border-2 border-rose-400 font-black text-2xl font-fredoka text-rose-700 shadow-2xs">
+                            −
+                          </div>
+                        </div>
+                      )}
                       {showRTh && (
                         <div className="p-3.5 flex items-center justify-center bg-white border-r-2 border-slate-200">
                           <div className="w-14 h-12 flex items-center justify-center bg-white rounded-xl border-2 border-teal-400 font-black text-2xl font-fredoka text-slate-800 shadow-2xs">
@@ -2395,8 +2481,8 @@ export default function PracticeCard({
                       value={secInputs["finalAnswer"] || ""}
                       onChange={(e) => handleFieldInput("finalAnswer", e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e)}
-                      placeholder="?"
-                      className="w-24 sm:w-28 h-12 sm:h-14 text-center font-black text-2xl sm:text-3xl font-fredoka text-emerald-950 bg-white border-2 border-emerald-500 rounded-2xl shadow-xs outline-none focus:ring-4 focus:ring-emerald-200 placeholder:text-emerald-400/50"
+                      placeholder={expectedFinalAnswer < 0 ? "-?" : "?"}
+                      className="w-28 sm:w-36 h-12 sm:h-14 text-center font-black text-2xl sm:text-3xl font-fredoka text-emerald-950 bg-white border-2 border-emerald-500 rounded-2xl shadow-xs outline-none focus:ring-4 focus:ring-emerald-200 placeholder:text-emerald-400/50"
                     />
 
                     {!isQuestionFinished && (

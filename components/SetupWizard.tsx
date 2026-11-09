@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 export type OperationType = "+" | "-" | "×" | "÷" | "mix";
+export type SimpleOperation = "+" | "-" | "×" | "÷";
 
 export interface PlaceValueComboOption {
   id: string;
@@ -63,17 +64,68 @@ const operations: Array<{ id: OperationType; symbol: string; title: string; desc
 ];
 
 // 9 Pilihan Kombinasi Nilai Tempat (SS, SP, SR, PS, PP, PR, RS, RP, RR - Tanpa Ribuan)
-const combos: Array<{ id: string; code: string; label: string; desc: string; example: string }> = [
-  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit", example: "Contoh: 7 + 5" },
-  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit", example: "Contoh: 8 + 34" },
-  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit", example: "Contoh: 6 + 142" },
-  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit", example: "Contoh: 45 + 8" },
-  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit", example: "Contoh: 45 + 27" },
-  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit", example: "Contoh: 54 + 236" },
-  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit", example: "Contoh: 324 + 7" },
-  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit", example: "Contoh: 342 + 58" },
-  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit", example: "Contoh: 456 + 278" },
+const combos: Array<{ id: string; code: string; label: string; desc: string }> = [
+  { id: "S-S", code: "SS", label: "Satuan ke Satuan", desc: "1 Digit & 1 Digit" },
+  { id: "S-P", code: "SP", label: "Satuan ke Puluhan", desc: "1 Digit & 2 Digit" },
+  { id: "S-R", code: "SR", label: "Satuan ke Ratusan", desc: "1 Digit & 3 Digit" },
+  { id: "P-S", code: "PS", label: "Puluhan ke Satuan", desc: "2 Digit & 1 Digit" },
+  { id: "P-P", code: "PP", label: "Puluhan ke Puluhan", desc: "2 Digit & 2 Digit" },
+  { id: "P-R", code: "PR", label: "Puluhan ke Ratusan", desc: "2 Digit & 3 Digit" },
+  { id: "R-S", code: "RS", label: "Ratusan ke Satuan", desc: "3 Digit & 1 Digit" },
+  { id: "R-P", code: "RP", label: "Ratusan ke Puluhan", desc: "3 Digit & 2 Digit" },
+  { id: "R-R", code: "RR", label: "Ratusan ke Ratusan", desc: "3 Digit & 3 Digit" },
 ];
+
+const getSetupComboExample = (comboId: string, op: OperationType) => {
+  const actualOp = op === "mix" ? "+" : op;
+  const examplesByOp: Record<SimpleOperation, Record<string, string>> = {
+    "+": {
+      "S-S": "Contoh: 7 + 5",
+      "S-P": "Contoh: 8 + 34",
+      "S-R": "Contoh: 6 + 142",
+      "P-S": "Contoh: 45 + 8",
+      "P-P": "Contoh: 45 + 27",
+      "P-R": "Contoh: 54 + 236",
+      "R-S": "Contoh: 324 + 7",
+      "R-P": "Contoh: 342 + 58",
+      "R-R": "Contoh: 456 + 278",
+    },
+    "-": {
+      "S-S": "Contoh: 9 − 4",
+      "S-P": "Contoh: 6 − 34",
+      "S-R": "Contoh: 6 − 142",
+      "P-S": "Contoh: 45 − 8",
+      "P-P": "Contoh: 45 − 27",
+      "P-R": "Contoh: 54 − 236",
+      "R-S": "Contoh: 324 − 7",
+      "R-P": "Contoh: 342 − 58",
+      "R-R": "Contoh: 456 − 278",
+    },
+    "×": {
+      "S-S": "Contoh: 7 × 5",
+      "S-P": "Contoh: 4 × 23",
+      "S-R": "Contoh: 3 × 124",
+      "P-S": "Contoh: 23 × 4",
+      "P-P": "Contoh: 18 × 12",
+      "P-R": "Contoh: 12 × 115",
+      "R-S": "Contoh: 124 × 3",
+      "R-P": "Contoh: 115 × 12",
+      "R-R": "Contoh: 125 × 112",
+    },
+    "÷": {
+      "S-S": "Contoh: 8 ÷ 2",
+      "S-P": "Contoh: 6 ÷ 20",
+      "S-R": "Contoh: 5 ÷ 200",
+      "P-S": "Contoh: 72 ÷ 3",
+      "P-P": "Contoh: 75 ÷ 15",
+      "P-R": "Contoh: 30 ÷ 120",
+      "R-S": "Contoh: 144 ÷ 4",
+      "R-P": "Contoh: 615 ÷ 15",
+      "R-R": "Contoh: 450 ÷ 225",
+    },
+  };
+  return examplesByOp[actualOp]?.[comboId] || "Contoh: 45 + 27";
+};
 
 export default function SetupWizard({
   initialName = "",
@@ -675,7 +727,7 @@ export default function SetupWizard({
                     >
                       <div className="min-w-0">
                         <div className="text-[11px] font-black truncate">{c.code} - {c.label}</div>
-                        <div className="text-[9px] text-slate-500 truncate">{c.example}</div>
+                        <div className="text-[9px] text-slate-500 truncate">{getSetupComboExample(c.id, selectedOp)}</div>
                       </div>
                       {isSelected && <Check size={12} className="text-blue-600 shrink-0 stroke-[3]" />}
                     </button>

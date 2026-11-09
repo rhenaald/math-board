@@ -413,11 +413,15 @@ export default function PorogapitDivisionBoard({
           </span>
           {[
             { id: "ALL", label: "🎲 Acak Semua", hint: "Acak tingkat digit otomatis" },
-            { id: "R-P", label: "Ratusan ÷ Puluhan (R-P)", hint: "Contoh: 615 ÷ 15 = 41" },
-            { id: "P-S", label: "Puluhan ÷ Satuan (P-S)", hint: "Contoh: 72 ÷ 3 = 24" },
-            { id: "P-P", label: "Puluhan ÷ Puluhan (P-P)", hint: "Contoh: 75 ÷ 15 = 5" },
-            { id: "R-S", label: "Ratusan ÷ Satuan (R-S)", hint: "Contoh: 144 ÷ 4 = 36" },
-            { id: "S-S", label: "Satuan ÷ Satuan (S-S)", hint: "Contoh: 8 ÷ 2 = 4" },
+            { id: "R-P", label: "R-P (Ratusan ÷ Puluhan)", hint: "Contoh: 615 ÷ 15 = 41" },
+            { id: "P-S", label: "P-S (Puluhan ÷ Satuan)", hint: "Contoh: 72 ÷ 3 = 24" },
+            { id: "P-P", label: "P-P (Puluhan ÷ Puluhan)", hint: "Contoh: 75 ÷ 15 = 5" },
+            { id: "R-S", label: "R-S (Ratusan ÷ Satuan)", hint: "Contoh: 144 ÷ 4 = 36" },
+            { id: "S-S", label: "S-S (Satuan ÷ Satuan)", hint: "Contoh: 8 ÷ 2 = 4" },
+            { id: "S-P", label: "S-P (Satuan ÷ Puluhan)", hint: "Contoh: 6 ÷ 20 = 0,3" },
+            { id: "S-R", label: "S-R (Satuan ÷ Ratusan)", hint: "Contoh: 5 ÷ 200 = 0,025" },
+            { id: "P-R", label: "P-R (Puluhan ÷ Ratusan)", hint: "Contoh: 30 ÷ 120 = 0,25" },
+            { id: "R-R", label: "R-R (Ratusan ÷ Ratusan)", hint: "Contoh: 450 ÷ 225 = 2" },
           ].map((item) => {
             const isSelected = (currentCombo || "ALL") === item.id;
             return (
