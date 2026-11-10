@@ -369,7 +369,7 @@ export default function PracticeCard({
           else if (currentOp === "×") firstKey = "repSum";
           else if (currentOp === "÷") firstKey = "quotU";
         } else {
-          firstKey = hasHundreds ? "h1" : hasTens ? "t1" : "u1";
+          firstKey = num1 >= 100 ? "h1" : num1 >= 10 ? "t1" : "u1";
         }
       } else if (currentSection === 2) {
         if (isSingleDigit) {
@@ -489,27 +489,19 @@ export default function PracticeCard({
       const inH2 = parseInt(rawH2 || "0", 10);
 
       const u1Ok = rawU1 !== "" && inU1 === u1;
-      const t1Ok = !hasTens || (
-        num1 >= 10
-          ? (rawT1 !== "" && (inT1 === t1 || (t1 > 0 && inT1 === t1 * 10)))
-          : (rawT1 === "" || inT1 === 0)
+      const t1Ok = !hasTens || num1 < 10 || (
+        rawT1 !== "" && (inT1 === t1 || (t1 > 0 && inT1 === t1 * 10))
       );
-      const h1Ok = !hasHundreds || (
-        num1 >= 100
-          ? (rawH1 !== "" && (inH1 === h1 || (h1 > 0 && inH1 === h1 * 100)))
-          : (rawH1 === "" || inH1 === 0)
+      const h1Ok = !hasHundreds || num1 < 100 || (
+        rawH1 !== "" && (inH1 === h1 || (h1 > 0 && inH1 === h1 * 100))
       );
 
       const u2Ok = rawU2 !== "" && inU2 === u2;
-      const t2Ok = !hasTens || (
-        num2 >= 10
-          ? (rawT2 !== "" && (inT2 === t2 || (t2 > 0 && inT2 === t2 * 10)))
-          : (rawT2 === "" || inT2 === 0)
+      const t2Ok = !hasTens || num2 < 10 || (
+        rawT2 !== "" && (inT2 === t2 || (t2 > 0 && inT2 === t2 * 10))
       );
-      const h2Ok = !hasHundreds || (
-        num2 >= 100
-          ? (rawH2 !== "" && (inH2 === h2 || (h2 > 0 && inH2 === h2 * 100)))
-          : (rawH2 === "" || inH2 === 0)
+      const h2Ok = !hasHundreds || num2 < 100 || (
+        rawH2 !== "" && (inH2 === h2 || (h2 > 0 && inH2 === h2 * 100))
       );
 
       isCorrect = u1Ok && t1Ok && h1Ok && u2Ok && t2Ok && h2Ok;
@@ -1007,28 +999,40 @@ export default function PracticeCard({
                     </div>
                   </div>
                   {hasHundreds && (
-                    <input
-                      type="text"
-                      data-field-key="h1"
-                      maxLength={1}
-                      value={secInputs["h1"] || ""}
-                      onChange={(e) => handleFieldInput("h1", e.target.value, hasTens ? "t1" : "u1", 1)}
-                      onKeyDown={(e) => handleKeyDown(e, undefined, hasTens ? "t1" : "u1")}
-                      placeholder="?"
-                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
-                    />
+                    num1 >= 100 ? (
+                      <input
+                        type="text"
+                        data-field-key="h1"
+                        maxLength={1}
+                        value={secInputs["h1"] || ""}
+                        onChange={(e) => handleFieldInput("h1", e.target.value, num1 >= 10 ? "t1" : "u1", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, undefined, num1 >= 10 ? "t1" : "u1")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center font-black text-xl font-fredoka bg-slate-100/80 border-2 border-slate-200 text-slate-300 rounded-2xl select-none">
+                        −
+                      </div>
+                    )
                   )}
                   {hasTens && (
-                    <input
-                      type="text"
-                      data-field-key="t1"
-                      maxLength={1}
-                      value={secInputs["t1"] || ""}
-                      onChange={(e) => handleFieldInput("t1", e.target.value, "u1", 1)}
-                      onKeyDown={(e) => handleKeyDown(e, hasHundreds ? "h1" : undefined, "u1")}
-                      placeholder="?"
-                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
-                    />
+                    num1 >= 10 ? (
+                      <input
+                        type="text"
+                        data-field-key="t1"
+                        maxLength={1}
+                        value={secInputs["t1"] || ""}
+                        onChange={(e) => handleFieldInput("t1", e.target.value, "u1", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, num1 >= 100 ? "h1" : undefined, "u1")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center font-black text-xl font-fredoka bg-slate-100/80 border-2 border-slate-200 text-slate-300 rounded-2xl select-none">
+                        −
+                      </div>
+                    )
                   )}
                   <input
                     type="text"
@@ -1039,15 +1043,15 @@ export default function PracticeCard({
                       handleFieldInput(
                         "u1",
                         e.target.value,
-                        hasHundreds ? "h2" : hasTens ? "t2" : "u2",
+                        num2 >= 100 ? "h2" : num2 >= 10 ? "t2" : "u2",
                         1
                       )
                     }
                     onKeyDown={(e) =>
                       handleKeyDown(
                         e,
-                        hasTens ? "t1" : hasHundreds ? "h1" : undefined,
-                        hasHundreds ? "h2" : hasTens ? "t2" : "u2"
+                        num1 >= 10 ? "t1" : num1 >= 100 ? "h1" : undefined,
+                        num2 >= 100 ? "h2" : num2 >= 10 ? "t2" : "u2"
                       )
                     }
                     placeholder="?"
@@ -1069,28 +1073,40 @@ export default function PracticeCard({
                     </div>
                   </div>
                   {hasHundreds && (
-                    <input
-                      type="text"
-                      data-field-key="h2"
-                      maxLength={1}
-                      value={secInputs["h2"] || ""}
-                      onChange={(e) => handleFieldInput("h2", e.target.value, hasTens ? "t2" : "u2", 1)}
-                      onKeyDown={(e) => handleKeyDown(e, "u1", hasTens ? "t2" : "u2")}
-                      placeholder="?"
-                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
-                    />
+                    num2 >= 100 ? (
+                      <input
+                        type="text"
+                        data-field-key="h2"
+                        maxLength={1}
+                        value={secInputs["h2"] || ""}
+                        onChange={(e) => handleFieldInput("h2", e.target.value, num2 >= 10 ? "t2" : "u2", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, "u1", num2 >= 10 ? "t2" : "u2")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-blue-50/50 border-2 border-blue-300 text-blue-900 rounded-2xl focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-100 outline-none transition placeholder:text-blue-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center font-black text-xl font-fredoka bg-slate-100/80 border-2 border-slate-200 text-slate-300 rounded-2xl select-none">
+                        −
+                      </div>
+                    )
                   )}
                   {hasTens && (
-                    <input
-                      type="text"
-                      data-field-key="t2"
-                      maxLength={1}
-                      value={secInputs["t2"] || ""}
-                      onChange={(e) => handleFieldInput("t2", e.target.value, "u2", 1)}
-                      onKeyDown={(e) => handleKeyDown(e, hasHundreds ? "h2" : "u1", "u2")}
-                      placeholder="?"
-                      className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
-                    />
+                    num2 >= 10 ? (
+                      <input
+                        type="text"
+                        data-field-key="t2"
+                        maxLength={1}
+                        value={secInputs["t2"] || ""}
+                        onChange={(e) => handleFieldInput("t2", e.target.value, "u2", 1)}
+                        onKeyDown={(e) => handleKeyDown(e, num2 >= 100 ? "h2" : "u1", "u2")}
+                        placeholder="?"
+                        className="w-full h-12 sm:h-14 text-center font-black text-xl font-fredoka bg-emerald-50/50 border-2 border-emerald-300 text-emerald-900 rounded-2xl focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition placeholder:text-emerald-300 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-full h-12 sm:h-14 flex items-center justify-center font-black text-xl font-fredoka bg-slate-100/80 border-2 border-slate-200 text-slate-300 rounded-2xl select-none">
+                        −
+                      </div>
+                    )
                   )}
                   <input
                     type="text"
@@ -1101,7 +1117,7 @@ export default function PracticeCard({
                     onKeyDown={(e) =>
                       handleKeyDown(
                         e,
-                        hasTens ? "t2" : hasHundreds ? "h2" : "u1",
+                        num2 >= 10 ? "t2" : num2 >= 100 ? "h2" : "u1",
                         undefined
                       )
                     }

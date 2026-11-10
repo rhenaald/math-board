@@ -480,8 +480,12 @@ export default function Home() {
           // Puluhan × Puluhan (angka bersahabat: 11-25 × 11-15)
           n1 = getRandomNumberInRange(11, 25);
           n2 = getRandomNumberInRange(11, 15);
-        } else if (isRP || isRR) {
-          // Ratusan × Puluhan/Ratusan (dibatasi agar tidak meledak ribuan besar)
+        } else if (isRR) {
+          // Ratusan × Ratusan: Keduanya 3 digit (ratusan 100-999)
+          n1 = getRandomNumberInRange(102, 225);
+          n2 = getRandomNumberInRange(102, 175);
+        } else if (isRP) {
+          // Ratusan × Puluhan
           const big = getRandomNumberInRange(102, 220);
           const small = getRandomNumberInRange(10, 14);
           n1 = p1 === "R" ? big : small;
@@ -531,10 +535,65 @@ export default function Home() {
       while (attempt < 30) {
         attempt++;
 
-        if (isDecimalProblem) {
+        if (effectiveCombo === "S-P") {
+          // Satuan ÷ Puluhan (n1 = 1 digit, n2 = 2 digit -> contoh: 6 ÷ 20 = 0.3, 4 ÷ 25 = 0.16)
+          const spPool = [
+            { n1: 1, n2: 20 }, { n1: 2, n2: 20 }, { n1: 3, n2: 20 }, { n1: 4, n2: 20 }, { n1: 5, n2: 20 },
+            { n1: 6, n2: 20 }, { n1: 7, n2: 20 }, { n1: 8, n2: 20 }, { n1: 9, n2: 20 }, { n1: 1, n2: 25 },
+            { n1: 2, n2: 25 }, { n1: 3, n2: 25 }, { n1: 4, n2: 25 }, { n1: 1, n2: 50 }, { n1: 2, n2: 50 },
+            { n1: 3, n2: 50 }, { n1: 4, n2: 50 }, { n1: 6, n2: 15 }, { n1: 9, n2: 15 }, { n1: 3, n2: 12 },
+            { n1: 6, n2: 24 }, { n1: 4, n2: 16 }, { n1: 8, n2: 16 }, { n1: 5, n2: 40 }, { n1: 6, n2: 40 },
+          ];
+          const chosen = spPool[Math.floor(Math.random() * spPool.length)];
+          generatedN1 = chosen.n1;
+          generatedN2 = chosen.n2;
+          generatedCorrect = generatedN1 / generatedN2;
+        } else if (effectiveCombo === "S-R") {
+          // Satuan ÷ Ratusan (n1 = 1 digit, n2 = 3 digit -> contoh: 5 ÷ 200 = 0.025, 4 ÷ 100 = 0.04)
+          const srPool = [
+            { n1: 1, n2: 100 }, { n1: 2, n2: 100 }, { n1: 3, n2: 100 }, { n1: 4, n2: 100 }, { n1: 5, n2: 100 },
+            { n1: 1, n2: 200 }, { n1: 2, n2: 200 }, { n1: 3, n2: 200 }, { n1: 4, n2: 200 }, { n1: 5, n2: 200 }, { n1: 6, n2: 200 }, { n1: 8, n2: 200 },
+            { n1: 1, n2: 250 }, { n1: 2, n2: 250 }, { n1: 5, n2: 250 }, { n1: 1, n2: 500 }, { n1: 2, n2: 500 }, { n1: 4, n2: 500 },
+            { n1: 3, n2: 150 }, { n1: 6, n2: 150 }, { n1: 9, n2: 150 }, { n1: 3, n2: 120 }, { n1: 6, n2: 240 }, { n1: 4, n2: 160 },
+            { n1: 8, n2: 160 }, { n1: 6, n2: 300 }, { n1: 9, n2: 300 }, { n1: 8, n2: 400 }, { n1: 7, n2: 140 }, { n1: 7, n2: 350 },
+          ];
+          const chosen = srPool[Math.floor(Math.random() * srPool.length)];
+          generatedN1 = chosen.n1;
+          generatedN2 = chosen.n2;
+          generatedCorrect = generatedN1 / generatedN2;
+        } else if (effectiveCombo === "P-R") {
+          // Puluhan ÷ Ratusan (n1 = 2 digit, n2 = 3 digit -> contoh: 30 ÷ 120 = 0.25, 45 ÷ 150 = 0.3)
+          const prPool = [
+            { n1: 12, n2: 240 }, { n1: 15, n2: 300 }, { n1: 20, n2: 400 }, { n1: 25, n2: 500 }, { n1: 30, n2: 120 },
+            { n1: 45, n2: 150 }, { n1: 50, n2: 200 }, { n1: 75, n2: 150 }, { n1: 75, n2: 300 }, { n1: 24, n2: 120 },
+            { n1: 36, n2: 180 }, { n1: 50, n2: 250 }, { n1: 40, n2: 160 }, { n1: 60, n2: 240 }, { n1: 15, n2: 120 },
+            { n1: 25, n2: 200 }, { n1: 14, n2: 280 }, { n1: 18, n2: 360 }, { n1: 28, n2: 140 }, { n1: 35, n2: 140 },
+          ];
+          const chosen = prPool[Math.floor(Math.random() * prPool.length)];
+          generatedN1 = chosen.n1;
+          generatedN2 = chosen.n2;
+          generatedCorrect = generatedN1 / generatedN2;
+        } else if (effectiveCombo === "R-R") {
+          // Ratusan ÷ Ratusan: Keduanya 3 digit (contoh: 450 ÷ 150 = 3, 600 ÷ 200 = 3, 750 ÷ 250 = 3, 300 ÷ 200 = 1.5, dll)
+          const rrPool = [
+            { n1: 450, n2: 150, k: 3 }, { n1: 600, n2: 150, k: 4 }, { n1: 750, n2: 150, k: 5 },
+            { n1: 400, n2: 200, k: 2 }, { n1: 600, n2: 200, k: 3 }, { n1: 800, n2: 200, k: 4 },
+            { n1: 500, n2: 250, k: 2 }, { n1: 750, n2: 250, k: 3 },
+            { n1: 480, n2: 240, k: 2 }, { n1: 720, n2: 240, k: 3 }, { n1: 960, n2: 240, k: 4 },
+            { n1: 560, n2: 280, k: 2 }, { n1: 840, n2: 280, k: 3 },
+            { n1: 640, n2: 320, k: 2 }, { n1: 960, n2: 320, k: 3 },
+            { n1: 700, n2: 350, k: 2 }, { n1: 800, n2: 400, k: 2 }, { n1: 900, n2: 300, k: 3 },
+            { n1: 300, n2: 200, k: 1.5 }, { n1: 500, n2: 200, k: 2.5 }, { n1: 450, n2: 300, k: 1.5 },
+            { n1: 750, n2: 500, k: 1.5 }, { n1: 600, n2: 400, k: 1.5 },
+          ];
+          const chosen = rrPool[Math.floor(Math.random() * rrPool.length)];
+          generatedN1 = chosen.n1;
+          generatedN2 = chosen.n2;
+          generatedCorrect = chosen.k;
+        } else if (isDecimalProblem) {
           // KASUS DESIMAL:
           // Jika combo S-S atau sesekali P-P, buat variasi N1 < N2 (seperti 12 : 24 = 0.5 atau 15 : 20 = 0.75)
-          const isSmallerDividend = Math.random() < 0.35 && (effectiveCombo === "P-P" || effectiveCombo === "S-S" || effectiveCombo === "S-P");
+          const isSmallerDividend = Math.random() < 0.35 && (effectiveCombo === "P-P" || effectiveCombo === "S-S");
 
           if (isSmallerDividend) {
             const cleanFractions = [
@@ -654,52 +713,6 @@ export default function Home() {
             // Satuan ÷ Satuan (contoh: 8 : 2 = 4, 9 : 3 = 3, 6 : 2 = 3, 8 : 4 = 2, 6 : 3 = 2)
             generatedN2 = getRandomNumberInRange(2, 4);
             const maxK = Math.floor(9 / generatedN2);
-            const k = getRandomNumberInRange(2, Math.max(2, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          } else if (effectiveCombo === "S-R") {
-            // Satuan ÷ Ratusan (contoh: 5 ÷ 200 = 0.025, 4 ÷ 100 = 0.04, 6 ÷ 150 = 0.04, dll)
-            const srPool = [
-              { n1: 1, n2: 100 }, { n1: 2, n2: 100 }, { n1: 3, n2: 100 }, { n1: 4, n2: 100 }, { n1: 5, n2: 100 },
-              { n1: 1, n2: 200 }, { n1: 2, n2: 200 }, { n1: 3, n2: 200 }, { n1: 4, n2: 200 }, { n1: 5, n2: 200 }, { n1: 6, n2: 200 }, { n1: 8, n2: 200 },
-              { n1: 1, n2: 250 }, { n1: 2, n2: 250 }, { n1: 5, n2: 250 }, { n1: 1, n2: 500 }, { n1: 2, n2: 500 }, { n1: 4, n2: 500 },
-              { n1: 3, n2: 150 }, { n1: 6, n2: 150 }, { n1: 9, n2: 150 }, { n1: 3, n2: 120 }, { n1: 6, n2: 240 }, { n1: 4, n2: 160 },
-              { n1: 8, n2: 160 }, { n1: 6, n2: 300 }, { n1: 9, n2: 300 }, { n1: 8, n2: 400 }, { n1: 7, n2: 140 }, { n1: 7, n2: 350 },
-            ];
-            const chosen = srPool[Math.floor(Math.random() * srPool.length)];
-            generatedN1 = chosen.n1;
-            generatedN2 = chosen.n2;
-            generatedCorrect = generatedN1 / generatedN2;
-          } else if (effectiveCombo === "S-P") {
-            // Satuan ÷ Puluhan (contoh: 6 ÷ 20 = 0.3, 4 ÷ 25 = 0.16, 8 ÷ 16 = 0.5, dll)
-            const spPool = [
-              { n1: 1, n2: 20 }, { n1: 2, n2: 20 }, { n1: 3, n2: 20 }, { n1: 4, n2: 20 }, { n1: 5, n2: 20 },
-              { n1: 6, n2: 20 }, { n1: 7, n2: 20 }, { n1: 8, n2: 20 }, { n1: 9, n2: 20 }, { n1: 1, n2: 25 },
-              { n1: 2, n2: 25 }, { n1: 3, n2: 25 }, { n1: 4, n2: 25 }, { n1: 1, n2: 50 }, { n1: 2, n2: 50 },
-              { n1: 3, n2: 50 }, { n1: 4, n2: 50 }, { n1: 6, n2: 15 }, { n1: 9, n2: 15 }, { n1: 3, n2: 12 },
-              { n1: 6, n2: 24 }, { n1: 4, n2: 16 }, { n1: 8, n2: 16 }, { n1: 5, n2: 40 }, { n1: 6, n2: 40 },
-            ];
-            const chosen = spPool[Math.floor(Math.random() * spPool.length)];
-            generatedN1 = chosen.n1;
-            generatedN2 = chosen.n2;
-            generatedCorrect = generatedN1 / generatedN2;
-          } else if (effectiveCombo === "P-R") {
-            // Puluhan ÷ Ratusan (contoh: 30 ÷ 120 = 0.25, 45 ÷ 150 = 0.3, 75 ÷ 300 = 0.25, dll)
-            const prPool = [
-              { n1: 12, n2: 240 }, { n1: 15, n2: 300 }, { n1: 20, n2: 400 }, { n1: 25, n2: 500 }, { n1: 30, n2: 120 },
-              { n1: 45, n2: 150 }, { n1: 50, n2: 200 }, { n1: 75, n2: 150 }, { n1: 75, n2: 300 }, { n1: 24, n2: 120 },
-              { n1: 36, n2: 180 }, { n1: 50, n2: 250 }, { n1: 40, n2: 160 }, { n1: 60, n2: 240 }, { n1: 15, n2: 120 },
-              { n1: 25, n2: 200 }, { n1: 14, n2: 280 }, { n1: 18, n2: 360 },
-            ];
-            const chosen = prPool[Math.floor(Math.random() * prPool.length)];
-            generatedN1 = chosen.n1;
-            generatedN2 = chosen.n2;
-            generatedCorrect = generatedN1 / generatedN2;
-          } else if (effectiveCombo === "R-R") {
-            // Ratusan ÷ Ratusan (misal: 450 ÷ 225 = 2, 750 ÷ 250 = 3, 600 ÷ 150 = 4, dll)
-            const rrDivisors = [125, 150, 200, 250, 300];
-            generatedN2 = rrDivisors[Math.floor(Math.random() * rrDivisors.length)];
-            const maxK = Math.floor(999 / generatedN2);
             const k = getRandomNumberInRange(2, Math.max(2, maxK));
             generatedN1 = k * generatedN2;
             generatedCorrect = k;
