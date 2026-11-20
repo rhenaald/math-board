@@ -25,12 +25,12 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Math Board - Media Intervensi Berhitung",
+  title: "MathKu - Media Intervensi Berhitung",
   description: "Papan Operasi Berbasis Nilai Tempat (Ribuan, Ratusan, Puluhan, Satuan)",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Math Board",
+    title: "MathKu",
   },
 };
 

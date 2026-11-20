@@ -2,13 +2,12 @@
 
 import React, { useState } from "react";
 import {
-  Layers,
+  Edit3,
   ArrowRight,
   ArrowLeft,
   Check,
   Play,
   Sparkles,
-  Shuffle,
   Plus,
   Minus,
   X,
@@ -51,13 +50,6 @@ const operations: Array<{ id: OperationType; symbol: string; title: string; desc
     title: "Pembagian",
     desc: "Pembagian bertahap per bagian",
     iconBg: "bg-purple-600 text-white",
-  },
-  {
-    id: "mix",
-    symbol: "🎲",
-    title: "Mode Campuran",
-    desc: "Kombinasi soal secara acak",
-    iconBg: "bg-teal-600 text-white",
   },
 ];
 
@@ -141,8 +133,8 @@ export default function DigitSelectionPage({
       <div className="bg-white/95 rounded-3xl p-5 sm:p-7 md:p-8 border border-slate-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative overflow-hidden">
         <div className="flex flex-col gap-2 max-w-2xl relative z-10">
           <div className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-3.5 py-1 rounded-full border border-blue-200 w-fit">
-            <Layers size={14} />
-            <span>Langkah 4: Konfigurasi Digit & Operasi</span>
+            <Edit3 size={14} />
+            <span>Langkah 2: Pilih Digit Soal</span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-fredoka tracking-tight">
@@ -178,7 +170,7 @@ export default function DigitSelectionPage({
           <span className="text-xs font-bold text-slate-500">Pilih salah satu:</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {operations.map((op) => {
             const isSelected = selectedOp === op.id;
             return (

@@ -373,23 +373,21 @@ export function getSectionNamesForOp(
       { id: 1, title: "Susun Papan Porogapit", subtitle: "Tentukan pembagi, bilangan, dan kelompok angka awal" },
       { id: 2, title: "Tangga Pengurangan Berulang", subtitle: "Kurangkan angka dengan pembagi berulang kali" },
       { id: 3, title: "Turunkan Angka / Desimal", subtitle: "Turunkan digit berikutnya atau pasang koma jika bersisa" },
-      { id: 4, title: "Susun Hasil Akhir", subtitle: "Rangkum digit dari hasil pengurangan sebelumnya" },
+      { id: 4, title: "Tulis Hasil Pembagian", subtitle: "Baca angka di atas kurung porogapit" },
     ];
   }
   if (op === "-") {
     return [
       { id: 1, title: "Susun Kolom Nilai Tempat", subtitle: "Atur nilai tempat pada papan" },
-      { id: 2, title: "Cek Satuan & Tukar Puluhan", subtitle: "Tukar jika nilai tempat kurang (Regrouping)" },
-      { id: 3, title: "Hitung Pengurangan Nilai Tempat", subtitle: "Kurangkan kolom satuan, puluhan, dan ratusan" },
-      { id: 4, title: "Hasil Akhir", subtitle: "Tuliskan selisih akhir" },
+      { id: 2, title: "Hitung Bersusun (Pinjam)", subtitle: "Kurangkan kolom dari kanan ke kiri, pinjam jika perlu" },
+      { id: 3, title: "Hasil Akhir", subtitle: "Tuliskan selisih akhir" },
     ];
   }
   // Penjumlahan (Default)
   return [
     { id: 1, title: "Susun Kolom Nilai Tempat", subtitle: "Atur nilai tempat pada papan" },
-    { id: 2, title: "Hitung Satuan & Simpanan", subtitle: "Jumlahkan satuan dan simpan jika ≥ 10" },
-    { id: 3, title: "Hitung Puluhan & Ratusan", subtitle: "Jumlahkan puluhan dan ratusan beserta simpanan" },
-    { id: 4, title: "Hasil Akhir", subtitle: "Tuliskan jumlah akhir keseluruhan" },
+    { id: 2, title: "Hitung Bersusun (Simpan)", subtitle: "Jumlahkan kolom dari kanan ke kiri, simpan jika ≥ 10" },
+    { id: 3, title: "Hasil Akhir", subtitle: "Tuliskan jumlah akhir keseluruhan" },
   ];
 }
 

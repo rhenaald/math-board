@@ -19,6 +19,7 @@ import MultiLevelHelpModal from "@/components/MultiLevelHelpModal";
 import ExampleProblemsPage from "@/components/ExampleProblemsPage";
 import DigitSelectionPage from "@/components/DigitSelectionPage";
 import NameInputScreen from "@/components/NameInputScreen";
+import { solvePorogapit } from "@/lib/porogapitEngine";
 
 // Error Diagnostics Engine
 import {
@@ -67,7 +68,7 @@ export default function Home() {
   const [isNameModalOpen, setIsNameModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isConceptModalOpen, setIsConceptModalOpen] = useState<boolean>(false);
-  const [activeNav, setActiveNav] = useState<NavTab>("belajar");
+  const [activeNav, setActiveNav] = useState<NavTab>("beranda");
   const [isMultiLevelHelpOpen, setIsMultiLevelHelpOpen] = useState<boolean>(false);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
@@ -80,8 +81,7 @@ export default function Home() {
   const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1);
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastProblemRef = useRef<{ n1: number; n2: number; op: string } | null>(null);
-  const lastDivisionProblemRef = useRef<{ n1: number; n2: number } | null>(null);
-  const wasLastDivisionDecimalRef = useRef<boolean>(false);
+  const lastProblemHistoryRef = useRef<string[]>([]);
 
   // MATH PROBLEM STATE
   const [num1, setNum1] = useState<number>(45);
@@ -214,6 +214,164 @@ export default function Home() {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
+  const ALL_COMBOS = ["S-S", "S-P", "S-R", "P-S", "P-P", "P-R", "R-S", "R-P", "R-R"];
+  const getRandomItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const DIGIT_RANGES: Record<string, [number, number]> = { S: [1, 9], P: [10, 99], R: [100, 999] };
+  const getRange = (d: string) => DIGIT_RANGES[d] || DIGIT_RANGES.P;
+
+  const checkAdditionCarries = (n1: number, n2: number): boolean => {
+    let c = 0, has = false;
+    let a = n1, b = n2;
+    while (a > 0 || b > 0) {
+      c = (a % 10) + (b % 10) + c >= 10 ? 1 : 0;
+      if (c) has = true;
+      a = Math.floor(a / 10);
+      b = Math.floor(b / 10);
+    }
+    return has;
+  };
+
+  const checkSubtractionBorrows = (n1: number, n2: number): boolean => {
+    let b = 0;
+    let topNum = n1, botNum = n2;
+    while (botNum > 0 || topNum > 0) {
+      const top = (topNum % 10) - b;
+      const bot = botNum % 10;
+      b = top < bot ? 1 : 0;
+      if (b) return true;
+      topNum = Math.floor(topNum / 10);
+      botNum = Math.floor(botNum / 10);
+    }
+    return false;
+  };
+
+  const terminatingDivisionCheck = (n1: number, n2: number): boolean => {
+    if (n2 <= 0 || (n1 * 100) % n2 !== 0) return false;
+    try {
+      const sol = solvePorogapit(n1, n2);
+      const last = sol.stages[sol.stages.length - 1];
+      return !!last && last.remainder === 0;
+    } catch {
+      return false;
+    }
+  };
+
+  const divisionCandidatesCache: Record<string, [number, number][]> = {};
+  const getDivisionCandidates = (
+    combo: string,
+    min1: number,
+    max1: number,
+    min2: number,
+    max2: number,
+    isSmaller: boolean
+  ): [number, number][] => {
+    if (divisionCandidatesCache[combo]) return divisionCandidatesCache[combo];
+    const list: [number, number][] = [];
+    for (let div = min2; div <= max2; div++) {
+      for (let dd = min1; dd <= max1; dd++) {
+        if (dd % div !== 0) {
+          if (!isSmaller && dd < div) {
+            // skip
+          } else if ((dd * 100) % div === 0 && terminatingDivisionCheck(dd, div)) {
+            list.push([dd, div]);
+          }
+        }
+      }
+    }
+    divisionCandidatesCache[combo] = list;
+    return list;
+  };
+
+  const generateProblemCore = (
+    op: SimpleOperation,
+    combo: string,
+    focus: string = "random",
+    history: string[] = []
+  ) => {
+    const effectiveCombo = !combo || combo === "ALL" || combo === "random" ? getRandomItem(ALL_COMBOS) : combo;
+    const [p1, p2] = effectiveCombo.split("-");
+    const [min1, max1] = getRange(p1);
+    const [min2, max2] = getRange(p2);
+    const histSet = new Set(history);
+    let fallback: { n1: number; n2: number; correct: number; combo: string } | null = null;
+
+    for (let attempt = 0; attempt < 400; attempt++) {
+      let s1 = 0, s2 = 0, ans = 0;
+      if (op === "+") {
+        s1 = getRandomNumberInRange(min1, max1);
+        s2 = getRandomNumberInRange(min2, max2);
+        const hasCarry = checkAdditionCarries(s1, s2);
+        if (focus === "no-carry" && hasCarry) continue;
+        if (focus === "with-carry" && !hasCarry) continue;
+        ans = s1 + s2;
+      } else if (op === "-") {
+        s1 = getRandomNumberInRange(min1, max1);
+        s2 = getRandomNumberInRange(min2, max2);
+        const rank: Record<string, number> = { S: 1, P: 2, R: 3 };
+        if ((rank[p1] || 2) >= (rank[p2] || 2)) {
+          if (s1 <= s2) continue;
+          if (effectiveCombo !== "S-S") {
+            const wantBorrow = focus === "with-carry" ? true : focus === "no-carry" ? false : Math.random() < 0.6;
+            if (checkSubtractionBorrows(s1, s2) !== wantBorrow && attempt < 300) continue;
+          }
+        } else if (s1 >= s2) continue;
+        ans = s1 - s2;
+      } else if (op === "×") {
+        const multRanges: Record<string, [[number, number], [number, number]]> = {
+          "S-S": [[2, 9], [2, 9]],
+          "S-P": [[2, 9], [11, 49]],
+          "S-R": [[2, 4], [101, 249]],
+          "P-S": [[11, 49], [2, 9]],
+          "P-P": [[11, 35], [11, 19]],
+          "P-R": [[10, 14], [101, 199]],
+          "R-S": [[101, 249], [2, 4]],
+          "R-P": [[101, 199], [10, 14]],
+          "R-R": [[101, 199], [101, 149]],
+        };
+        const [[h1Min, h1Max], [h2Min, h2Max]] = multRanges[effectiveCombo] || [[min1, max1], [min2, max2]];
+        s1 = getRandomNumberInRange(h1Min, h1Max);
+        s2 = getRandomNumberInRange(h2Min, h2Max);
+        if ((s1 % 10 === 0 || s2 % 10 === 0) && Math.random() < 0.7) continue;
+        ans = s1 * s2;
+      } else {
+        // Pembagian (÷)
+        const isSmaller = getRange(p1)[1] < getRange(p2)[0];
+        if (isSmaller ? true : Math.random() < 0.3) {
+          const pool = getDivisionCandidates(effectiveCombo, min1, max1, Math.max(2, min2), max2, isSmaller);
+          if (pool.length === 0) continue;
+          [s1, s2] = getRandomItem(pool);
+        } else {
+          const dMin = Math.max(2, min2);
+          const maxQuot = Math.floor(max1 / dMin);
+          if (maxQuot < 2) continue;
+          const quot = getRandomNumberInRange(2, Math.min(maxQuot, p1 === "R" && p2 === "S" ? 300 : 99));
+          const minDiv = Math.max(dMin, Math.ceil(min1 / quot));
+          const maxDiv = Math.min(max2, Math.floor(max1 / quot));
+          if (maxDiv < minDiv) continue;
+          s2 = getRandomNumberInRange(minDiv, maxDiv);
+          s1 = s2 * quot;
+        }
+        if (s1 < min1 || s1 > max1 || s2 < min2 || s2 > max2 || !terminatingDivisionCheck(s1, s2)) continue;
+        ans = s1 / s2;
+      }
+
+      const prob = { n1: s1, n2: s2, correct: ans, combo: effectiveCombo };
+      if (!fallback) fallback = prob;
+      const key = `${op}|${s1}|${s2}`;
+      if (!histSet.has(key)) return prob;
+    }
+
+    return (
+      fallback ||
+      ({
+        "+": { n1: 45, n2: 27, correct: 72, combo: effectiveCombo },
+        "-": { n1: 245, n2: 46, correct: 199, combo: effectiveCombo },
+        "×": { n1: 23, n2: 4, correct: 92, combo: effectiveCombo },
+        "÷": { n1: 72, n2: 3, correct: 24, combo: effectiveCombo },
+      }[op])
+    );
+  };
+
   const getDigitRange = (placeType: string) => {
     if (placeType === "S") return { min: 1, max: 9, digits: 1 };
     if (placeType === "P") return { min: 10, max: 99, digits: 2 };
@@ -253,501 +411,22 @@ export default function Home() {
     }
     setCurrentOp(op);
 
-    let [p1, p2] = activeCombo.split("-");
-    if (!p1 || !p2) {
-      p1 = "P";
-      p2 = "P";
-    }
-
-    let r1 = getDigitRange(p1);
-    let r2 = getDigitRange(p2);
-
-    let n1 = 45;
-    let n2 = 27;
-    let correct = 72;
-
-    if (op === "+") {
-      let attempts = 0;
-      while (attempts < 25) {
-        attempts++;
-        if (activeFocus === "no-carry") {
-          const u1 = getRandomNumberInRange(1, 4);
-          const u2 = getRandomNumberInRange(1, 9 - u1);
-          const t1 = p1 !== "S" ? getRandomNumberInRange(1, 4) : 0;
-          const t2 = p2 !== "S" ? getRandomNumberInRange(1, 9 - t1) : 0;
-          const h1 = p1 === "R" ? getRandomNumberInRange(1, 4) : 0;
-          const h2 = p2 === "R" ? getRandomNumberInRange(1, 9 - h1) : 0;
-          n1 = (p1 === "R" ? h1 * 100 : 0) + (p1 !== "S" ? t1 * 10 : 0) + u1;
-          n2 = (p2 === "R" ? h2 * 100 : 0) + (p2 !== "S" ? t2 * 10 : 0) + u2;
-        } else if (activeFocus === "with-carry") {
-          const u1 = getRandomNumberInRange(5, 9);
-          const u2 = getRandomNumberInRange(10 - u1, 9);
-          const t1 = p1 !== "S" ? getRandomNumberInRange(1, 8) : 0;
-          const t2 = p2 !== "S" ? getRandomNumberInRange(1, 8) : 0;
-          const h1 = p1 === "R" ? getRandomNumberInRange(1, 8) : 0;
-          const h2 = p2 === "R" ? getRandomNumberInRange(1, 8) : 0;
-          n1 = (p1 === "R" ? h1 * 100 : 0) + (p1 !== "S" ? t1 * 10 : 0) + u1;
-          n2 = (p2 === "R" ? h2 * 100 : 0) + (p2 !== "S" ? t2 * 10 : 0) + u2;
-        } else {
-          n1 = getRandomNumberInRange(r1.min, r1.max);
-          n2 = getRandomNumberInRange(r2.min, r2.max);
-        }
-        const prev = lastProblemRef.current;
-        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
-          break;
-        }
-      }
-      correct = n1 + n2;
-      lastProblemRef.current = { n1, n2, op };
-    } else if (op === "-") {
-      let attempts = 0;
-      while (attempts < 25) {
-        attempts++;
-
-        const isSS = p1 === "S" && p2 === "S";
-        const isPP = p1 === "P" && p2 === "P";
-        const isPS = p1 === "P" && p2 === "S";
-        const isRP = p1 === "R" && p2 === "P";
-        const isRS = p1 === "R" && p2 === "S";
-        const isRR = p1 === "R" && p2 === "R";
-        const isSP = p1 === "S" && p2 === "P";
-        const isSR = p1 === "S" && p2 === "R";
-        const isPR = p1 === "P" && p2 === "R";
-
-        // Variasi tipe soal: with-carry (meminjam) vs no-carry (tanpa meminjam)
-        const wantBorrow =
-          activeFocus === "with-carry"
-            ? true
-            : activeFocus === "no-carry"
-            ? false
-            : Math.random() < 0.5;
-
-        if (isSS) {
-          // Satuan - Satuan: selalu n1 > n2 (hasil positif, tidak pernah kembar)
-          const u2 = getRandomNumberInRange(1, 7);
-          const u1 = getRandomNumberInRange(u2 + 1, 9);
-          n1 = u1;
-          n2 = u2;
-        } else if (isPP) {
-          // Puluhan - Puluhan: variasi kaya (contoh: 25 - 17, 84 - 36, 48 - 23, 76 - 32)
-          if (wantBorrow) {
-            // Meminjam: u1 < u2, t1 > t2
-            const u1 = getRandomNumberInRange(0, 6);
-            const u2 = getRandomNumberInRange(u1 + 1, 9);
-            const t1 = getRandomNumberInRange(2, 9);
-            const t2 = getRandomNumberInRange(1, t1 - 1);
-            n1 = t1 * 10 + u1;
-            n2 = t2 * 10 + u2;
-          } else {
-            // Tanpa meminjam: u1 >= u2, t1 > t2
-            const u1 = getRandomNumberInRange(2, 9);
-            const u2 = getRandomNumberInRange(0, u1 - 1);
-            const t1 = getRandomNumberInRange(2, 9);
-            const t2 = getRandomNumberInRange(1, t1 - 1);
-            n1 = t1 * 10 + u1;
-            n2 = t2 * 10 + u2;
-          }
-        } else if (isPS) {
-          // Puluhan - Satuan (contoh: 84 - 8, 35 - 7, 48 - 3)
-          if (wantBorrow) {
-            const u1 = getRandomNumberInRange(0, 6);
-            const u2 = getRandomNumberInRange(u1 + 1, 9);
-            const t1 = getRandomNumberInRange(2, 9);
-            n1 = t1 * 10 + u1;
-            n2 = u2;
-          } else {
-            const u1 = getRandomNumberInRange(3, 9);
-            const u2 = getRandomNumberInRange(1, u1 - 1);
-            const t1 = getRandomNumberInRange(2, 9);
-            n1 = t1 * 10 + u1;
-            n2 = u2;
-          }
-        } else if (isRP) {
-          // Ratusan - Puluhan (contoh: 245 - 68, 574 - 32)
-          if (wantBorrow) {
-            const u1 = getRandomNumberInRange(0, 6);
-            const u2 = getRandomNumberInRange(u1 + 1, 9);
-            const t1 = getRandomNumberInRange(1, 8);
-            const t2 = getRandomNumberInRange(1, 8);
-            const h1 = getRandomNumberInRange(1, 9);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = t2 * 10 + u2;
-          } else {
-            const u1 = getRandomNumberInRange(2, 9);
-            const u2 = getRandomNumberInRange(0, u1 - 1);
-            const t1 = getRandomNumberInRange(2, 9);
-            const t2 = getRandomNumberInRange(1, t1 - 1);
-            const h1 = getRandomNumberInRange(1, 9);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = t2 * 10 + u2;
-          }
-        } else if (isRS) {
-          // Ratusan - Satuan
-          if (wantBorrow) {
-            const u1 = getRandomNumberInRange(0, 6);
-            const u2 = getRandomNumberInRange(u1 + 1, 9);
-            const t1 = getRandomNumberInRange(1, 9);
-            const h1 = getRandomNumberInRange(1, 9);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = u2;
-          } else {
-            const u1 = getRandomNumberInRange(2, 9);
-            const u2 = getRandomNumberInRange(1, u1 - 1);
-            const t1 = getRandomNumberInRange(1, 9);
-            const h1 = getRandomNumberInRange(1, 9);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = u2;
-          }
-        } else if (isRR) {
-          // Ratusan - Ratusan
-          if (wantBorrow) {
-            const u1 = getRandomNumberInRange(0, 6);
-            const u2 = getRandomNumberInRange(u1 + 1, 9);
-            const t1 = getRandomNumberInRange(1, 8);
-            const t2 = getRandomNumberInRange(1, 8);
-            const h1 = getRandomNumberInRange(2, 9);
-            const h2 = getRandomNumberInRange(1, h1 - 1);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = h2 * 100 + t2 * 10 + u2;
-          } else {
-            const u1 = getRandomNumberInRange(2, 9);
-            const u2 = getRandomNumberInRange(0, u1 - 1);
-            const t1 = getRandomNumberInRange(2, 9);
-            const t2 = getRandomNumberInRange(1, t1 - 1);
-            const h1 = getRandomNumberInRange(2, 9);
-            const h2 = getRandomNumberInRange(1, h1 - 1);
-            n1 = h1 * 100 + t1 * 10 + u1;
-            n2 = h2 * 100 + t2 * 10 + u2;
-          }
-        } else if (isSP) {
-          // Satuan - Puluhan (n1 = Satuan, n2 = Puluhan -> hasil negatif)
-          n1 = getRandomNumberInRange(1, 9);
-          n2 = getRandomNumberInRange(15, 85);
-        } else if (isSR) {
-          // Satuan - Ratusan (n1 = Satuan, n2 = Ratusan -> hasil negatif)
-          n1 = getRandomNumberInRange(1, 9);
-          n2 = getRandomNumberInRange(105, 450);
-        } else if (isPR) {
-          // Puluhan - Ratusan (n1 = Puluhan, n2 = Ratusan -> hasil negatif)
-          n1 = getRandomNumberInRange(15, 85);
-          n2 = getRandomNumberInRange(105, 450);
-        } else {
-          // Fallback umum
-          n1 = getRandomNumberInRange(r1.min, r1.max);
-          n2 = getRandomNumberInRange(r2.min, r2.max);
-        }
-
-        // Perlindungan n1 > n2 hanya berlaku jika digit n1 >= n2 (seperti SS, PP, RR, PS, RS, RP)
-        // Jika p1 < p2 (seperti SP, SR, PR), n1 memang harus lebih kecil dari n2 sesuai pilihan pengguna
-        if (r1.min >= r2.min && n1 <= n2) {
-          n1 = n2 + getRandomNumberInRange(2, 9);
-        }
-
-        const prev = lastProblemRef.current;
-        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
-          break;
-        }
-      }
-      correct = n1 - n2;
-      lastProblemRef.current = { n1, n2, op };
-    } else if (op === "×") {
-      let attempts = 0;
-      while (attempts < 25) {
-        attempts++;
-        const isSS = p1 === "S" && p2 === "S";
-        const isPS = (p1 === "P" && p2 === "S") || (p1 === "S" && p2 === "P");
-        const isRS = (p1 === "R" && p2 === "S") || (p1 === "S" && p2 === "R");
-        const isPP = p1 === "P" && p2 === "P";
-        const isRP = (p1 === "R" && p2 === "P") || (p1 === "P" && p2 === "R");
-        const isRR = p1 === "R" && p2 === "R";
-
-        if (isSS) {
-          n1 = getRandomNumberInRange(2, 9);
-          n2 = getRandomNumberInRange(2, 9);
-        } else if (isPS) {
-          // Puluhan × Satuan atau sebaliknya (angka ramah visual balok: puluhan 12-79, pengali 2-5)
-          const big = getRandomNumberInRange(12, 79);
-          const small = getRandomNumberInRange(2, 5);
-          n1 = p1 === "P" ? big : small;
-          n2 = p1 === "P" ? small : big;
-        } else if (isRS) {
-          // Ratusan × Satuan (angka ramah balok: ratusan 102-240, pengali 2-4)
-          const big = getRandomNumberInRange(102, 240);
-          const small = getRandomNumberInRange(2, 4);
-          n1 = p1 === "R" ? big : small;
-          n2 = p1 === "R" ? small : big;
-        } else if (isPP) {
-          // Puluhan × Puluhan (angka bersahabat: 11-25 × 11-15)
-          n1 = getRandomNumberInRange(11, 25);
-          n2 = getRandomNumberInRange(11, 15);
-        } else if (isRR) {
-          // Ratusan × Ratusan: Keduanya 3 digit (ratusan 100-999)
-          n1 = getRandomNumberInRange(102, 225);
-          n2 = getRandomNumberInRange(102, 175);
-        } else if (isRP) {
-          // Ratusan × Puluhan
-          const big = getRandomNumberInRange(102, 220);
-          const small = getRandomNumberInRange(10, 14);
-          n1 = p1 === "R" ? big : small;
-          n2 = p1 === "R" ? small : big;
-        } else {
-          n1 = getRandomNumberInRange(r1.min, Math.min(r1.max, 85));
-          n2 = getRandomNumberInRange(r2.min, Math.min(r2.max, 5));
-        }
-
-        const prev = lastProblemRef.current;
-        if (!prev || prev.n1 !== n1 || prev.n2 !== n2 || prev.op !== op) {
-          break;
-        }
-      }
-      correct = n1 * n2;
-      lastProblemRef.current = { n1, n2, op };
-    } else if (op === "÷") {
-      // Pembagian dibuat campur-campur: mayoritas bilangan bulat bersih (~75-80%), dan sesekali desimal bersih (~20-25%).
-      // Jika soal sebelumnya sudah desimal, soal berikutnya PASTI bilangan bulat habis dibagi!
-      let isDecimalProblem = false;
-      if (wasLastDivisionDecimalRef.current) {
-        isDecimalProblem = false;
-      } else {
-        isDecimalProblem = Math.random() < 0.25;
-      }
-      wasLastDivisionDecimalRef.current = isDecimalProblem;
-
-      // Tentukan kombinasi digit yang aktif
-      let effectiveCombo = activeCombo;
-      if (effectiveCombo === "ALL" || effectiveCombo === "random") {
-        // Distribusi variasi porogapit yang seimbang
-        const pool = [
-          "R-P", "R-P", "R-P", "R-P", // 30% Ratusan ÷ Puluhan (misal 615 : 15)
-          "P-S", "P-S", "P-S", "P-S", // 30% Puluhan ÷ Satuan (misal 72 : 3)
-          "P-P", "P-P",               // 15% Puluhan ÷ Puluhan (misal 75 : 15)
-          "R-S", "R-S",               // 15% Ratusan ÷ Satuan (misal 144 : 4)
-          "S-S",                      // 10% Satuan ÷ Satuan (misal 8 : 2)
-        ];
-        effectiveCombo = pool[Math.floor(Math.random() * pool.length)];
-      }
-
-      let attempt = 0;
-      let generatedN1 = 45;
-      let generatedN2 = 3;
-      let generatedCorrect = 15;
-
-      while (attempt < 30) {
-        attempt++;
-
-        if (effectiveCombo === "S-P") {
-          // Satuan ÷ Puluhan (n1 = 1 digit, n2 = 2 digit -> contoh: 6 ÷ 20 = 0.3, 4 ÷ 25 = 0.16)
-          const spPool = [
-            { n1: 1, n2: 20 }, { n1: 2, n2: 20 }, { n1: 3, n2: 20 }, { n1: 4, n2: 20 }, { n1: 5, n2: 20 },
-            { n1: 6, n2: 20 }, { n1: 7, n2: 20 }, { n1: 8, n2: 20 }, { n1: 9, n2: 20 }, { n1: 1, n2: 25 },
-            { n1: 2, n2: 25 }, { n1: 3, n2: 25 }, { n1: 4, n2: 25 }, { n1: 1, n2: 50 }, { n1: 2, n2: 50 },
-            { n1: 3, n2: 50 }, { n1: 4, n2: 50 }, { n1: 6, n2: 15 }, { n1: 9, n2: 15 }, { n1: 3, n2: 12 },
-            { n1: 6, n2: 24 }, { n1: 4, n2: 16 }, { n1: 8, n2: 16 }, { n1: 5, n2: 40 }, { n1: 6, n2: 40 },
-          ];
-          const chosen = spPool[Math.floor(Math.random() * spPool.length)];
-          generatedN1 = chosen.n1;
-          generatedN2 = chosen.n2;
-          generatedCorrect = generatedN1 / generatedN2;
-        } else if (effectiveCombo === "S-R") {
-          // Satuan ÷ Ratusan (n1 = 1 digit, n2 = 3 digit -> contoh: 5 ÷ 200 = 0.025, 4 ÷ 100 = 0.04)
-          const srPool = [
-            { n1: 1, n2: 100 }, { n1: 2, n2: 100 }, { n1: 3, n2: 100 }, { n1: 4, n2: 100 }, { n1: 5, n2: 100 },
-            { n1: 1, n2: 200 }, { n1: 2, n2: 200 }, { n1: 3, n2: 200 }, { n1: 4, n2: 200 }, { n1: 5, n2: 200 }, { n1: 6, n2: 200 }, { n1: 8, n2: 200 },
-            { n1: 1, n2: 250 }, { n1: 2, n2: 250 }, { n1: 5, n2: 250 }, { n1: 1, n2: 500 }, { n1: 2, n2: 500 }, { n1: 4, n2: 500 },
-            { n1: 3, n2: 150 }, { n1: 6, n2: 150 }, { n1: 9, n2: 150 }, { n1: 3, n2: 120 }, { n1: 6, n2: 240 }, { n1: 4, n2: 160 },
-            { n1: 8, n2: 160 }, { n1: 6, n2: 300 }, { n1: 9, n2: 300 }, { n1: 8, n2: 400 }, { n1: 7, n2: 140 }, { n1: 7, n2: 350 },
-          ];
-          const chosen = srPool[Math.floor(Math.random() * srPool.length)];
-          generatedN1 = chosen.n1;
-          generatedN2 = chosen.n2;
-          generatedCorrect = generatedN1 / generatedN2;
-        } else if (effectiveCombo === "P-R") {
-          // Puluhan ÷ Ratusan (n1 = 2 digit, n2 = 3 digit -> contoh: 30 ÷ 120 = 0.25, 45 ÷ 150 = 0.3)
-          const prPool = [
-            { n1: 12, n2: 240 }, { n1: 15, n2: 300 }, { n1: 20, n2: 400 }, { n1: 25, n2: 500 }, { n1: 30, n2: 120 },
-            { n1: 45, n2: 150 }, { n1: 50, n2: 200 }, { n1: 75, n2: 150 }, { n1: 75, n2: 300 }, { n1: 24, n2: 120 },
-            { n1: 36, n2: 180 }, { n1: 50, n2: 250 }, { n1: 40, n2: 160 }, { n1: 60, n2: 240 }, { n1: 15, n2: 120 },
-            { n1: 25, n2: 200 }, { n1: 14, n2: 280 }, { n1: 18, n2: 360 }, { n1: 28, n2: 140 }, { n1: 35, n2: 140 },
-          ];
-          const chosen = prPool[Math.floor(Math.random() * prPool.length)];
-          generatedN1 = chosen.n1;
-          generatedN2 = chosen.n2;
-          generatedCorrect = generatedN1 / generatedN2;
-        } else if (effectiveCombo === "R-R") {
-          // Ratusan ÷ Ratusan: Keduanya 3 digit (contoh: 450 ÷ 150 = 3, 600 ÷ 200 = 3, 750 ÷ 250 = 3, 300 ÷ 200 = 1.5, dll)
-          const rrPool = [
-            { n1: 450, n2: 150, k: 3 }, { n1: 600, n2: 150, k: 4 }, { n1: 750, n2: 150, k: 5 },
-            { n1: 400, n2: 200, k: 2 }, { n1: 600, n2: 200, k: 3 }, { n1: 800, n2: 200, k: 4 },
-            { n1: 500, n2: 250, k: 2 }, { n1: 750, n2: 250, k: 3 },
-            { n1: 480, n2: 240, k: 2 }, { n1: 720, n2: 240, k: 3 }, { n1: 960, n2: 240, k: 4 },
-            { n1: 560, n2: 280, k: 2 }, { n1: 840, n2: 280, k: 3 },
-            { n1: 640, n2: 320, k: 2 }, { n1: 960, n2: 320, k: 3 },
-            { n1: 700, n2: 350, k: 2 }, { n1: 800, n2: 400, k: 2 }, { n1: 900, n2: 300, k: 3 },
-            { n1: 300, n2: 200, k: 1.5 }, { n1: 500, n2: 200, k: 2.5 }, { n1: 450, n2: 300, k: 1.5 },
-            { n1: 750, n2: 500, k: 1.5 }, { n1: 600, n2: 400, k: 1.5 },
-          ];
-          const chosen = rrPool[Math.floor(Math.random() * rrPool.length)];
-          generatedN1 = chosen.n1;
-          generatedN2 = chosen.n2;
-          generatedCorrect = chosen.k;
-        } else if (isDecimalProblem) {
-          // KASUS DESIMAL:
-          // Jika combo S-S atau sesekali P-P, buat variasi N1 < N2 (seperti 12 : 24 = 0.5 atau 15 : 20 = 0.75)
-          const isSmallerDividend = Math.random() < 0.35 && (effectiveCombo === "P-P" || effectiveCombo === "S-S");
-
-          if (isSmallerDividend) {
-            const cleanFractions = [
-              { numMult: 1, denMult: 2 }, // 0.5
-              { numMult: 1, denMult: 4 }, // 0.25
-              { numMult: 3, denMult: 4 }, // 0.75
-              { numMult: 2, denMult: 5 }, // 0.4
-              { numMult: 3, denMult: 5 }, // 0.6
-              { numMult: 4, denMult: 5 }, // 0.8
-              { numMult: 1, denMult: 8 }, // 0.125
-            ];
-            const frac = cleanFractions[Math.floor(Math.random() * cleanFractions.length)];
-            const maxMult = effectiveCombo === "S-S" ? Math.floor(9 / frac.denMult) : Math.floor(40 / frac.denMult);
-            const minMult = 2;
-            const mult = getRandomNumberInRange(minMult, Math.max(minMult, maxMult));
-            generatedN2 = mult * frac.denMult;
-            generatedN1 = mult * frac.numMult;
-            generatedCorrect = generatedN1 / generatedN2;
-          } else {
-            // N1 > N2 dengan sisa desimal bersih (misal 618 : 15 = 41.2 atau 75 : 4 = 18.75)
-            let candidateDivisors: number[] = [];
-            if (effectiveCombo === "P-S" || effectiveCombo === "R-S" || effectiveCombo === "S-S") {
-              candidateDivisors = [2, 4, 5, 8];
-            } else {
-              candidateDivisors = [10, 12, 15, 16, 20, 24, 25, 40, 50];
-            }
-            generatedN2 = candidateDivisors[Math.floor(Math.random() * candidateDivisors.length)];
-
-            let minK = 10;
-            let maxK = 40;
-            if (effectiveCombo === "R-P") {
-              minK = Math.max(10, Math.floor(100 / generatedN2));
-              maxK = Math.max(minK, Math.floor(950 / generatedN2));
-            } else if (effectiveCombo === "P-S") {
-              minK = Math.max(10, Math.floor(10 / generatedN2));
-              maxK = Math.max(minK, Math.floor(90 / generatedN2));
-            } else if (effectiveCombo === "P-P") {
-              minK = 2;
-              maxK = Math.max(2, Math.floor(90 / generatedN2));
-            } else if (effectiveCombo === "R-S") {
-              minK = Math.max(20, Math.floor(100 / generatedN2));
-              maxK = Math.max(minK, Math.floor(950 / generatedN2));
-            } else {
-              minK = 1;
-              maxK = 2;
-            }
-
-            const k = getRandomNumberInRange(minK, Math.max(minK, maxK));
-
-            // Sisa yang menghasilkan desimal bersih
-            const cleanRemainders: number[] = [];
-            for (let rem = 1; rem < generatedN2; rem++) {
-              const fracStr = (rem / generatedN2).toString();
-              if (
-                fracStr.length <= 5 &&
-                !fracStr.includes("333") &&
-                !fracStr.includes("666") &&
-                !fracStr.includes("777")
-              ) {
-                cleanRemainders.push(rem);
-              }
-            }
-
-            const rem =
-              cleanRemainders.length > 0
-                ? cleanRemainders[Math.floor(Math.random() * cleanRemainders.length)]
-                : 1;
-
-            generatedN1 = k * generatedN2 + rem;
-            generatedCorrect = generatedN1 / generatedN2;
-          }
-        } else {
-          // KASUS BILANGAN BULAT (HABIS DIBAGI)
-          if (effectiveCombo === "R-P") {
-            // Ratusan ÷ Puluhan (contoh: 615 : 15 = 41, 450 : 18 = 25, 345 : 15 = 23, 756 : 14 = 54, 525 : 25 = 21)
-            const divisorPool = [12, 13, 14, 15, 16, 18, 20, 22, 24, 25, 28, 30, 32, 35, 45];
-            generatedN2 = divisorPool[Math.floor(Math.random() * divisorPool.length)];
-            const minK = Math.max(10, Math.ceil(100 / generatedN2));
-            const maxK = Math.floor(999 / generatedN2);
-            const k = getRandomNumberInRange(minK, Math.max(minK, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          } else if (effectiveCombo === "P-S") {
-            // Puluhan ÷ Satuan (contoh: 72 : 3 = 24, 84 : 4 = 21, 96 : 6 = 16, 65 : 5 = 13, 91 : 7 = 13, 48 : 3 = 16)
-            generatedN2 = getRandomNumberInRange(2, 9);
-            const minK = Math.max(11, Math.ceil(10 / generatedN2));
-            const maxK = Math.floor(99 / generatedN2);
-            const k = getRandomNumberInRange(minK, Math.max(minK, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          } else if (effectiveCombo === "P-P") {
-            // Puluhan ÷ Puluhan (contoh: 75 : 15 = 5, 96 : 12 = 8, 84 : 14 = 6, 90 : 15 = 6, 72 : 12 = 6, 84 : 28 = 3)
-            // Pastikan k >= 2 dan divisor kecil (12 s/d 30) agar bukan sekedar 30 : 10 atau 50 : 50 = 1!
-            const divisorPool = [12, 13, 14, 15, 16, 18, 20, 24, 25, 28, 30];
-            generatedN2 = divisorPool[Math.floor(Math.random() * divisorPool.length)];
-            const maxK = Math.floor(99 / generatedN2);
-            const minK = 2;
-            if (maxK >= minK) {
-              const k = getRandomNumberInRange(minK, maxK);
-              generatedN1 = k * generatedN2;
-              generatedCorrect = k;
-            } else {
-              generatedN2 = 12;
-              const k = getRandomNumberInRange(2, 8);
-              generatedN1 = k * generatedN2;
-              generatedCorrect = k;
-            }
-          } else if (effectiveCombo === "R-S") {
-            // Ratusan ÷ Satuan (contoh: 144 : 4 = 36, 325 : 5 = 65, 456 : 6 = 76, 672 : 8 = 84, 255 : 5 = 51)
-            generatedN2 = getRandomNumberInRange(2, 9);
-            const minK = Math.max(20, Math.ceil(100 / generatedN2));
-            const maxK = Math.floor(999 / generatedN2);
-            const k = getRandomNumberInRange(minK, Math.max(minK, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          } else if (effectiveCombo === "S-S") {
-            // Satuan ÷ Satuan (contoh: 8 : 2 = 4, 9 : 3 = 3, 6 : 2 = 3, 8 : 4 = 2, 6 : 3 = 2)
-            generatedN2 = getRandomNumberInRange(2, 4);
-            const maxK = Math.floor(9 / generatedN2);
-            const k = getRandomNumberInRange(2, Math.max(2, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          } else {
-            // Fallback jika kombinasi lain
-            let [c1, c2] = effectiveCombo.split("-");
-            let d1 = getDigitRange(c1 || "P");
-            let d2 = getDigitRange(c2 || "S");
-            generatedN2 = getRandomNumberInRange(Math.max(2, d2.min), Math.min(35, d2.max));
-            const minK = Math.max(2, Math.ceil(d1.min / generatedN2));
-            const maxK = Math.floor(d1.max / generatedN2);
-            const k = getRandomNumberInRange(minK, Math.max(minK, maxK));
-            generatedN1 = k * generatedN2;
-            generatedCorrect = k;
-          }
-        }
-
-        // Anti-Duplikasi: Pastikan soal baru TIDAK sama persis dengan soal sebelumnya!
-        const prev = lastDivisionProblemRef.current;
-        if (!prev || prev.n1 !== generatedN1 || prev.n2 !== generatedN2) {
-          break;
-        }
-      }
-
-      lastDivisionProblemRef.current = { n1: generatedN1, n2: generatedN2 };
-      lastProblemRef.current = { n1: generatedN1, n2: generatedN2, op };
-      n1 = generatedN1;
-      n2 = generatedN2;
-      correct = generatedCorrect;
-    }
+    const prob = generateProblemCore(
+      op,
+      activeCombo,
+      activeFocus,
+      lastProblemHistoryRef.current
+    );
+    lastProblemHistoryRef.current = [
+      ...lastProblemHistoryRef.current,
+      `${op}|${prob.n1}|${prob.n2}`,
+    ].slice(-12);
+    lastProblemRef.current = { n1: prob.n1, n2: prob.n2, op };
 
     setCurrentQuestionNumber(sessionLogs.length + 1);
-    setNum1(n1);
-    setNum2(n2);
-    setCorrectAnswer(correct);
+    setNum1(prob.n1);
+    setNum2(prob.n2);
+    setCorrectAnswer(prob.correct);
   };
 
   // Completion from Name Input Screen
@@ -755,10 +434,12 @@ export default function Home() {
     const finalName = name.trim() || "Dika";
     setCurrentUser(finalName);
     if (typeof window !== "undefined") {
-      localStorage.setItem("mathboard_student_name", finalName);
+      try {
+        localStorage.setItem("mathboard_student_name", finalName);
+      } catch {}
     }
     setIsNameModalOpen(false);
-    setActiveNav("belajar");
+    setActiveNav("beranda");
   };
 
   // Completion from Setup Wizard / Digit Selection
@@ -1347,7 +1028,7 @@ export default function Home() {
             onStartPractice={(op, combo) => {
               handleCompleteSetup(currentUser, op, combo);
             }}
-            onBackToExamples={() => setActiveNav("belajar")}
+            onBackToExamples={() => setActiveNav("beranda")}
           />
         )}
 

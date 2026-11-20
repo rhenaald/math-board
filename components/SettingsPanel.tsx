@@ -123,13 +123,12 @@ export default function SettingsPanel({
         <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2.5">
           Operasi Latihan
         </label>
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           {[
             { id: "+", label: "Tambah", sym: "+" },
             { id: "-", label: "Kurang", sym: "−" },
             { id: "×", label: "Kali", sym: "×" },
             { id: "÷", label: "Bagi", sym: "÷" },
-            { id: "mix", label: "Campur", sym: "🎲" },
           ].map((op) => (
             <button
               key={op.id}

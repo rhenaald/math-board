@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Volume2,
   CheckCircle2,
@@ -16,6 +16,8 @@ import { GirlMascotVector } from "./ChildMascots";
 import BaseTenBlocksVisualizer, { UnitCube3D, TenRod3D, HundredFlat3D } from "./BaseTenBlocksVisualizer";
 import { getSectionNamesForOp, type SectionDiagnostic } from "@/lib/errorDiagnostics";
 import PorogapitDivisionBoard from "./PorogapitDivisionBoard";
+import MathBoardGrid, { buildPlan, validatePlan } from "./MathBoardGrid";
+import DigitComboSelectorRow from "./DigitComboSelectorRow";
 
 type SimpleOperation = "+" | "-" | "×" | "÷";
 
@@ -125,7 +127,13 @@ export default function PracticeCard({
 
   const hasHundreds = hasHundreds1 || hasHundreds2;
   const hasTens = hasTens1 || hasTens2 || hasHundreds;
-  const isSingleDigit = !hasTens && !hasHundreds;
+  const isMultiDigit = hasTens || hasHundreds;
+  const isSingleDigit = !isMultiDigit;
+  const isMultiDigitAddSub = (currentOp === "+" || currentOp === "-") && !isSingleDigit;
+  const plan = useMemo(
+    () => buildPlan(num1, num2, currentOp === "-" ? "-" : "+"),
+    [num1, num2, currentOp]
+  );
   const sectionMeta = getSectionNamesForOp(currentOp, isSingleDigit);
   const totalSections = sectionMeta.length;
 
@@ -374,6 +382,8 @@ export default function PracticeCard({
       } else if (currentSection === 2) {
         if (isSingleDigit) {
           firstKey = "finalAnswer";
+        } else if (isMultiDigitAddSub) {
+          firstKey = "st_r0";
         } else {
           if (currentOp === "+") firstKey = "sumU";
           else if (currentOp === "-") firstKey = "diffU";
@@ -383,7 +393,8 @@ export default function PracticeCard({
             firstKey = hasDecH ? "decH_val" : hasDecT ? "decT_val" : "decU_val";
         }
       } else if (currentSection === 3) {
-        if (currentOp === "+") firstKey = "sumT";
+        if (isMultiDigitAddSub) firstKey = "finalAnswer";
+        else if (currentOp === "+") firstKey = "sumT";
         else if (currentOp === "-") firstKey = secInputs["diffU"] ? "diffT" : "diffU";
         else if (currentOp === "×")
           firstKey = "finalAnswer";
@@ -525,6 +536,37 @@ export default function PracticeCard({
         }
         detectedErrorDetail = errorMessage;
         detectedIntervention = "Pandu siswa mengenali susunan kolom nilai tempat: satuan di paling kanan, disusul puluhan dan ratusan di kirinya.";
+      }
+    } else if (isMultiDigitAddSub) {
+      if (secId === 2) {
+        const res = validatePlan(plan, secInputs);
+        isCorrect = res.isCorrect;
+        if (!isCorrect) {
+          errorMessage = res.message;
+          detectedErrorType = res.errorType || "SALAH_HITUNG_BERSUSUN";
+          detectedErrorDetail = res.errorDetail || res.message;
+          detectedIntervention =
+            res.intervention ||
+            "Bimbing siswa mengerjakan hitung bersusun kolom demi kolom dari kanan ke kiri.";
+        }
+      } else {
+        const val = parseInt(
+          (secInputs.finalAnswer || "").replace("−", "-") || "NaN",
+          10
+        );
+        isCorrect = val === expectedFinalAnswer;
+        if (!isCorrect) {
+          detectedErrorType = "SALAH_HASIL_AKHIR";
+          errorMessage =
+            expectedFinalAnswer < 0
+              ? "Tulis hasil dari papan bersusun dan jangan lupa tanda minus (−) di depannya!"
+              : "Tulis hasil dari papan bersusun (baca dari kiri ke kanan) dengan teliti ya!";
+          detectedErrorDetail = `Hasil akhir ditulis ${
+            secInputs.finalAnswer || "(kosong)"
+          }, seharusnya ${expectedFinalAnswer}.`;
+          detectedIntervention =
+            "Minta siswa membaca hasil pada papan bersusun dari kolom kiri ke kanan.";
+        }
       }
     } else if (currentOp === "+") {
       if (secId === 2) {
@@ -845,6 +887,15 @@ export default function PracticeCard({
         </div>
       </div>
 
+      <div className="px-4 sm:px-6 pt-3">
+        <DigitComboSelectorRow
+          op={currentOp}
+          currentCombo={currentCombo}
+          onSelectCombo={onSelectCombo}
+          onNewProblem={onNewProblem}
+        />
+      </div>
+
       {/* 2. STEPPER PROGRESS BAR (3 SECTIONS UNTUK SATUAN, 4 SECTIONS UNTUK PULUHAN/RATUSAN) */}
       <div className="bg-slate-50/80 border-b border-slate-200/70 px-4 sm:px-6 py-2.5">
         <div className={`grid ${totalSections === 2 ? "grid-cols-2" : totalSections === 3 ? "grid-cols-3" : "grid-cols-4"} gap-2`}>
@@ -1143,9 +1194,57 @@ export default function PracticeCard({
         )}
 
         {/* ================================================================= */}
-        {/* SECTION HITUNG BAGIAN PER NILAI TEMPAT & BALOK 3D (Tahap 1 jika satuan, Tahap 2 jika multi-digit) */}
+        {/* HITUNG BERSUSUN MATEMATIKA BERSIH (Tahap 2 untuk + dan - multi-digit) */}
         {/* ================================================================= */}
-        {((isSingleDigit && currentSection === 1) || (!isSingleDigit && currentSection === 2)) && (
+        {isMultiDigitAddSub && currentSection === 2 && (
+          <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">
+                2
+              </span>
+              <h4 className="font-black text-slate-800 font-fredoka text-sm sm:text-base">
+                {sectionMeta[1]?.title}
+              </h4>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-slate-600">
+              {currentOp === "+"
+                ? `Hitung ${num1} + ${num2} secara bersusun ke bawah. Mulai dari kolom Satuan, lalu Puluhan${isMultiDigit ? ", lalu Ratusan" : ""}.`
+                : `Hitung ${num1} − ${num2} secara bersusun ke bawah. Mulai dari kolom Satuan, lalu Puluhan${isMultiDigit ? ", lalu Ratusan" : ""}.`}
+            </p>
+            <MathBoardGrid
+              plan={plan}
+              num1={num1}
+              num2={num2}
+              inputs={secInputs}
+              onInput={(k, v) => {
+                handleFieldInput(k, v);
+              }}
+              onEnter={() => handleValidateSection(2)}
+            />
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setCurrentSection(1)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                ← Kembali ke Tahap 1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleValidateSection(2)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center gap-2 transition cursor-pointer shadow-sm"
+              >
+                <span>Periksa & Lanjut ke Hasil Akhir</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* SECTION HITUNG BAGIAN PER NILAI TEMPAT & BALOK 3D (Tahap 1 jika satuan, Tahap 2 jika multi-digit perkalian/pembagian) */}
+        {/* ================================================================= */}
+        {!isMultiDigitAddSub && ((isSingleDigit && currentSection === 1) || (!isSingleDigit && currentSection === 2)) && (
           <div className="flex flex-col gap-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">

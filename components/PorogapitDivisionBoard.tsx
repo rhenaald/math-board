@@ -21,6 +21,7 @@ import {
 } from "@/lib/porogapitEngine";
 import { SectionDiagnostic } from "@/lib/errorDiagnostics";
 import { GirlMascotVector, BoyMascotVector } from "./ChildMascots";
+import DigitComboSelectorRow from "./DigitComboSelectorRow";
 import confetti from "canvas-confetti";
 
 interface PorogapitDivisionBoardProps {
@@ -67,16 +68,16 @@ const buildSectionMeta = (sol: PorogapitSolution): PorogapitSectionMeta[] => {
     let subtitle = "";
     if (idx === 0) {
       if (sol.num1 < sol.num2) {
-        title = "Pengurangan Desimal (Pinjam 0)";
-        subtitle = `Karena ${sol.num1} < ${sol.num2}, tulis "0," di atas & kurangkan ${stg.startVal} dengan ${sol.num2}`;
+        title = "Pengurangan Berulang (Desimal)";
+        subtitle = `Kurangi berulang kali dengan ${sol.num2}`;
       } else {
         title = sol.stages.length === 1 ? "Pengurangan Berulang" : "Pengurangan Bagian 1";
-        subtitle = `Kelompok ${stg.startVal} dikurangi ${sol.num2} berulang kali`;
+        subtitle = `Kurangi berulang kali dengan ${sol.num2}`;
       }
     } else if (stg.isDecimalStep) {
-      title = `Operasi Sisa (Masuk Desimal)`;
+      title = "Sisa Ditambah 0 (Desimal)";
       const prevRem = sol.stages[idx - 1]?.remainder ?? 0;
-      subtitle = `Sisa ${prevRem} diberi koma & pinjam 0 → ${stg.startVal} ÷ ${sol.num2}`;
+      subtitle = `Sisa ${prevRem} ditambah 0 → ${stg.startVal} dikurangi ${sol.num2}`;
     } else {
       const prevBrought = sol.stages[idx - 1]?.broughtDownDigit ?? "";
       title = `Turunkan Angka (Bagian ${idx + 1})`;
@@ -97,8 +98,8 @@ const buildSectionMeta = (sol: PorogapitSolution): PorogapitSectionMeta[] => {
     id: finalId,
     type: "final",
     stageIdx: -1,
-    title: "Susun Hasil Akhir",
-    subtitle: "Rangkum digit dari hasil pengurangan sebelumnya",
+    title: "Tulis Hasil Pembagian",
+    subtitle: "Baca angka di atas kurung porogapit",
   });
 
   return list;
@@ -250,9 +251,7 @@ export default function PorogapitDivisionBoard({
       const expChunk = solution.initialChunk;
       const divisorOk = inDivisor === num2;
       const dividendOk = inDividend === num1;
-      const chunkOk =
-        inChunk === expChunk ||
-        (num1 < num2 && (inChunk === num1 || inChunk === num1 * 10));
+      const chunkOk = inChunk === expChunk;
 
       isCorrect = divisorOk && dividendOk && chunkOk;
 
@@ -264,8 +263,10 @@ export default function PorogapitDivisionBoard({
         } else {
           errorMessage =
             num1 < num2
-              ? `Karena ${num1} lebih kecil dari ${num2} dan tidak bisa dikurangi, maka tambahkan bilangan 0 pada ${num1} menjadi ${expChunk} (dan tulis "0," di atas).`
-              : `Kelompok digit awal yang diambil adalah ${expChunk} (karena harus ≥ ${num2}).`;
+              ? solution.zerosAdded > 1
+                ? `Tambahkan angka 0 di belakang ${num1} satu per satu sampai bilangannya tidak lebih kecil dari ${num2}. Ingat, menambah satu 0 saja belum cukup!`
+                : `Tambahkan satu angka 0 di belakang ${num1}. Bilangan ${num1} dengan tambahan 0 di belakangnya menjadi berapa?`
+              : `Ambil angka dari depan (kiri) satu per satu sampai bilangannya tidak lebih kecil dari ${num2}.`;
         }
         detectedErrorDetail = `Kekeliruan setup papan porogapit untuk ${num1} ÷ ${num2}.`;
         detectedIntervention =
@@ -404,54 +405,13 @@ export default function PorogapitDivisionBoard({
         </div>
       </div>
 
-      {/* BAR KONTROL CEPAT: PILIH TINGKAT DIGIT & TOMBOL SOAL BARU */}
-      <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-3 flex-wrap shadow-2xs">
-        {/* PILIH TINGKAT DIGIT */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-black uppercase text-slate-500 mr-1 flex items-center gap-1">
-            <span>📏</span> Pilih Digit:
-          </span>
-          {[
-            { id: "ALL", label: "🎲 Acak Semua", hint: "Acak tingkat digit otomatis" },
-            { id: "R-P", label: "R-P (Ratusan ÷ Puluhan)", hint: "Contoh: 615 ÷ 15 = 41" },
-            { id: "P-S", label: "P-S (Puluhan ÷ Satuan)", hint: "Contoh: 72 ÷ 3 = 24" },
-            { id: "P-P", label: "P-P (Puluhan ÷ Puluhan)", hint: "Contoh: 75 ÷ 15 = 5" },
-            { id: "R-S", label: "R-S (Ratusan ÷ Satuan)", hint: "Contoh: 144 ÷ 4 = 36" },
-            { id: "S-S", label: "S-S (Satuan ÷ Satuan)", hint: "Contoh: 8 ÷ 2 = 4" },
-            { id: "S-P", label: "S-P (Satuan ÷ Puluhan)", hint: "Contoh: 6 ÷ 20 = 0,3" },
-            { id: "S-R", label: "S-R (Satuan ÷ Ratusan)", hint: "Contoh: 5 ÷ 200 = 0,025" },
-            { id: "P-R", label: "P-R (Puluhan ÷ Ratusan)", hint: "Contoh: 30 ÷ 120 = 0,25" },
-            { id: "R-R", label: "R-R (Ratusan ÷ Ratusan)", hint: "Contoh: 450 ÷ 225 = 2" },
-          ].map((item) => {
-            const isSelected = (currentCombo || "ALL") === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelectCombo && onSelectCombo(item.id)}
-                title={item.hint}
-                className={`px-2.5 py-1.5 rounded-xl font-black text-xs font-fredoka transition cursor-pointer ${
-                  isSelected
-                    ? "bg-purple-600 text-white shadow-xs"
-                    : "bg-white text-slate-700 border border-slate-200 hover:bg-purple-50 hover:text-purple-800"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={onNewProblem}
-          className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black text-xs font-fredoka transition flex items-center gap-1.5 cursor-pointer shadow-xs ml-auto"
-          title="Dapatkan soal pembagian baru"
-        >
-          <RotateCcw size={13} />
-          <span>Acak Soal Baru</span>
-        </button>
-      </div>
+      <DigitComboSelectorRow
+        op="÷"
+        currentCombo={currentCombo}
+        onSelectCombo={onSelectCombo}
+        onNewProblem={onNewProblem}
+        accent="purple"
+      />
 
       {/* BANNER SOAL UTAMA */}
       <div className="flex flex-col sm:flex-row items-center justify-between bg-indigo-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm gap-3">
@@ -577,16 +537,16 @@ export default function PorogapitDivisionBoard({
               <div className="flex flex-col">
                 {/* Garis horizontal atas porogapit */}
                 <div className="border-b-4 border-slate-800 pb-2 flex items-center justify-center px-4 min-h-[44px]">
-                  {num1 < num2 ? (
-                    <div className="flex items-center gap-1.5 bg-amber-100/90 border border-amber-300 px-3 py-1 rounded-xl shadow-2xs">
-                      <span className="text-xs font-bold text-amber-900">Hasil di Atas Dimulai:</span>
+                  {num1 < num2 && parseInt(secInputs["s1_chunk"] || "-1", 10) === solution.initialChunk ? (
+                    <div className="flex items-center gap-1.5 bg-amber-100/90 border border-amber-300 px-3 py-1 rounded-xl shadow-2xs animate-in zoom-in-95 duration-300">
+                      <span className="text-xs font-bold text-amber-900">Hasil di atas:</span>
                       <span className="text-base font-black text-amber-950 font-fredoka bg-white px-2.5 py-0.5 rounded-lg border border-amber-300">
-                        0,
+                        {solution.decimalPrefix}
                       </span>
                     </div>
                   ) : (
                     <span className="text-xs font-bold text-slate-400 italic">
-                      (Kotak Hasil di Atas)
+                      (Tempat hasil bagi)
                     </span>
                   )}
                 </div>
@@ -612,27 +572,62 @@ export default function PorogapitDivisionBoard({
             </div>
 
             {/* Pertanyaan Pemahaman Kelompok Awal */}
-            <div className="w-full max-w-md bg-purple-50/80 border border-purple-200 rounded-2xl p-4 flex flex-col gap-2.5">
-              <span className="text-xs sm:text-sm font-black text-purple-900 font-fredoka leading-relaxed">
-                {num1 < num2
-                  ? `Karena ${num1} lebih kecil dari ${num2} dan tidak bisa dikurangi, maka tambahkan bilangan 0 pada ${num1}:`
-                  : `Berapa kelompok angka paling depan yang diambil agar bisa dikurangi ${num2}?`}
-              </span>
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={secInputs["s1_chunk"] || ""}
-                  onChange={(e) => handleInputChange("s1_chunk", e.target.value)}
-                  placeholder="?"
-                  className="w-28 h-12 text-center font-black text-lg font-fredoka bg-white border-2 border-purple-300 rounded-xl focus:border-purple-600 outline-none shadow-2xs"
-                />
-                <span className="text-xs text-purple-950 font-bold">
-                  {num1 < num2
-                    ? `(Menjadi ${num1 * 10}, tulis "0," pada hasil di atas)`
-                    : `(Ambil digit depan sampai ≥ ${num2})`}
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const isChunkCorrect = parseInt(secInputs["s1_chunk"] || "-1", 10) === solution.initialChunk;
+              const zerosAdded = solution.zerosAdded;
+              return (
+                <div className="w-full max-w-md bg-purple-50/80 border border-purple-200 rounded-2xl p-4 flex flex-col gap-2.5">
+                  {num1 < num2 ? (
+                    <div className="flex flex-col gap-1.5 text-xs sm:text-sm text-purple-950 leading-relaxed">
+                      <span className="font-black font-fredoka">
+                        {num1} lebih kecil dari {num2}, jadi {num1} belum bisa dikurangi {num2}.
+                      </span>
+                      <span className="font-semibold">
+                        {zerosAdded > 1
+                          ? `Tambahkan angka 0 di belakang ${num1}. Jika masih lebih kecil dari ${num2}, tambahkan 0 lagi. Ulangi sampai bilangannya bisa dikurangi ${num2}.`
+                          : `Tambahkan satu angka 0 di belakang ${num1} supaya bisa dikurangi ${num2}.`}
+                      </span>
+                      <span className="font-black text-purple-900">
+                        Bilangannya sekarang menjadi:
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs sm:text-sm font-black text-purple-900 font-fredoka leading-relaxed">
+                      Ambil angka dari depan (kiri) sampai bilangannya bisa dikurangi {num2}. Bilangan yang diambil:
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={secInputs["s1_chunk"] || ""}
+                      onChange={(e) => handleInputChange("s1_chunk", e.target.value)}
+                      placeholder="?"
+                      className={`w-28 h-12 text-center font-black text-lg font-fredoka bg-white border-2 rounded-xl outline-none shadow-2xs ${
+                        isChunkCorrect
+                          ? "border-emerald-500 text-emerald-800"
+                          : "border-purple-300 focus:border-purple-600"
+                      }`}
+                    />
+                    {isChunkCorrect && (
+                      <Check size={22} className="text-emerald-600 stroke-[3]" />
+                    )}
+                  </div>
+                  {num1 < num2 && isChunkCorrect && (
+                    <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs sm:text-sm text-amber-950 font-semibold leading-relaxed animate-in fade-in slide-in-from-top-1 duration-300">
+                      {zerosAdded > 1 ? (
+                        <>
+                          Kita menambahkan <strong>{zerosAdded} angka 0</strong> ({num1} → {Array.from({ length: zerosAdded }, (_, i) => num1 * Math.pow(10, i + 1)).join(" → ")}). Karena itu, di atas kurung ditulis <strong className="font-fredoka text-base">{solution.decimalPrefix}</strong> — angka 0 pertama ditulis <strong>0,</strong> (nol koma), dan setiap tambahan 0 berikutnya ditulis sebagai angka 0 di belakang koma.
+                        </>
+                      ) : (
+                        <>
+                          Kita menambahkan <strong>1 angka 0</strong> ({num1} → {solution.initialChunk}). Di atas kurung ditulis <strong className="font-fredoka text-base">0,</strong> (nol koma).
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <button
               type="button"
@@ -661,10 +656,12 @@ export default function PorogapitDivisionBoard({
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 font-medium">
                   {currentStage.isDecimalStep
-                    ? `Karena semua digit asli telah habis dan masih ada sisa ${prevStage?.remainder ?? 0}, pasang tanda koma (,) di atas dan pinjam 0 sehingga menjadi ${currentStage.startVal}!`
-                    : !isFirstStage
-                    ? `Sisa sebelumnya adalah ${prevStage?.remainder ?? 0}. Turunkan angka ${prevStage?.broughtDownDigit} dari bilangan asli sehingga menjadi ${currentStage.startVal}!`
-                    : `Kurangkan angka ${currentStage.startVal} dengan pembagi ${num2} terus-menerus sampai tidak bisa dikurangi lagi!`}
+                    ? isFirstStage
+                      ? `Kurangi ${currentStage.startVal} dengan ${num2} berulang kali sampai sisanya lebih kecil dari ${num2}. Lalu hitung berapa kali kamu mengurangi.`
+                      : `Angka soal sudah habis tetapi masih ada sisa ${prevStage?.remainder ?? 0}. Tambahkan 0 di belakang sisa sehingga menjadi ${currentStage.startVal}${prevStage && !prevStage.isDecimalStep ? ", dan tulis tanda koma (,) di atas kurung" : ""}.`
+                    : isFirstStage
+                    ? `Kurangi ${currentStage.startVal} dengan ${num2} berulang kali sampai sisanya lebih kecil dari ${num2}. Lalu hitung berapa kali kamu mengurangi.`
+                    : `Sisa sebelumnya adalah ${prevStage?.remainder ?? 0}. Turunkan angka ${prevStage?.broughtDownDigit} dari bilangan asli sehingga menjadi ${currentStage.startVal}!`}
                 </p>
               </div>
 
@@ -672,18 +669,18 @@ export default function PorogapitDivisionBoard({
               {num1 < num2 && isFirstStage && (
                 <div className="w-full max-w-md p-3.5 bg-amber-50/90 border-2 border-amber-300 rounded-2xl flex items-center justify-between gap-2.5 text-amber-950">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="text-amber-600 shrink-0" size={20} />
+                    <AlertCircle className="text-amber-600 shrink-0" size={20} />
                     <div className="flex flex-col">
                       <span className="text-xs font-black font-fredoka">
-                        Awalan Desimal: Hasil Diawali &quot;0,&quot;
+                        Di atas kurung sudah tertulis &quot;{solution.decimalPrefix}&quot;
                       </span>
                       <span className="text-[11px] text-amber-800 font-medium">
-                        Karena {num1} lebih kecil dari {num2} dan tidak bisa dikurangi, di atas kurung sudah ditulis <strong>0,</strong>. Angka hasil pengurangan berikut akan ditulis setelah tanda koma!
+                        Itu karena kita menambahkan {solution.zerosAdded} angka 0 pada {num1} sehingga menjadi {solution.initialChunk}. Banyaknya pengurangan di bawah ini ditulis tepat setelah &quot;{solution.decimalPrefix}&quot;.
                       </span>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-amber-500 text-white font-black text-sm rounded-xl font-fredoka shrink-0">
-                    0,
+                    {solution.decimalPrefix}
                   </span>
                 </div>
               )}
@@ -699,20 +696,20 @@ export default function PorogapitDivisionBoard({
                 >
                   <div className="flex items-center gap-2.5">
                     {currentStage.isDecimalStep ? (
-                      <Sparkles className="text-amber-600 animate-pulse shrink-0" size={20} />
+                      <AlertCircle className="text-amber-600 animate-pulse shrink-0" size={20} />
                     ) : (
                       <ArrowDown className="text-purple-600 animate-bounce shrink-0" size={20} />
                     )}
                     <div className="flex flex-col">
                       <span className="text-xs font-black font-fredoka">
                         {currentStage.isDecimalStep
-                          ? "Operasi Sisa Pembagian (Masuk Desimal):"
+                          ? "Masih Ada Sisa (Masuk Desimal):"
                           : "Turunkan Digit Berikutnya:"}
                       </span>
                       <span className="text-[11px] text-slate-600 font-medium">
                         {currentStage.isDecimalStep
-                          ? `Sisa ${prevStage?.remainder ?? 0} pinjam 0 → menjadi ${currentStage.startVal} (pasang tanda koma)`
-                          : `Sisa ${prevStage?.remainder ?? 0} + turun ${prevStage?.broughtDownDigit} → menjadi ${currentStage.startVal}`}
+                          ? `Sisa ${prevStage?.remainder ?? 0} ditambah angka 0 di belakangnya → menjadi ${currentStage.startVal}${prevStage && !prevStage.isDecimalStep ? " (tulis tanda koma di atas)" : ""}`
+                          : `Sisa ${prevStage?.remainder ?? 0}, lalu turunkan angka ${prevStage?.broughtDownDigit} di sebelahnya → menjadi ${currentStage.startVal}`}
                       </span>
                     </div>
                   </div>
@@ -838,185 +835,107 @@ export default function PorogapitDivisionBoard({
           <div className="flex flex-col gap-5 items-center">
             <div className="text-center max-w-lg">
               <h3 className="text-base sm:text-lg font-black text-slate-900 font-fredoka mb-1">
-                Tahap {currentMeta.id}: Susun Hasil Akhir dari Langkah Sebelumnya
+                Tahap {currentMeta.id}: Tulis Hasil Pembagian
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                Amati kembali digit-digit hasil pengurangan yang telah kamu peroleh di setiap tahap, lalu tuliskan hasil akhirnya!
+                Hasil bagi adalah angka-angka yang kamu tulis{" "}
+                <strong>di atas kurung porogapit</strong>. Baca angka-angka itu
+                dari kiri ke kanan, lalu tulis di kotak jawaban.
               </p>
             </div>
 
-            {/* KARTU REKAP HASIL SEBELUMNYA (Melihat Kembali Digit yang Diperoleh) */}
-            <div className="w-full max-w-lg bg-white border border-purple-200 rounded-2xl p-5 shadow-xs flex flex-col gap-3.5 select-none">
-              <div className="flex items-center justify-between border-b border-purple-200/70 pb-2.5">
-                <span className="text-xs font-black text-purple-900 font-fredoka flex items-center gap-1.5">
-                  <span>📋</span> Rekap Digit dari Seluruh Tahap:
-                </span>
-                <span className="text-[10px] font-bold text-purple-700 bg-white px-2 py-0.5 rounded-md border border-purple-200 shadow-2xs">
-                  Atas Kurung Porogapit
-                </span>
-              </div>
+            {(() => {
+              const getCount = (idx: number) =>
+                String(
+                  secInputs[`s${idx + 2}_count`] ||
+                    solution.stages[idx].subtractionsCount
+                );
+              const segments: {
+                text: string;
+                kind: "prefix" | "comma" | "digit";
+              }[] = [];
+              if (num1 < num2) {
+                segments.push({ text: solution.decimalPrefix, kind: "prefix" });
+                solution.stages.forEach((_, idx) => {
+                  segments.push({ text: getCount(idx), kind: "digit" });
+                });
+              } else {
+                let commaAdded = false;
+                solution.stages.forEach((stg, idx) => {
+                  if (stg.isDecimalStep && !commaAdded) {
+                    segments.push({ text: ",", kind: "comma" });
+                    commaAdded = true;
+                  }
+                  segments.push({ text: getCount(idx), kind: "digit" });
+                });
+              }
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* KARTU AWALAN 0, KETIKA NUM1 < NUM2 AGAR SISWA JELAS DARI MANA 0, DI HASIL AKHIR */}
-                {num1 < num2 && (
-                  <div className="bg-amber-50/95 p-3 rounded-2xl border-2 border-amber-300 flex flex-col gap-1.5 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider flex items-center gap-1">
-                        <span>⭐</span> Awalan Desimal
-                      </span>
-                      <span className="text-[10px] font-bold text-amber-700 bg-white px-2 py-0.5 rounded-md border border-amber-200">
-                        {num1} &lt; {num2}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-slate-700">
-                        Tulis di atas porogapit:
-                      </span>
-                      <span className="text-base font-black text-amber-950 bg-amber-200/90 px-3 py-0.5 rounded-lg font-fredoka">
-                        0,
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-amber-800 font-medium">
-                      Karena {num1} lebih kecil dari {num2}, hasil diawali <strong>0,</strong>
-                    </span>
-                  </div>
-                )}
-
-                {solution.stages.map((stg, sIdx) => {
-                  const secNum = sIdx + 2;
-                  const studentCount = secInputs[`s${secNum}_count`] || stg.subtractionsCount;
-                  const prevStg = sIdx > 0 ? solution.stages[sIdx - 1] : null;
-
-                  return (
-                    <div
-                      key={sIdx}
-                      className="bg-white p-3 rounded-2xl border border-purple-100 flex flex-col gap-1.5 shadow-2xs"
-                    >
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Tahap {secNum} ({stg.isDecimalStep ? "Digit Desimal" : `Digit Ke-${sIdx + 1}`})
-                      </span>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-700">
-                          {stg.isDecimalStep
-                            ? `Pinjam 0 → ${stg.startVal}`
-                            : sIdx === 0
-                            ? `${stg.startVal} ÷ ${num2}`
-                            : `Turun ${prevStg?.broughtDownDigit} → ${stg.startVal}`}
-                        </span>
-                        <span className="text-base font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-lg font-fredoka">
-                          {studentCount}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500">
-                        Dikurangi {studentCount}× (Sisa: {stg.remainder})
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Petunjuk Penyusunan Hasil Berupa Formula Visual Jelas */}
-              <div className="bg-white/95 p-3.5 rounded-2xl border border-purple-200 text-center text-xs text-purple-950 font-semibold shadow-2xs">
-                {num1 < num2 ? (
+              return (
+                <div className="w-full max-w-lg bg-white border border-purple-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col gap-4 select-none">
                   <div className="flex flex-col gap-2">
-                    <span className="font-fredoka text-xs text-purple-900 font-black">
-                      Urutan Menyusun Hasil Akhir:
+                    <span className="text-xs font-black text-purple-900 font-fredoka">
+                      📋 Yang sudah kamu kerjakan:
                     </span>
-                    <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
-                      <span className="px-2.5 py-1 bg-amber-100 text-amber-950 font-black rounded-xl border border-amber-300 font-fredoka flex items-center gap-1">
-                        <span>Awalan:</span>
-                        <strong className="text-sm">0,</strong>
-                      </span>
-                      <span className="text-slate-400 font-bold">+</span>
-                      {solution.stages.map((stg, sIdx) => {
-                        const countVal = secInputs[`s${sIdx + 2}_count`] || stg.subtractionsCount;
+                    <ol className="flex flex-col gap-1.5">
+                      {num1 < num2 && (
+                        <li className="text-xs sm:text-sm text-slate-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                          <strong>Tahap 1:</strong> {num1} lebih kecil dari {num2}, jadi ditambah {solution.zerosAdded} angka 0 menjadi {solution.initialChunk}. Di atas kurung ditulis{" "}
+                          <strong className="font-fredoka text-amber-800">
+                            {solution.decimalPrefix}
+                          </strong>
+                        </li>
+                      )}
+                      {solution.stages.map((stg, idx) => {
+                        const count = getCount(idx);
+                        const isFirstDecimal =
+                          stg.isDecimalStep &&
+                          num1 >= num2 &&
+                          !solution.stages[idx - 1]?.isDecimalStep;
                         return (
-                          <React.Fragment key={sIdx}>
-                            <span className="px-2.5 py-1 bg-purple-100 text-purple-950 font-black rounded-xl border border-purple-300 font-fredoka flex items-center gap-1">
-                              <span>Tahap {sIdx + 2}:</span>
-                              <strong className="text-sm">{countVal}</strong>
-                            </span>
-                            {sIdx < solution.stages.length - 1 && <span className="text-slate-400 font-bold">+</span>}
-                          </React.Fragment>
+                          <li
+                            key={idx}
+                            className="text-xs sm:text-sm text-slate-700 bg-purple-50/70 border border-purple-100 rounded-xl px-3 py-2"
+                          >
+                            <strong>Tahap {idx + 2}:</strong> {stg.startVal} dikurangi {num2} sebanyak{" "}
+                            <strong className="text-purple-700">{count} kali</strong> (sisa {stg.remainder}). Di atas kurung ditulis{" "}
+                            <strong className="font-fredoka text-purple-700">
+                              {count}
+                            </strong>
+                            {isFirstDecimal ? " setelah tanda koma" : ""}.
+                          </li>
                         );
                       })}
-                      <span className="text-purple-600 font-black text-base">→</span>
-                      <span className="px-3 py-1 bg-purple-100 text-purple-900 font-black rounded-xl border-2 border-dashed border-purple-400 font-fredoka text-sm">
-                        ?
-                      </span>
+                    </ol>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-2 pt-3 border-t border-purple-100">
+                    <span className="text-xs font-black text-purple-900 font-fredoka">
+                      Angka di atas kurung porogapit:
+                    </span>
+                    <div className="flex items-end gap-1.5 border-b-4 border-slate-800 pb-1.5 px-3">
+                      {segments.map((seg, idx) => (
+                        <span
+                          key={idx}
+                          className={`font-black font-fredoka text-xl sm:text-2xl ${
+                            seg.kind === "comma"
+                              ? "text-amber-600 px-0.5"
+                              : seg.kind === "prefix"
+                              ? "px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300"
+                              : "px-2 py-0.5 rounded-lg bg-purple-100 text-purple-900 border border-purple-300"
+                          }`}
+                        >
+                          {seg.text}
+                        </span>
+                      ))}
                     </div>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      Gabungkan awalan <strong>0,</strong> dengan angka-angka hasil penguranganmu di kotak bawah!
+                    <span className="text-[11px] text-slate-500 font-medium text-center">
+                      Gabungkan angka-angka di atas menjadi satu bilangan
+                      {solution.isDecimal ? " (jangan lupa tanda komanya)" : ""}.
                     </span>
                   </div>
-                ) : solution.isDecimal ? (
-                  <div className="flex flex-col gap-2">
-                    <span className="font-fredoka text-xs text-purple-900 font-black">
-                      Urutan Menyusun Hasil Akhir (Gunakan Koma):
-                    </span>
-                    <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
-                      <span className="px-2.5 py-1 bg-indigo-100 text-indigo-950 font-black rounded-xl border border-indigo-300 font-fredoka flex items-center gap-1">
-                        <span>Bagian Bulat:</span>
-                        <strong className="text-sm">
-                          {solution.stages.filter(s => !s.isDecimalStep).map((s) => {
-                            const realSec = solution.stages.indexOf(s) + 2;
-                            return secInputs[`s${realSec}_count`] || s.subtractionsCount;
-                          }).join("")}
-                        </strong>
-                      </span>
-                      <span className="text-slate-400 font-bold">+</span>
-                      <span className="px-2.5 py-1 bg-amber-100 text-amber-950 font-black rounded-xl border border-amber-300 font-fredoka">
-                        , (Koma)
-                      </span>
-                      <span className="text-slate-400 font-bold">+</span>
-                      <span className="px-2.5 py-1 bg-purple-100 text-purple-950 font-black rounded-xl border border-purple-300 font-fredoka flex items-center gap-1">
-                        <span>Desimal:</span>
-                        <strong className="text-sm">
-                          {solution.stages.filter(s => s.isDecimalStep).map((s) => {
-                            const realSec = solution.stages.indexOf(s) + 2;
-                            return secInputs[`s${realSec}_count`] || s.subtractionsCount;
-                          }).join("")}
-                        </strong>
-                      </span>
-                      <span className="text-purple-600 font-black text-base">→</span>
-                      <span className="px-3 py-1 bg-purple-100 text-purple-900 font-black rounded-xl border-2 border-dashed border-purple-400 font-fredoka text-sm">
-                        ?
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      Tuliskan angka bagian bulat, beri tanda koma (,), lalu tuliskan angka desimalnya di kotak bawah!
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <span className="font-fredoka text-xs text-purple-900 font-black">
-                      Urutan Menyusun Hasil Akhir:
-                    </span>
-                    <div className="flex items-center justify-center gap-2 flex-wrap text-xs">
-                      {solution.stages.map((stg, sIdx) => {
-                        const countVal = secInputs[`s${sIdx + 2}_count`] || stg.subtractionsCount;
-                        return (
-                          <React.Fragment key={sIdx}>
-                            <span className="px-2.5 py-1 bg-purple-100 text-purple-950 font-black rounded-xl border border-purple-300 font-fredoka flex items-center gap-1">
-                              <span>Tahap {sIdx + 2}:</span>
-                              <strong className="text-sm">{countVal}</strong>
-                            </span>
-                            {sIdx < solution.stages.length - 1 && <span className="text-slate-400 font-bold">+</span>}
-                          </React.Fragment>
-                        );
-                      })}
-                      <span className="text-purple-600 font-black text-base">→</span>
-                      <span className="px-3 py-1 bg-purple-100 text-purple-900 font-black rounded-xl border-2 border-dashed border-purple-400 font-fredoka text-sm">
-                        ?
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      Rangkai digit-digit di atas kurung porogapit menjadi satu bilangan bulat utuh di kotak bawah!
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
 
             {/* Input Hasil Akhir Besar */}
             <div className="p-6 bg-white border-2 border-purple-200 rounded-3xl shadow-sm flex flex-col items-center gap-3 w-full max-w-md">

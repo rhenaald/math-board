@@ -26,6 +26,8 @@ export interface PorogapitSolution {
   stages: PorogapitStage[];
   initialChunk: number;
   initialChunkDigitCount: number;
+  decimalPrefix: string;
+  zerosAdded: number;
 }
 
 /**
@@ -125,6 +127,8 @@ export function solvePorogapit(num1: number, num2: number): PorogapitSolution {
       stages,
       initialChunk: currentVal,
       initialChunkDigitCount: sNum1.length,
+      decimalPrefix,
+      zerosAdded: decimalPrefix.length - 1,
     };
   }
 
@@ -268,5 +272,7 @@ export function solvePorogapit(num1: number, num2: number): PorogapitSolution {
     stages,
     initialChunk,
     initialChunkDigitCount,
+    decimalPrefix: "",
+    zerosAdded: 0,
   };
 }

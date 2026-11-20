@@ -65,7 +65,7 @@ export default function TopNavbar({
               <span className="text-blue-600">{opLabel}</span>
               <ChevronRight size={13} className="text-slate-400" />
               <span className="text-slate-800">
-                {activeNav === "belajar" ? "Langkah Terpandu" : `Soal ${questionNumber}`}
+                {activeNav === "belajar" ? "Langkah Terpandu" : activeNav === "pilih-digit" ? "Pilih Digit" : `Soal ${questionNumber}`}
               </span>
             </>
           )}

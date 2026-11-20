@@ -71,13 +71,6 @@ export default function LeftSidebarNav({
       color: "text-purple-700 bg-purple-100",
       activeBg: "bg-purple-600 text-white shadow-xs shadow-purple-400/30",
     },
-    {
-      id: "mix" as OperationType,
-      label: "Mode Campuran",
-      icon: Shuffle,
-      color: "text-teal-700 bg-teal-100",
-      activeBg: "bg-teal-600 text-white shadow-xs shadow-teal-400/30",
-    },
   ];
 
   const digitCombinations = [
@@ -135,7 +128,7 @@ export default function LeftSidebarNav({
               : "text-slate-700 hover:bg-slate-100"
           }`}
         >
-          <Layers size={17} className={activeNav === "pilih-digit" ? "text-white" : "text-slate-500"} />
+          <Edit3 size={17} className={activeNav === "pilih-digit" ? "text-white" : "text-slate-500"} />
           <span>Pilih Digit</span>
         </button>
 
